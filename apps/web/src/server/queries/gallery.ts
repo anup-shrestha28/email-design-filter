@@ -75,9 +75,41 @@ function textArray(values: readonly string[]): SQL {
   )}]::text[]`;
 }
 
+/** Text-only: pictures cover less than this share of the email (0..1). */
+export const TEXT_ONLY_IMG_SHARE_MAX = 0.1;
+/** Text-only: no headline at least this many times the body text size. */
+export const TEXT_ONLY_HEADLINE_RATIO_MIN = 1.5;
+
 /**
- * What every gallery row must be (the inbox's "All mail" plus: designed, and never security mail).
- * Also the detail view's evidence query (queries/gallery-evidence.ts), so the two never disagree.
+ * A text-only email: HTML, but laid out like a plain letter — pictures under 10% of it, no button,
+ * no coloured hero band, and no real headline (none, or under 1.5× the body text). Measured by the
+ * render (score_summary.signals); an email not rendered yet — or scored before those facts were
+ * recorded — is never text-only, so it shows until a render says otherwise. Self-contained (it reads email_analysis by `e.id` itself), so every
+ * query that uses baseConditions keeps working whatever it joins. Owner's mail on 2026-10-03:
+ * 87 of 614 (letters from Iman Gadzhi or Alex Hormozi, job-alert notes, terms-of-service notices,
+ * application receipts, npm's 2FA notice).
+ */
+const TEXT_ONLY = sql`EXISTS (
+  SELECT 1 FROM email_analysis ta
+  CROSS JOIN LATERAL (SELECT CASE WHEN jsonb_typeof(ta.score_summary -> 'signals') = 'object'
+    THEN ta.score_summary -> 'signals' ELSE public.summary_signals(ta.checks) END AS s) ts
+  WHERE ta.email_id = e.id AND ta.user_id = e.user_id
+    AND jsonb_typeof(ts.s -> 'imgShare') = 'number'
+    AND (ts.s ->> 'imgShare')::float8 < ${TEXT_ONLY_IMG_SHARE_MAX}::float8
+    -- Measured (scoring 2026.5+ saves these keys, as JSON null when there is none): an older
+    -- summary that never looked for a button or a headline is never taken for a letter.
+    AND (ts.s -> 'ctaSalience') IS NOT NULL
+    AND (ts.s -> 'hasHeadline') IS NOT NULL
+    AND jsonb_typeof(ts.s -> 'ctaSalience') IS DISTINCT FROM 'number'
+    AND (ts.s -> 'heroBand') IS DISTINCT FROM 'true'::jsonb
+    AND ((ts.s -> 'hasHeadline') IS DISTINCT FROM 'true'::jsonb
+      OR coalesce(CASE WHEN jsonb_typeof(ts.s -> 'headlineRatio') = 'number'
+        THEN (ts.s ->> 'headlineRatio')::float8 END, 0) < ${TEXT_ONLY_HEADLINE_RATIO_MIN}::float8))`;
+
+/**
+ * What every gallery row must be (the inbox's "All mail" plus: designed — never plain-text or
+ * text-only mail — and never security mail). Also the detail view's evidence query
+ * (queries/gallery-evidence.ts), preview access and the boards' counts, so they never disagree.
  */
 export function baseConditions(userId: string): SQL[] {
   return [
@@ -85,6 +117,7 @@ export function baseConditions(userId: string): SQL[] {
     sql`NOT e.is_hidden`,
     sql`NOT e.security_sensitive`,
     sql`e.design_status NOT IN ('plain_text', 'skipped')`,
+    sql`NOT ${TEXT_ONLY}`,
   ];
 }
 

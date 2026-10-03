@@ -61,11 +61,21 @@ function visibleText(root: Element): string {
   return copy.textContent ?? "";
 }
 
+/** The card's description: sender, time, verdict and why — for screen readers only. */
+function metaOf(li: Element): HTMLElement {
+  const meta = li.querySelector<HTMLElement>('[id$="-meta"]')!;
+  expect(meta.className.split(/\s+/)).toContain("sr-only");
+  return meta;
+}
+
 describe("GalleryCard", () => {
-  it("scored: sender, verdict badge and reason on the face; the subject only in the name and tooltip", async () => {
+  it("scored: the face is the design alone; sender, verdict and reason are its description", async () => {
     const r = await render(card(item()));
     const li = root(r.container);
-    const text = visibleText(li);
+    // On screen: nothing but the design (here its no-preview stand-in) and Save.
+    const face = visibleText(li);
+    for (const hidden of ["Tidewell", "Good", "92", "Clear headline", SUBJECT]) expect(face).not.toContain(hidden);
+    const text = metaOf(li).textContent ?? "";
     expect(text).toContain("Tidewell");
     expect(text).not.toContain(SUBJECT);
     expect(li.querySelector("[data-verdict]")?.getAttribute("data-verdict")).toBe("good");
@@ -89,7 +99,8 @@ describe("GalleryCard", () => {
       ),
     );
     const li = root(r.container);
-    const text = visibleText(li);
+    expect(visibleText(li)).not.toContain("Scoring now");
+    const text = metaOf(li).textContent ?? "";
     expect(text).toContain("Tidewell");
     expect(text).toContain("Scoring now");
     expect(text).toContain("Ready in a few minutes");
@@ -98,9 +109,6 @@ describe("GalleryCard", () => {
     const badge = li.querySelector("[data-verdict]")!;
     expect(badge.getAttribute("data-verdict")).toBe("unscored");
     expect(badge.getAttribute("data-waiting")).toBe("scoring");
-    // The same room as a scored card's badge (h-6) and reason line (h-8): nothing jumps when it's scored.
-    expect(badge.parentElement!.className).toContain("h-6");
-    expect(li.querySelector("p.h-8")).not.toBeNull();
     // Screen readers hear it through the card's description.
     const button = li.querySelector("button[data-card-id]")!;
     expect(describedByText(button).join(" ")).toContain("Scoring now");
@@ -120,7 +128,7 @@ describe("GalleryCard", () => {
       const r = await render(
         card(item({ verdict: "unscored", score: null, band: null, reason: null, waiting })),
       );
-      const text = visibleText(r.container);
+      const text = metaOf(root(r.container)).textContent ?? "";
       expect(text).toContain(badge);
       expect(text).toContain(line);
       await r.unmount();
@@ -129,7 +137,7 @@ describe("GalleryCard", () => {
     const r = await render(
       card(item({ verdict: "unscored", score: null, band: null, reason: null })),
     );
-    expect(visibleText(r.container)).toContain("Not scored yet");
+    expect(metaOf(root(r.container)).textContent).toContain("Not scored yet");
   });
 
   it("each preview is its email's own shape: whole up to 3× its width, square while unknown", async () => {

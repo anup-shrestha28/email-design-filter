@@ -180,40 +180,28 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     expect(r.imageBytesMinted).toBe(claims.reduce((s, c) => s + c.mb, 0));
   });
 
-  it("a gallery card ('card' mode) proxies only the first 20 distinct images within 6 MB in all; the rest keep their alt text", async () => {
+  it("a gallery card ('card' mode) proxies the same images as the full view, with the same allowances; only its budget id differs", async () => {
+    // Cards show the whole email (Pinterest-style masonry), so they load what the opened email
+    // loads: a card's old top-of-email share (20 images, 6 MB) left big pictures as placeholders.
     const products = Array.from({ length: 25 }, (_, i) => `<img src="https://img.example.com/product-${i}.png" alt="Product ${i}">`).join("");
     const card = await tokens(`<html><body>${products}</body></html>`, "card");
-    expect(card.claims.map((c) => c.url)).toEqual(Array.from({ length: 20 }, (_, i) => `https://img.example.com/product-${i}.png`));
-    // The total stays 6 MB however many images are proxied, shared by declared size and slot
-    // (cardImageAllowances): 20 alike images, the first four the most.
-    const { cardImageAllowances } = await import("@/server/view-source");
-    expect(card.claims.reduce((s, c) => s + c.mb, 0)).toBeLessThanOrEqual(6 * 1024 * 1024);
-    expect(card.claims.map((c) => c.mb)).toEqual(cardImageAllowances(Array.from({ length: 20 }, () => ({}))));
-    expect(new Set(card.claims.slice(0, 4).map((c) => c.mb)).size).toBe(1);
-    expect(card.claims[0]!.mb).toBeGreaterThan(500 * 1024);
-    expect(card.claims[19]!.mb).toBeGreaterThan(140 * 1024);
-    // Six alike images: the first four more than the old 1 MB each.
-    const firstSix = Array.from({ length: 6 }, (_, i) => `<img src="https://img.example.com/product-${i}.png" alt="Product ${i}">`).join("");
-    const six = await tokens(`<html><body>${firstSix}</body></html>`, "card");
-    expect(six.claims.map((c) => c.mb)).toEqual(cardImageAllowances(Array.from({ length: 6 }, () => ({}))));
-    expect(six.claims[3]!.mb).toBeGreaterThan(1024 * 1024);
+    const full = await tokens(`<html><body>${products}</body></html>`, "img");
+    expect(card.claims.map((c) => c.url)).toEqual(Array.from({ length: 25 }, (_, i) => `https://img.example.com/product-${i}.png`));
+    expect(card.claims.map((c) => [c.url, c.mb])).toEqual(full.claims.map((c) => [c.url, c.mb]));
+    expect(card.claims.reduce((s, c) => s + c.mb, 0)).toBeLessThanOrEqual(15 * 1024 * 1024);
     // Card images carry their own budget id (edf-view counts their served bytes apart, as a
     // diagnostic). The allowance is only an upper bound for edf-view: nothing here meters it; the
     // route meters the HTML, and edf-view's reports the bytes really served (FREE-TIER §8.1).
     for (const c of card.claims) expect(c.b.endsWith("_c")).toBe(true);
+    for (const c of full.claims) expect(c.b.endsWith("_c")).toBe(false);
     expect(card.r.ok && card.r.imageBytesMinted).toBe(card.claims.reduce((s, c) => s + c.mb, 0));
     expect(card.r.ok && card.r.imageBytesMinted).toBeGreaterThan(0);
     expect(card.r).not.toHaveProperty("imageBytesMetered");
-    expect(card.r.ok && card.r.html).toContain('alt="Product 24"');
-    // A card with one image gives it the full view's per-image 5 MB (a one-picture mailer's hero).
+    expect(full.r).not.toHaveProperty("imageBytesMetered");
+    // A card with one image gives it the per-image 5 MB (a one-picture mailer's hero).
     const one = await tokens(`<html><body><img src="https://img.example.com/hero.png" alt="Hero"></body></html>`, "card");
     expect(one.claims.map((c) => c.mb)).toEqual([5 * 1024 * 1024]);
     expect(one.r.ok && one.r.imageBytesMinted).toBe(5 * 1024 * 1024);
-    // The opened design ("img") still gets every image; its allowance isn't metered either.
-    const full = await tokens(`<html><body>${products}</body></html>`, "img");
-    expect(full.claims).toHaveLength(25);
-    for (const c of full.claims) expect(c.b.endsWith("_c")).toBe(false);
-    expect(full.r).not.toHaveProperty("imageBytesMetered");
   });
 
   it("a full view gives up to three images the whole 5 MB (a one-picture mailer's 3–5 MB hero shows) and splits 15 MB past that", async () => {
@@ -235,41 +223,42 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     expect(card.claims.map((c) => c.mb)).toEqual([5 * MB]);
   });
 
-  it("a card shares its 6 MB by declared size: the hero gets most of it, the small images their floor and share; the opened email never less", async () => {
+  it("a card shares the email's 15 MB by declared size, exactly as the opened email does: big pictures get several MB wherever they are", async () => {
     const MB = 1024 * 1024;
-    const { cardImageAllowances } = await import("@/server/view-source");
+    const { fullViewImageAllowances } = await import("@/server/view-source");
     const logo = `<img src="https://img.example.com/logo.png" width="150" height="40" alt="Brand">`;
     const hero = `<img src="https://img.example.com/hero.gif" width="600" style="width:600px;height:auto" alt="Sale">`;
+    const hero2 = `<img src="https://img.example.com/hero-2.gif" width="600" height="600" alt="More">`;
     const icons = Array.from({ length: 12 }, (_, i) => `<img src="https://img.example.com/icon-${i}.png" width="32" height="32" alt="">`).join("");
     const bg = `<table><tr><td style="background-image:url(https://img.example.com/bg.jpg)" width="600" height="200">Hi</td></tr></table>`;
-    const { r, claims } = await tokens(`<html><body>${logo}${bg}${hero}${icons}</body></html>`, "card");
-    expect(claims.map((c) => c.url.split("/").pop())).toEqual(["logo.png", "bg.jpg", "hero.gif", ...Array.from({ length: 12 }, (_, i) => `icon-${i}.png`)]);
+    const html = `<html><body>${logo}${bg}${hero}${icons}${hero2}</body></html>`;
+    const { r, claims } = await tokens(html, "card");
+    expect(claims.map((c) => c.url.split("/").pop())).toEqual(["logo.png", "bg.jpg", "hero.gif", ...Array.from({ length: 12 }, (_, i) => `icon-${i}.png`), "hero-2.gif"]);
     expect(claims.map((c) => c.mb)).toEqual(
-      cardImageAllowances([
+      fullViewImageAllowances([
         { width: "150", height: "40", style: null },
         { width: "600", height: "200", style: "background-image:url(https://img.example.com/bg.jpg)" },
         { width: "600", height: null, style: "width:600px;height:auto" },
         ...Array.from({ length: 12 }, () => ({ width: "32", height: "32", style: null })),
+        { width: "600", height: "600", style: null },
       ]),
     );
     const byName = new Map(claims.map((c) => [c.url.split("/").pop(), c.mb]));
+    // Both big pictures — the second one far down the email — get several MB (a card used to give
+    // a picture that far down ≈ 0.3 MB: "Picture unavailable" for any real hero).
     expect(byName.get("hero.gif")).toBeGreaterThan(3 * MB);
-    expect(byName.get("bg.jpg")).toBeGreaterThan(1 * MB);
+    expect(byName.get("hero-2.gif")).toBeGreaterThan(3 * MB);
     for (let i = 0; i < 12; i++) expect(byName.get(`icon-${i}.png`)).toBeGreaterThanOrEqual(100 * 1024);
     const total = claims.reduce((s, c) => s + c.mb, 0);
-    expect(total).toBeLessThanOrEqual(6 * MB);
+    expect(total).toBeLessThanOrEqual(15 * MB);
     expect(r.imageBytesMinted).toBe(total);
-    // The opened email gives every image at least what its card gives (the hero showed in the card
-    // and "Picture unavailable" in the detail view when the full view split 15 MB evenly).
-    const full = await tokens(`<html><body>${logo}${bg}${hero}${icons}</body></html>`, "img");
-    expect(full.claims.map((c) => c.url)).toEqual(claims.map((c) => c.url));
-    for (const [i, c] of claims.entries()) expect(full.claims[i]!.mb, c.url).toBeGreaterThanOrEqual(c.mb);
-    expect(full.r.imageBytesMinted).toBeLessThanOrEqual(15 * MB);
+    const full = await tokens(html, "img");
+    expect(full.claims.map((c) => [c.url, c.mb])).toEqual(claims.map((c) => [c.url, c.mb]));
   });
 
-  it("a full view's shares count only the images it proxies (not trackers, pixels or expired links), so its hero gets what its card gives", async () => {
+  it("a full view's shares count only the images it proxies (not trackers, pixels or expired links), so its hero gets the full 5 MB, in its card too", async () => {
     const MB = 1024 * 1024;
-    const { cardImageAllowances, fullViewImageAllowances } = await import("@/server/view-source");
+    const { fullViewImageAllowances } = await import("@/server/view-source");
     const now = Math.floor(Date.now() / 1000);
     const li = (i: number) => `https://media.licdn.com/dms/image/v2/D56${i}/p/0/1?e=${now - 86_400}&v=beta&t=9w4DX0pH0Pqra2nqbEU6IXXhbzgkznNaIZEoT-QTclQ`;
     const skipped =
@@ -282,9 +271,8 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     const card = await tokens(html, "card");
     const full = await tokens(html, "img");
     const hints = [{ width: "150", height: "40" }, { width: "600", height: "600" }, ...Array.from({ length: 8 }, () => ({ width: "24", height: "24" }))];
-    expect(card.claims.map((c) => c.mb)).toEqual(cardImageAllowances(hints));
     expect(full.claims.map((c) => c.mb)).toEqual(fullViewImageAllowances(hints));
-    expect(card.claims[1]!.mb).toBeGreaterThan(4.5 * MB);
+    expect(card.claims.map((c) => c.mb)).toEqual(full.claims.map((c) => c.mb));
     expect(full.claims[1]!.mb).toBe(5 * MB);
   });
 
@@ -298,7 +286,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     expect(r.imageBytesMinted).toBe(6 * Math.floor((15 * 1024 * 1024) / 6)); // 2.5 MB each, not a 20-way share
   });
 
-  it("a full view past its 60-image cap shows the placeholder for the rest; a card past its 20 paints nothing", async () => {
+  it("a full view past its 60-image cap shows the placeholder for the rest; a card past the same 60 paints nothing", async () => {
     const { env } = await import("@/env");
     const placeholder = `${env().VIEW_ORIGIN.replace(/\/$/, "")}/img/unavailable`;
     const images = Array.from({ length: 63 }, (_, i) => `<img src="https://img.example.com/p-${i}.png" alt="P${i}">`).join("");
@@ -307,12 +295,14 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     const fullTags = [...full.r.html.matchAll(/<img\b[^>]*>/g)].map((m) => m[0]);
     expect(fullTags.slice(60).every((t) => t.includes(`src="${placeholder}"`))).toBe(true);
     const card = await tokens(`<html><body>${images}</body></html>`, "card");
+    expect(card.claims).toHaveLength(60);
     const cardTags = [...card.r.html.matchAll(/<img\b[^>]*>/g)].map((m) => m[0]);
-    expect(cardTags.slice(20).every((t) => !/\ssrc=/.test(t))).toBe(true);
+    expect(cardTags.slice(0, 60).every((t) => /\/img\/[A-Za-z0-9_.-]+"/.test(t))).toBe(true);
+    expect(cardTags.slice(60).every((t) => !/\ssrc=/.test(t))).toBe(true);
     expect(card.r.html).not.toContain(placeholder);
   });
 
-  it("random emails: within budget, one token per URL, and the opened email never gives an image less than its card", async () => {
+  it("random emails: within budget, one token per URL, and a card gives every image what the opened email gives it", async () => {
     const MB = 1024 * 1024;
     const now = Math.floor(Date.now() / 1000);
     const expired = `https://media.licdn.com/dms/image/v2/D4D16AQ/p/0/1?e=${now - 86_400}&v=beta&t=abcdefg`;
@@ -340,7 +330,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
       const html = `<html><head><style>${css.join("")}</style></head><body>${parts.join("")}</body></html>`;
       const card = await tokens(html, "card");
       const full = await tokens(html, "img");
-      for (const [v, budget, cap] of [[card, 6 * MB, 20], [full, 15 * MB, 60]] as const) {
+      for (const [v, budget, cap] of [[card, 15 * MB, 60], [full, 15 * MB, 60]] as const) {
         const total = v.claims.reduce((s, c) => s + c.mb, 0);
         expect(total, html).toBeLessThanOrEqual(budget);
         expect(v.claims.length).toBeLessThanOrEqual(cap);
@@ -348,10 +338,8 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
         expect(v.r.imageBytesMinted, html).toBe(total);
         for (const c of v.claims) expect(c.mb).toBeGreaterThan(0);
       }
-      // The card proxies the first of the full view's images, in the same order.
-      expect(card.claims.map((c) => c.url), html).toEqual(full.claims.slice(0, card.claims.length).map((c) => c.url));
-      const fullMb = new Map(full.claims.map((c) => [c.url, c.mb]));
-      for (const c of card.claims) expect(fullMb.get(c.url), html).toBeGreaterThanOrEqual(c.mb);
+      // The card proxies exactly the full view's images, in the same order, with the same allowances.
+      expect(card.claims.map((c) => [c.url, c.mb]), html).toEqual(full.claims.map((c) => [c.url, c.mb]));
     }
   });
 
@@ -435,7 +423,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: hidden copies and a card's missing im
       // estimate is one image short: sized for that, the budget used to run out before the cap
       // (the last image got no src, or an allowance of a few bytes: a grey placeholder).
       const { imageSigningKeys } = await import("@/server/keys");
-      const { cardImageAllowances } = await import("@/server/view-source");
+      const { fullViewImageAllowances } = await import("@/server/view-source");
       const signing = imageSigningKeys()!;
       const ring = { keys: new Map([...signing.keys].map(([kid, k]) => [kid, createPublicKey(k)])) };
       const products = Array.from({ length: count }, (_, i) => `<img src="https://img.example.com/p-${i}.png" alt="P${i}">`).join("");
@@ -449,12 +437,12 @@ describe.skipIf(!HAS_DB)("buildViewSource: hidden copies and a card's missing im
       expect(claims.map((c) => c.url)).toEqual([LOGO, ...Array.from({ length: count }, (_, i) => `https://img.example.com/p-${i}.png`)]);
       // Shares for exactly the logo (as shown) and the products, by their declared sizes.
       expect(claims.map((c) => c.mb)).toEqual(
-        cardImageAllowances([
+        fullViewImageAllowances([
           { width: "113", height: "24", style: "display:block" },
           ...Array.from({ length: count }, () => ({ width: null, height: null, style: null })),
         ]),
       );
-      expect(claims.reduce((s, c) => s + c.mb, 0)).toBeLessThanOrEqual(6 * 1024 * 1024);
+      expect(claims.reduce((s, c) => s + c.mb, 0)).toBeLessThanOrEqual(15 * 1024 * 1024);
       expect(r.imageBytesMinted).toBe(claims.reduce((s, c) => s + c.mb, 0));
     },
   );
@@ -464,13 +452,13 @@ describe.skipIf(!HAS_DB)("buildViewSource: hidden copies and a card's missing im
     const dropped = Array.from({ length: 14 }, (_, i) => `<img src="https://img.example.com/t-${i}.png">`).join("");
     const shownImgs = Array.from({ length: 6 }, (_, i) => `<img src="https://img.example.com/s-${i}.png" alt="S${i}">`).join("");
     const r = await view(`<html><body><template>${dropped}</template>${shownImgs}</body></html>`, "card");
-    const { cardImageAllowances } = await import("@/server/view-source");
+    const { fullViewImageAllowances } = await import("@/server/view-source");
     const minted = new Set([...r.html.matchAll(/\/img\/([A-Za-z0-9_.-]+)/g)].map((m) => m[1]));
     expect(minted.size).toBe(6);
-    // Shares of 6 images (> 1 MB for the first four), not a 20-way share.
-    const six = cardImageAllowances(Array.from({ length: 6 }, () => ({})));
+    // Shares of 6 images (2.5 MB each), not a 20-way share.
+    const six = fullViewImageAllowances(Array.from({ length: 6 }, () => ({})));
     expect(r.imageBytesMinted).toBe(six.reduce((s, a) => s + a, 0));
-    expect(r.imageBytesMinted).toBeGreaterThan(6 * 1024 * 1024 - 64);
+    expect(r.imageBytesMinted).toBe(6 * Math.floor((15 * 1024 * 1024) / 6));
   });
 
   it("an expired signed CDN URL (LinkedIn's `e`) is not proxied: it shows the static placeholder, no token, no card slot", async () => {
@@ -544,13 +532,14 @@ describe.skipIf(!HAS_DB)("buildViewSource: hidden copies and a card's missing im
 
   it("a card paints no alt text for the images it doesn't load; the opened design still does", async () => {
     const { CARD_MISSING_IMAGE_CSS } = await import("@/server/view-source");
-    const products = Array.from({ length: 22 }, (_, i) => `<img src="https://img.example.com/p-${i}.png" alt="Product ${i} in a long sentence">`).join("");
+    // Past the 60-image cap, two images get no src.
+    const products = Array.from({ length: 62 }, (_, i) => `<img src="https://img.example.com/p-${i}.png" alt="Product ${i} in a long sentence">`).join("");
     const card = await view(`<html><head><style>img{color:#333}</style></head><body>${products}</body></html>`, "card");
     expect(card.html.endsWith(CARD_MISSING_IMAGE_CSS)).toBe(true);
     const missing = imgTags(card.html).filter((t) => srcOf(t) === null);
     expect(missing).toHaveLength(2);
     // The alt text stays in the document (screen readers), only its paint is hidden.
-    expect(missing[1]).toContain('alt="Product 21 in a long sentence"');
+    expect(missing[1]).toContain('alt="Product 61 in a long sentence"');
     // Paints nothing (no broken-image icon, alt text or link underline) but keeps the box, and
     // stays in the accessibility tree (opacity, not visibility or display).
     expect(CARD_MISSING_IMAGE_CSS).toMatch(/^<style>html body img:not\(\[src\]\)\{opacity:0!important;color:transparent!important;[^<]*\}<\/style>$/);

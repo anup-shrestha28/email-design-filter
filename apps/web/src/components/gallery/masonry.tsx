@@ -17,11 +17,8 @@ const BREAKPOINTS: ReadonlyArray<{ min: number; columns: number; gap: number }> 
 /** The same columns as plain CSS, for the first paint (before the page knows its width). */
 export const MASONRY_FALLBACK_GRID =
   "grid grid-cols-1 items-start gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4 min-[1700px]:grid-cols-5";
-/**
- * A card's height besides its preview (px): the footer's fixed rows (gallery-card.tsx: p-3 around
- * a 20 px sender line, a 24 px verdict line and a 32 px reason, 8 px apart) plus its borders.
- */
-export const CARD_FOOTER_PX = 119;
+/** A card's height besides its preview (px): its top and bottom border (the card is the design alone). */
+export const CARD_FOOTER_PX = 2;
 
 const QUERIES = BREAKPOINTS.filter((b) => b.min > 0).map((b) => `(min-width: ${b.min}px)`);
 

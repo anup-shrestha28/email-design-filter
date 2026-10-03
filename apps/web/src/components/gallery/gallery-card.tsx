@@ -176,7 +176,7 @@ function CardPreview({ item, eager }: { item: GalleryItem; eager: boolean }) {
     <div
       ref={boxRef}
       data-preview-box
-      className="relative overflow-hidden border-b border-border bg-surface-muted"
+      className="relative overflow-hidden bg-surface-muted"
       style={{ aspectRatio: `1 / ${shape.ratio}` }}
     >
       {unavailable ? (
@@ -295,9 +295,10 @@ function WaitingLine({ item }: { item: GalleryItem }) {
 }
 
 /**
- * One email design: a live preview of the whole email, who sent it and when, and — once scored —
- * the verdict and why (before that, when the score comes). The subject isn't printed (the design speaks for itself); it's in the card's
- * accessible name and its tooltip. The whole card is one button, laid over the content (an iframe
+ * One email design, Pinterest style: a live preview of the whole email and nothing else on its face.
+ * Who sent it and when, and — once scored — the verdict and why (before that, when the score comes)
+ * are the card button's description for screen readers, and the detail view shows them. The subject
+ * is the card's accessible name and its tooltip. The whole card is one button, laid over the content (an iframe
  * can't sit inside a button). `similar` = how many near-identical designs (same template sent
  * again) this card stands for.
  */
@@ -328,7 +329,9 @@ export const GalleryCard = memo(function GalleryCard({
           <Layers aria-hidden className="size-3" />+{similar} similar
         </span>
       ) : null}
-      <div id={metaId} className="space-y-2 p-3">
+      {/* Pinterest style: the card is the design alone. Who sent it, the verdict and why stay in
+          the card button's description (screen readers) and in the detail view a click opens. */}
+      <div id={metaId} className="sr-only">
         <div className="flex h-5 items-center gap-2">
           <SenderAvatar
             name={item.sender.name}
@@ -378,20 +381,11 @@ export const GalleryCard = memo(function GalleryCard({
   );
 });
 
-/** A card-shaped placeholder while a page loads (same box, so nothing jumps when it arrives). */
+/** A card-shaped placeholder while a page loads (the design alone, like a card whose length isn't known). */
 export function GalleryCardSkeleton() {
   return (
     <li aria-hidden className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface">
       <div className={cn("skeleton rounded-none", PREVIEW_BOX)} />
-      <div className="space-y-2 p-3">
-        <div className="flex items-center gap-2">
-          <div className="skeleton size-5 rounded-full" />
-          <div className="skeleton h-3.5 flex-1 rounded" />
-        </div>
-        <div className="skeleton h-4 w-3/4 rounded" />
-        <div className="skeleton h-6 w-20 rounded-full" />
-        <div className="skeleton h-8 rounded" />
-      </div>
     </li>
   );
 }

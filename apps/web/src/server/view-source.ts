@@ -52,7 +52,10 @@ import { isFixtureAccount, readFixtureRaw } from "./fixtures";
 export const EMAIL_BUDGET_BYTES = 15 * 1024 * 1024;
 export const MAX_IMAGE_TOKENS = 60;
 /**
- * A gallery card ("card" mode) shows the top of the email at about half size, so only the first
+ * Since 2026-10-03 gallery cards show the whole email and proxy exactly what the full view does
+ * (buildViewSource); CARD_MAX_IMAGES, CARD_BUDGET_BYTES and cardImageAllowances now only set the
+ * floor fullViewImageAllowances starts its first images from. History:
+ * A gallery card ("card" mode) showed the top of the email at about half size, so only the first
  * distinct images (in document order, CSS backgrounds included) are proxied; the rest keep their
  * alt text, which a card doesn't paint (CARD_MISSING_IMAGE_CSS). Every proxied image is one /img
  * request (the frame has no scripting, so `loading="lazy"` is ignored and every proxied image
@@ -776,16 +779,22 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
     !row.security_sensitive &&
     !row.suspicious &&
     row.primary_type !== "account_security";
-  const maxImages = cardMode ? CARD_MAX_IMAGES : MAX_IMAGE_TOKENS;
+  // A gallery card shows the whole email now (Pinterest-style masonry, the top of only the longest
+  // ones), so it proxies its images exactly as the full view does: the card's old top-of-email
+  // allowance (CARD_MAX_IMAGES, CARD_BUDGET_BYTES, cardImageAllowances) left big pictures further
+  // down — and big animated heroes beside many images — as "Picture unavailable" (2026-10-03: 113
+  // of 2,604 images refused as too large for their share). A card still keeps its own budget id
+  // (CARD_BUDGET_SUFFIX, edf-view's card counters) and paints no alt text (CARD_MISSING_IMAGE_CSS).
+  const maxImages = MAX_IMAGE_TOKENS;
   const policy = { userAddresses: row.addresses, imagesAllowed: true };
   const refs = imagesAllowed && parsed.html ? extractImageRefs(parsed.html, { max: MAX_IMAGE_TOKENS }) : [];
-  const budgetBytes = cardMode ? CARD_BUDGET_BYTES : EMAIL_BUDGET_BYTES;
+  const budgetBytes = EMAIL_BUDGET_BYTES;
   const nowSec = Math.floor(Date.now() / 1000);
   const loadable = (r: (typeof refs)[number]) => imageFetchDecision(r, policy).allowed && !isExpiredSignedUrl(r.src, nowSec);
-  // The allowances of the images a view proxies, in mint (document) order, by declared size: a
-  // card's 6 MB per cardImageAllowances, a full view's 15 MB per fullViewImageAllowances (never
-  // less for an image than its card gives it). ≤ 5 MB each; they add up to at most the budget.
-  const allowancesFor = cardMode ? cardImageAllowances : fullViewImageAllowances;
+  // The allowances of the images a view proxies, in mint (document) order, by declared size: the
+  // email's 15 MB per fullViewImageAllowances, cards and full views alike. ≤ 5 MB each; they add
+  // up to at most the budget.
+  const allowancesFor = fullViewImageAllowances;
   // First estimate of the images, from extractImageRefs: the ones the policy lets through, up to
   // the view's cap, with their declared sizes. It can be off: the scan keeps only each URL's first
   // occurrence (a hidden dark-mode copy before the shown logo makes that URL look like a pixel),
