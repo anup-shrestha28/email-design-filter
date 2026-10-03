@@ -1,0 +1,26 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["NODE_ENV"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "api/**"]
+    },
+    "transit": { "dependsOn": ["^transit"] },
+    "typecheck": { "dependsOn": ["transit"] },
+    "test": {
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env.local"],
+      "env": [
+        "DATABASE_URL_TEST",
+        "DATABASE_URL_OWNER_TEST",
+        "APP_RW_PASSWORD",
+        "EDF_TEST_DB_SUFFIX",
+        "EDF_WEB_TEST_DB",
+        "EDF_REQUIRE_DB",
+        "CHROME_PATH"
+      ]
+    },
+    "dev": { "cache": false, "persistent": true }
+  }
+}

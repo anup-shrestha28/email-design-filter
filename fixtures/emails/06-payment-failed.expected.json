@@ -1,0 +1,29 @@
+{
+  "description": "Failed subscription payment (card declined); high importance (70).",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-22T03:30:08Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "transactional",
+    "subtype": "payment_failed",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "high",
+    "deals": [],
+    "espPlatform": "SendGrid"
+  }
+}

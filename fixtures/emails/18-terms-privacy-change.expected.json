@@ -1,0 +1,30 @@
+{
+  "description": "Account notice about changes to the Terms of Service and Privacy Policy (no list headers; SES).",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-22T17:45:06Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "account_notice",
+    "subtype": "terms",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "low",
+    "espPlatform": "Amazon SES",
+    "trust": "trusted",
+    "deals": []
+  }
+}

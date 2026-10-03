@@ -1,0 +1,51 @@
+{
+  "description": "German promotion (Brevo) with 'bis zu 50 %', a coupon code, a dd.mm.yyyy expiry and free-shipping minimum spend; language de.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_PROMOTIONS"
+    ],
+    "receivedAt": "2026-09-25T06:00:05Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "promotional",
+    "subtype": "coupon",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": true,
+    "language": "de",
+    "importance": "low",
+    "espPlatform": "Brevo",
+    "pixelCount": 1,
+    "hasUnsubscribeLink": true,
+    "postalAddress": true,
+    "deals": [
+      {
+        "kind": "percent_off",
+        "value": 50,
+        "isUpTo": true,
+        "code": null,
+        "endsAt": "2026-09-30T21:59:59.000Z"
+      },
+      {
+        "kind": "percent_off",
+        "value": 20,
+        "isUpTo": false,
+        "code": "HERBST20",
+        "endsAt": "2026-09-30T21:59:59.000Z"
+      },
+      {
+        "kind": "free_shipping",
+        "minSpend": 50
+      }
+    ]
+  }
+}

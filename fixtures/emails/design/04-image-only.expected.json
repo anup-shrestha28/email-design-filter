@@ -1,0 +1,21 @@
+{
+  "description": "One 600×1300 image link with empty alt, 9px live text: blank with images off.",
+  "scoreRange": [
+    0,
+    49
+  ],
+  "bands": [
+    "poor"
+  ],
+  "capsInclude": [
+    "CAP_IMAGE_ONLY"
+  ],
+  "checks": {
+    "I1": "fail",
+    "H1": "fail",
+    "A9": "fail"
+  },
+  "staticChips": [
+    "no_lang"
+  ]
+}

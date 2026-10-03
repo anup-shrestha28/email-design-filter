@@ -1,0 +1,29 @@
+{
+  "description": "Post-stay satisfaction survey with a SurveyMonkey link.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-20T11:00:06Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "survey",
+    "subtype": null,
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "low",
+    "deals": [],
+    "postalAddress": true
+  }
+}

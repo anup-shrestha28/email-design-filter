@@ -1,0 +1,8 @@
+{
+  "description": "01 plus six 1px-high 'Buy now' pseudo-buttons.",
+  "notAboveCleanTwin": "01-excellent-promo",
+  "render": {
+    "ctaButtonLike": 1,
+    "ctaLabel": "Shop rain shells"
+  }
+}

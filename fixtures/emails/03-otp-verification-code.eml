@@ -1,0 +1,65 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Fri, 25 Sep 2026 16:41:07 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Fri, 25 Sep 2026 16:41:07 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@lumenbank.example header.s=ses1 header.b=Qm9vbGVh;
+       dkim=pass header.i=@amazonses.com header.s=224i4yxa5dv7c2xz3womw6peuasteono header.b=dGVzdA;
+       spf=pass (google.com: domain of 0100019a2b3c4d5e-otp@us-east-1.amazonses.com designates 54.240.8.12 as permitted sender) smtp.mailfrom=0100019a2b3c4d5e-otp@us-east-1.amazonses.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=lumenbank.example
+Return-Path: <0100019a2b3c4d5e-otp@us-east-1.amazonses.com>
+Received: from a8-12.smtp-out.amazonses.com (a8-12.smtp-out.amazonses.com. [54.240.8.12])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 25 Sep 2026 16:41:07 +0000
+Received-SPF: pass (google.com: domain of 0100019a2b3c4d5e-otp@us-east-1.amazonses.com designates 54.240.8.12 as permitted sender) client-ip=54.240.8.12;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@lumenbank.example header.s=ses1 header.b=Qm9vbGVh;
+       dkim=pass header.i=@amazonses.com header.s=224i4yxa5dv7c2xz3womw6peuasteono header.b=dGVzdA;
+       spf=pass (google.com: domain of 0100019a2b3c4d5e-otp@us-east-1.amazonses.com designates 54.240.8.12 as permitted sender) smtp.mailfrom=0100019a2b3c4d5e-otp@us-east-1.amazonses.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=lumenbank.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=lumenbank.example; s=ses1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=amazonses.com; s=224i4yxa5dv7c2xz3womw6peuasteono;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Lumen Bank <no-reply@accounts.lumenbank.example>
+To: owner@example.com
+Subject: Your Lumen verification code
+Date: Fri, 25 Sep 2026 16:41:07 +0000
+Message-ID: <0100019a2b3c4d5e-7f1e-4c2a-9b1d-3e5f7a9c1b2d-000000@email.amazonses.com>
+Feedback-ID: 1.us-east-1.K7mZ2pQ9xY3wV1uT5sR8oN6lJ4hG2fD0cB9aE7i=:AmazonSES
+X-SES-Outgoing: 2026.09.25-54.240.8.12
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="otp-b1"
+
+--otp-b1
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Your Lumen verification code is 482913.
+It expires in 10 minutes. Never share this code with anyone, including Lumen staff.
+
+--otp-b1
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Verification code</title></head>
+<body style="margin:0;background:#f5f7fa;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;">
+<tr><td style="padding:28px 32px;"><img src="https://static.lumenbank.example/email/lumen-logo.png" width="120" height="32" alt="Lumen Bank" style="display:block;border:0;"></td></tr>
+<tr><td style="padding:0 32px 8px;font-size:16px;color:#1f2933;">Use this code to finish signing in:</td></tr>
+<tr><td style="padding:8px 32px 16px;font-size:32px;letter-spacing:6px;font-weight:bold;color:#0b3d91;">482913</td></tr>
+<tr><td style="padding:0 32px 24px;font-size:14px;line-height:1.5;color:#52606d;">Your verification code expires in 10 minutes. Never share this code with anyone, including Lumen staff. If you didn't try to sign in, you can ignore this email.</td></tr>
+<tr><td style="padding:16px 32px;border-top:1px solid #e4e7eb;font-size:12px;color:#7b8794;">Lumen Bank, 400 Harbor Blvd, Suite 12, Seattle, WA 98101</td></tr>
+</table></td></tr></table></body></html>
+--otp-b1--

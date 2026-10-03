@@ -1,0 +1,60 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Wed, 23 Sep 2026 16:00:10 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Wed, 23 Sep 2026 16:00:10 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@pixelboard.example header.s=cio header.b=YWJjZGVm;
+       spf=pass (google.com: domain of bounces+3a1f@cio12345.pixelboard.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=bounces+3a1f@cio12345.pixelboard.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=pixelboard.example
+Return-Path: <bounces+3a1f@cio12345.pixelboard.example>
+Received: from cio12345.pixelboard.example (cio12345.pixelboard.example. [198.51.100.41])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 23 Sep 2026 16:00:10 +0000
+Received-SPF: pass (google.com: domain of bounces+3a1f@cio12345.pixelboard.example designates 198.51.100.41 as permitted sender) client-ip=198.51.100.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@pixelboard.example header.s=cio header.b=YWJjZGVm;
+       spf=pass (google.com: domain of bounces+3a1f@cio12345.pixelboard.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=bounces+3a1f@cio12345.pixelboard.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=pixelboard.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=pixelboard.example; s=cio;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type:list-unsubscribe:list-unsubscribe-post;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Pixelboard <product@pixelboard.example>
+To: owner@example.com
+Subject: What's new in Pixelboard 4.2
+Date: Wed, 23 Sep 2026 16:00:10 +0000
+Message-ID: <dgSqCgMAABmL7bEiEjnYg@customeriomail.com>
+List-Unsubscribe: <https://e.customeriomail.com/unsubscribe/dgSqCgMAABmL7bEi>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="release"
+
+--release
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Pixelboard 4.2 is here. Read the release notes: https://pixelboard.example/changelog/4-2
+
+--release
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Pixelboard 4.2</title></head>
+<body style="margin:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#222;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+<tr><td style="padding:28px;"><img src="https://userimg-assets.customeriomail.com/images/client-env-1/pixelboard-logo.png" width="140" height="36" alt="Pixelboard"></td></tr>
+<tr><td style="padding:0 28px;"><h1 style="font-size:26px;margin:0 0 12px;">Pixelboard 4.2 is here</h1>
+<p style="font-size:16px;line-height:1.6;">Version 4.2 brings three things you asked for most:</p>
+<ul style="font-size:16px;line-height:1.6;"><li>Shared cursors in every board, so you can see who is working where.</li><li>Export to SVG with editable text layers.</li><li>A faster canvas: large boards now open twice as fast.</li></ul>
+<p style="font-size:16px;line-height:1.6;">Read the full release notes for every fix and improvement in this version.</p>
+<p><a href="https://pixelboard.example/changelog/4-2?utm_source=customerio&amp;utm_medium=email&amp;utm_campaign=release-4-2" style="background:#ff5a36;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;display:inline-block;">Read the release notes</a></p></td></tr>
+<tr><td style="padding:20px 28px;font-size:12px;color:#888;">You are receiving this email because you signed up for Pixelboard product updates. <a href="https://e.customeriomail.com/unsubscribe/dgSqCgMAABmL7bEi" style="color:#888;">Unsubscribe</a><br>Pixelboard ApS, Njalsgade 76, 2300 Copenhagen, Denmark</td></tr>
+</table></td></tr></table></body></html>
+--release--

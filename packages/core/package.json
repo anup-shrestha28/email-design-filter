@@ -1,0 +1,24 @@
+{
+  "name": "@edf/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./policy": "./src/policy/index.ts",
+    "./nesting": "./src/util/nesting.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "postal-mime": "3.0.1",
+    "cheerio": "1.2.0",
+    "tldts": "7.4.15",
+    "chrono-node": "2.10.1",
+    "franc-min": "6.2.0",
+    "zod": "4.6.5"
+  }
+}

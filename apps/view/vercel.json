@@ -1,0 +1,26 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "node build.mjs",
+  "outputDirectory": "public",
+  "regions": ["iad1"],
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/v/:token/:emailId", "destination": "/api/v?token=:token&emailId=:emailId" },
+    { "source": "/img/:token", "destination": "/api/img?token=:token" }
+  ],
+  "functions": {
+    "api/v.js": { "maxDuration": 30 },
+    "api/img.js": { "maxDuration": 30 }
+  },
+  "headers": [
+    {
+      "source": "/health.gif",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [{ "key": "X-Content-Type-Options", "value": "nosniff" }]
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+From: Tidewell Orders <orders@tidewell-outdoor.com>
+To: reader@inbox-owner.net
+Subject: Your order TW-20931 has shipped
+Date: Fri, 25 Sep 2026 14:02:11 +0000
+Message-ID: <857478085@fixtures.edf>
+MIME-Version: 1.0
+X-EDF-Type: transactional
+X-EDF-Subscription: no
+Content-Type: multipart/related; boundary="rel"
+
+--rel
+Content-Type: multipart/alternative; boundary="alt"
+
+--alt
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Your order has shipped.
+
+--alt
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html>
+<html lang=3D"en">
+<head>
+<meta charset=3D"utf-8">
+<meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D1">
+<title>Order shipped</title>
+<style>
+  .wrap { width:100%; max-width:600px; margin:0 auto; background:#ffffff; }
+  .pad { padding:28px 32px; }
+  h1 { font-family: Helvetica, Arial, sans-serif; font-size:30px; line-heig=
+ht:1.25; color:#111827; margin:0 0 14px; }
+  h2 { font-family: Helvetica, Arial, sans-serif; font-size:21px; line-heig=
+ht:1.3; color:#111827; margin:0 0 10px; }
+  p { font-family: Helvetica, Arial, sans-serif; font-size:16px; line-heigh=
+t:1.6; color:#374151; margin:0 0 16px; }
+  .btn { display:inline-block; background:#0b5fff; color:#ffffff; font-fami=
+ly: Helvetica, Arial, sans-serif; font-weight:700; font-size:17px; text-dec=
+oration:none; padding:14px 30px; border-radius:6px; }
+  .foot p { font-size:13px; line-height:1.5; color:#4b5563; }
+  .foot a { color:#374151; text-decoration:underline; }
+  @media screen and (max-width: 600px) { .pad { padding:22px 18px !importan=
+t; } h1 { font-size:26px !important; } }
+</style>
+</head>
+<body style=3D"margin:0;padding:0;background:#f3f4f6;">
+<div style=3D"display:none;max-height:0;overflow:hidden;mso-hide:all;">Arri=
+ving Tuesday, 29 September.&#847; &zwnj; &nbsp; &#847; &zwnj; &nbsp;</div>
+<div lang=3D"en" dir=3D"ltr"><table role=3D"presentation" class=3D"wrap" wi=
+dth=3D"100%" cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"max-=
+width:600px;margin:0 auto;background:#ffffff;">
+<tr><td class=3D"pad" style=3D"padding:24px 32px;"><img src=3D"cid:logo@tid=
+ewell" width=3D"160" height=3D"40" alt=3D"Tidewell" style=3D"display:block;=
+border:0;"></td></tr>
+<tr><td class=3D"pad" style=3D"padding:8px 32px 28px;"><h1>Your order has s=
+hipped</h1>
+<p>Good news: your rain shell is on its way and should arrive on Tuesday, 2=
+9 September.</p>
+<table style=3D"width:100%;border-collapse:collapse;margin:0 0 18px;"><thea=
+d><tr><th style=3D"text-align:left;font-family:Helvetica, Arial, sans-serif=
+;font-size:14px;color:#374151;padding:6px 0;border-bottom:1px solid #e5e7eb=
+;">Item</th><th style=3D"text-align:right;font-family:Helvetica, Arial, san=
+s-serif;font-size:14px;color:#374151;padding:6px 0;border-bottom:1px solid =
+#e5e7eb;">Price</th></tr></thead>
+<tbody><tr><td style=3D"font-family:Helvetica, Arial, sans-serif;font-size:=
+15px;color:#374151;padding:8px 0;">Coastal rain shell, size M</td><td style=
+=3D"text-align:right;font-family:Helvetica, Arial, sans-serif;font-size:15p=
+x;color:#374151;padding:8px 0;">$129.00</td></tr></tbody></table>
+<table role=3D"presentation" cellpadding=3D"0" cellspacing=3D"0" border=3D"=
+0"><tr><td style=3D"border-radius:6px;background:#0b5fff;"><a class=3D"btn"=
+ href=3D"https://tidewell-outdoor.com/orders/TW-20931/track" style=3D"backg=
+round:#0b5fff;">Track your package</a></td></tr></table></td></tr>
+<tr><td class=3D"pad foot" style=3D"padding:24px 32px;border-top:1px solid =
+#e5e7eb;"><p>Questions? Reply to this email or visit our help centre.</p></=
+td></tr>
+</table></div>
+</body>
+</html>
+
+--alt--
+
+--rel
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-ID: <logo@tidewell>
+Content-Disposition: inline
+
+iVBORw0KGgoAAAANSUhEUgAAAUAAAABQCAYAAABoMayFAAAACXBIWXMAAAsTAAALEwEAmpwYAAAE
+rklEQVR42u3d32uVdRzAce8rBb0o+wcq+3HbhQX1HwRaGQT5Y5BdpuZVWiyrG50ZmgUWQV4Jzokr
+sMEqdre5SboK0i11xazsUucm+Glfzw4Mf8wzfc7O8+P1gg+Im7qd79mbc3y+z/MsCoCKWuQhAAQQ
+QAABBBBAAAEEEEAAAQQQQACzcHky4ufzEb3DEZ39Ed/01Sb9Ov1e+tiVSYsGFDyA169HDI9F7Dse
+8eqeiCc2RTy4NuKBN+ae9Dnpc9Of+ez7iF/Gan8XQO4DeOFSxK7uiKe33j12jc5jb0dsOxRx9qIF
+BXIYwPT29fW9jb3Ku9dJf/fq3RH9Zy0skIMAnhmPeGln86J3p1nV4RUh0KIATkxFtB+OWLph4eNX
+n/Rv7+iMuHrNQgMLFMBz/0a80N668N08K7dHjHg1CDQ7gEdPRDyyMT/xq8/y6a/p2KAFB5oUwLRn
+b8n6/MWvPovXRRzotehAxgHc2Z3f8N08aRsOQCYBTK+qihK/+uzvsfgggHH//+eX3loWLYDpa+4e
+8gQAAbxH6chqHg94NDoPvxnx+7gnAQjgPKW9dWl7SVHjV59n33WBBRDAeUqbnIsev/qkzdKAADYk
+nWK2rK08AUxnjDTrrXBZHiNTzRHA22jFub0Lce6wABojgHMaGCnvYp8YFUBjBHAOr3xS3sVes0cA
+jRHAOxj9u7nX82v1pO9t9B8BNEYAbyMdLS37gn/UJYDGCGDceg+Pp7aUf8HTpfqzvMeIHyIjgCUI
+4OkL1Vn03/4SQGMEcJa9x6uz6J/3CKAxAjhLug1lVRb9tU8F0BgBnCXderIqi75iswAaI4AzLk9f
+LOChtdVZ9PS9ZnWBBD9ERgALHsBTF6q38MNj2TzA6Yo5xhR1BHBaz6nqBbB3OAABjOgaqF4A05Wu
+AQG8cbe3qgXwYJ8nBwigAALeAnsLDDgI4iAIYBuMbTBA6QN4pYIboSemsnmAh/4wRR4E8IbHN1Un
+gE9uCafCmUqcCSGADVrjYggCKIBUNYD7XA5LAAWQqgYwHRRwQVQBFECqe0n8d1wSXwAFkIreFOnD
+I+V/wn98NNsHWEQEELfFdFtMI4AU/8boZb40fpZHfwVQAClhAE+eK++rwMFRATQCKIB3saqjfE/0
+l3c35wH+8gdT5EEAbzFyMWJZW3nit3RDxJlxTwYQwAZ9cLg8AUxHtwEBbNjVaxHPvVf8+D3/fu17
+AQQw5rstZvnG4sbv0bey3/YCVCSAybHBiMXrihe/9DV/d9ITAATwPn31Y/E2PH/9k8UHAczIru7i
+xK/jWwsPZBjAmLl73JL1+X7be6DXogNNCGDSPZTPAyPpgIf/8wOaGsDk/KWIF9vzE7+V22tHrAGa
+HsCY2Se4o7O1Z4ykfzttcp60zw9YyADGrNPmWnHucDq316s+oKUBjFn3Fm77orl7BtMR3tXT4RsY
+sbBAjgJYN/ZfbcvMM1uzC1+6Zee2Q7VXmwC5DeBsv/4Zsb+ndiHSFZsbu/l6+px03970Z9Ld27K8
+gREggC0zMRVxevqtcu9wxJH+iIN9tekaqP1e+lj6HIDSBRBAAAEEEEAAAQQQQAABBBBAAAEEEKAR
+/wMFXSCKOBqRhQAAAABJRU5ErkJggg==
+
+--rel--

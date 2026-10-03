@@ -1,0 +1,17 @@
+{
+  "description": "@font-face with mso-font-alt, an Outlook-hidden Google link and an [if mso] override: no Times New Roman.",
+  "scoreRange": [
+    85,
+    100
+  ],
+  "bands": [
+    "excellent"
+  ],
+  "capsExactly": [],
+  "fonts": {
+    "outlookClassic": "Arial",
+    "warningsExclude": [
+      "Times New Roman"
+    ]
+  }
+}

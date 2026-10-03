@@ -1,0 +1,77 @@
+Delivered-To: owner@example.com
+Return-Path: <bounce+abc123@mg.fieldnotes.example>
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@fieldnotes.example header.s=mx header.b=xyz;
+       spf=pass smtp.mailfrom=bounce+abc123@mg.fieldnotes.example;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fieldnotes.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fieldnotes.example; s=mx;
+ h=from:to:subject:date:message-id:list-id:list-unsubscribe:list-unsubscribe-post:mime-version:content-type;
+ bh=Zm9vYmFy; b=YmF6cXV4
+From: Field Notes Weekly <weekly@fieldnotes.example>
+To: owner@example.com
+Subject: Issue #112: Why small teams ship faster
+Date: Sun, 20 Sep 2026 07:30:00 +0000
+Message-ID: <issue112@fieldnotes.example>
+List-Id: Field Notes Weekly <weekly.fieldnotes.example>
+List-Unsubscribe: <https://fieldnotes.example/unsubscribe?t=abcdef>, <mailto:unsubscribe@fieldnotes.example>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+X-Mailgun-Sid: WyI1ZmM2MyIsICJvd25lckBleGFtcGxlLmNvbSJd
+Precedence: bulk
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="b2"
+
+--b2
+Content-Type: text/plain; charset=utf-8
+
+Why small teams ship faster...
+
+--b2
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html><html lang=3D"en"><head><meta charset=3D"utf-8"><title>Issue #=
+112</title><style>@media (max-width:620px){.c{padding:16px !important}}</sty=
+le></head>
+<body style=3D"margin:0;background:#ffffff;">
+<table role=3D"presentation" width=3D"100%" cellpadding=3D"0" cellspacing=3D=
+"0"><tr><td align=3D"center">
+<table role=3D"presentation" width=3D"100%" style=3D"max-width:640px;" cellpa=
+dding=3D"0" cellspacing=3D"0"><tr><td class=3D"c" style=3D"padding:32px 24px;=
+font-family:Georgia, 'Times New Roman', serif;color:#222;">
+<h1 style=3D"font-size:28px;line-height:1.25;margin:0 0 8px;">Why small team=
+s ship faster</h1>
+<p style=3D"font-size:14px;color:#666;margin:0 0 24px;">Issue #112 &middot; 7=
+ min read</p>
+<p style=3D"font-size:18px;line-height:1.6;margin:0 0 18px;">Every few month=
+s someone asks why a team of four can out-ship a department of forty. The ans=
+wer is rarely talent. It is almost always the cost of coordination. When the =
+people who decide are the people who build, a decision takes an afternoon ins=
+tead of a quarter.</p>
+<p style=3D"font-size:18px;line-height:1.6;margin:0 0 18px;">This week we lo=
+ok at three habits that keep small teams fast as they grow: writing decisions=
+ down, keeping ownership narrow, and saying no to meetings that exist only t=
+o share status. None of these are new ideas, but they are easy to lose.</p>
+<h2 style=3D"font-size:22px;margin:28px 0 8px;">1. Decisions are written, no=
+t remembered</h2>
+<p style=3D"font-size:18px;line-height:1.6;margin:0 0 18px;">A short decisi=
+on record, a paragraph or two, saves hours of re-litigating the same choice. =
+It also lets new people understand why things are the way they are without =
+booking a call.</p>
+<h2 style=3D"font-size:22px;margin:28px 0 8px;">2. Ownership stays narrow</=
+h2>
+<p style=3D"font-size:18px;line-height:1.6;margin:0 0 18px;">When everyone =
+owns a thing, nobody does. Small teams give each area one clear owner who ca=
+n say yes without asking permission, and who is expected to say no often.</=
+p>
+<p style=3D"font-size:18px;line-height:1.6;margin:0 0 18px;"><a href=3D"http=
+s://fieldnotes.example/112?utm_medium=3Demail" style=3D"color:#0b57d0;">Rea=
+d the full issue on the web</a></p>
+<hr style=3D"border:0;border-top:1px solid #eee;margin:32px 0;">
+<p style=3D"font-size:13px;color:#555;line-height:1.5;">You subscribed to F=
+ield Notes Weekly. <a href=3D"https://fieldnotes.example/unsubscribe?t=3Dab=
+cdef" style=3D"color:#555;">Unsubscribe</a> or <a href=3D"https://fieldnote=
+s.example/preferences?t=3Dabcdef" style=3D"color:#555;">change how often you=
+ hear from us</a>.<br>Field Notes Media, 55 Water St, Brooklyn, NY 11201</p>
+</td></tr></table></td></tr></table></body></html>
+
+--b2--

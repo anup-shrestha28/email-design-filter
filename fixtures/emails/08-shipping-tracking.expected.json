@@ -1,0 +1,32 @@
+{
+  "description": "Shipping notification with UPS tracking number and ParcelDelivery microdata; importance 40 for 14 days.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-25T22:03:50Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "transactional",
+    "subtype": "shipping",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "normal",
+    "importanceAfter": {
+      "at": "2026-10-10T00:00:00Z",
+      "level": "normal"
+    },
+    "deals": []
+  }
+}

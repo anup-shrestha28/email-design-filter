@@ -1,0 +1,84 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Fri, 25 Sep 2026 08:00:00 +0200
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Fri, 25 Sep 2026 08:00:00 +0200
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@bergwerk-outdoor.example header.s=mail header.b=YWJjZGVm;
+       spf=pass (google.com: domain of bounces-9921@sib.bergwerk-outdoor.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=bounces-9921@sib.bergwerk-outdoor.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=bergwerk-outdoor.example
+Return-Path: <bounces-9921@sib.bergwerk-outdoor.example>
+Received: from smtp-relay.sendinblue.com (smtp-relay.sendinblue.com. [198.51.100.61])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 25 Sep 2026 08:00:00 +0200
+Received-SPF: pass (google.com: domain of bounces-9921@sib.bergwerk-outdoor.example designates 198.51.100.61 as permitted sender) client-ip=198.51.100.61;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@bergwerk-outdoor.example header.s=mail header.b=YWJjZGVm;
+       spf=pass (google.com: domain of bounces-9921@sib.bergwerk-outdoor.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=bounces-9921@sib.bergwerk-outdoor.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=bergwerk-outdoor.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=bergwerk-outdoor.example; s=mail;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type:list-unsubscribe:list-unsubscribe-post;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: "Bergwerk Outdoor" <news@bergwerk-outdoor.example>
+To: owner@example.com
+Subject: =?utf-8?q?Herbst-Sale=3A_bis_zu_50_=25_Rabatt_=E2=80=93_nur_f=C3=BCr_kurze?=
+ =?utf-8?q?_Zeit?=
+Date: Fri, 25 Sep 2026 08:00:00 +0200
+Message-ID: <202609250800.99210@smtp-relay.mailin.fr>
+List-Unsubscribe: <https://r.bergwerk-outdoor.example/tr/un/9921aab>, <mailto:unsubscribe@bergwerk-outdoor.example>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+X-Mailin-EID: MTAwMjU4NzQ0fm93bmVyQGV4YW1wbGUuY29tfjwyMDI2MDkyNTA4MDAuOTkyMTBAc210cC1yZWxheS5tYWlsaW4uZnI+
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="herbst"
+
+--herbst
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Herbst-Sale bei Bergwerk Outdoor: bis zu 50 % Rabatt auf Jacken, Schuhe und Rucksäcke.
+
+--herbst
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html><html lang=3D"de"><head><meta charset=3D"utf-8"><title>Herbs=
+t-Sale</title></head>
+<body style=3D"margin:0;background:#eef1ea;font-family:Arial,Helvetica,sans=
+-serif;color:#1f2a1d;">
+<table role=3D"presentation" width=3D"100%"><tr><td align=3D"center"><table=
+ role=3D"presentation" width=3D"600" style=3D"background:#fff;">
+<tr><td style=3D"padding:24px 32px;"><img src=3D"https://img.bergwerk-outdo=
+or.example/mail/logo.png" width=3D"170" height=3D"44" alt=3D"Bergwerk Outdo=
+or"></td></tr>
+<tr><td><img src=3D"https://img.bergwerk-outdoor.example/mail/herbst-hero.j=
+pg" width=3D"600" height=3D"300" alt=3D"Wanderer im Herbstwald" style=3D"di=
+splay:block;width:100%;height:auto;"></td></tr>
+<tr><td style=3D"padding:28px 32px;"><h1 style=3D"font-size:28px;margin:0 0=
+ 12px;">Herbst-Sale: bis zu 50 % Rabatt</h1>
+<p style=3D"font-size:16px;line-height:1.6;">Die Tage werden k=C3=BCrzer, d=
+ie Touren nicht. Unsere Jacken, Wanderschuhe und Rucks=C3=A4cke sind jetzt =
+bis zu 50 % Rabatt reduziert =E2=80=93 solange der Vorrat reicht.</p>
+<p style=3D"font-size:16px;line-height:1.6;">Zus=C3=A4tzlich 20 % Rabatt mi=
+t dem Gutscheincode <strong>HERBST20</strong>. G=C3=BCltig bis 30.09.2026. =
+Versandkostenfrei ab 50 =E2=82=AC Bestellwert.</p>
+<table role=3D"presentation"><tr><td style=3D"background:#2e5e2a;border-rad=
+ius:4px;"><a href=3D"https://www.bergwerk-outdoor.example/sale?utm_source=
+=3Dbrevo&amp;utm_medium=3Demail&amp;utm_campaign=3Dherbst-sale-2026" style=
+=3D"display:inline-block;padding:14px 26px;color:#fff;text-decoration:none;=
+font-weight:bold;">Jetzt entdecken</a></td></tr></table></td></tr>
+<tr><td style=3D"padding:20px 32px;font-size:12px;color:#777;">Sie erhalten=
+ diese E-Mail, weil Sie unseren Newsletter abonniert haben. <a href=3D"http=
+s://r.bergwerk-outdoor.example/tr/un/9921aab" style=3D"color:#777;">Newslet=
+ter abbestellen</a><br>Bergwerk Outdoor GmbH, Alpenstra=C3=9Fe 12, 80331 M=
+=C3=BCnchen, Deutschland</td></tr>
+</table></td></tr></table>
+<img src=3D"https://r.bergwerk-outdoor.example/tr/op/9921aab" width=3D"1" h=
+eight=3D"1" alt=3D"" style=3D"display:block;">
+</body></html>
+--herbst--

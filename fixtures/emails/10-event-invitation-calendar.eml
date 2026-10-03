@@ -1,0 +1,95 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Mon, 21 Sep 2026 14:10:00 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Mon, 21 Sep 2026 14:10:00 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@meetwise.example header.s=cal1 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of calendar-noreply@meetwise.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=calendar-noreply@meetwise.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=meetwise.example
+Return-Path: <calendar-noreply@meetwise.example>
+Received: from mail.meetwise.example (mail.meetwise.example. [198.51.100.20])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Mon, 21 Sep 2026 14:10:00 +0000
+Received-SPF: pass (google.com: domain of calendar-noreply@meetwise.example designates 198.51.100.20 as permitted sender) client-ip=198.51.100.20;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@meetwise.example header.s=cal1 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of calendar-noreply@meetwise.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=calendar-noreply@meetwise.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=meetwise.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=meetwise.example; s=cal1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Meetwise Calendar <calendar-noreply@meetwise.example>
+Reply-To: Priya Shah <priya@acme-corp.example>
+To: owner@example.com
+Subject: Invitation: Quarterly planning @ Thu Oct 1, 2026 10am - 11am (EDT)
+Date: Mon, 21 Sep 2026 14:10:00 +0000
+Message-ID: <inv-7c1d2e3f@meetwise.example>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="mixed-cal"
+
+--mixed-cal
+Content-Type: multipart/alternative; boundary="alt-cal"
+
+--alt-cal
+Content-Type: text/plain; charset=utf-8
+
+Priya Shah has invited you to Quarterly planning.
+When: Thursday Oct 1, 2026 10am – 11am (Eastern Time)
+Join: https://meet.meetwise.example/qp-2026
+RSVP: Yes / Maybe / No
+--alt-cal
+Content-Type: text/html; charset=utf-8
+
+<html><body style="font-family:Arial,sans-serif;"><p>Priya Shah has invited you to <strong>Quarterly planning</strong>.</p><p>When: Thursday Oct 1, 2026 10am – 11am (Eastern Time)</p><p><a href="https://meet.meetwise.example/qp-2026">Join meeting</a></p><p><a href="https://calendar.meetwise.example/rsvp?e=7c1d2e3f&amp;r=yes">Yes</a> · <a href="https://calendar.meetwise.example/rsvp?e=7c1d2e3f&amp;r=maybe">Maybe</a> · <a href="https://calendar.meetwise.example/rsvp?e=7c1d2e3f&amp;r=no">No</a></p><p style="font-size:12px;color:#777;">Invitation from Meetwise Calendar</p></body></html>
+--alt-cal
+Content-Type: text/calendar; charset=utf-8; method=REQUEST
+
+BEGIN:VCALENDAR
+PRODID:-//Meetwise//Calendar 1.0//EN
+VERSION:2.0
+METHOD:REQUEST
+BEGIN:VTIMEZONE
+TZID:America/New_York
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:7c1d2e3f@meetwise.example
+DTSTAMP:20260921T141000Z
+DTSTART;TZID=America/New_York:20261001T100000
+DTEND;TZID=America/New_York:20261001T110000
+SUMMARY:Quarterly planning
+ORGANIZER;CN=Priya Shah:mailto:priya@acme-corp.example
+ATTENDEE;RSVP=TRUE:mailto:owner@example.com
+LOCATION:https://meet.meetwise.example/qp-2026
+END:VEVENT
+END:VCALENDAR
+--alt-cal--
+--mixed-cal
+Content-Type: application/ics; name="invite.ics"
+Content-Disposition: attachment; filename="invite.ics"
+
+BEGIN:VCALENDAR
+PRODID:-//Meetwise//Calendar 1.0//EN
+VERSION:2.0
+METHOD:REQUEST
+BEGIN:VTIMEZONE
+TZID:America/New_York
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:7c1d2e3f@meetwise.example
+DTSTAMP:20260921T141000Z
+DTSTART;TZID=America/New_York:20261001T100000
+DTEND;TZID=America/New_York:20261001T110000
+SUMMARY:Quarterly planning
+ORGANIZER;CN=Priya Shah:mailto:priya@acme-corp.example
+ATTENDEE;RSVP=TRUE:mailto:owner@example.com
+LOCATION:https://meet.meetwise.example/qp-2026
+END:VEVENT
+END:VCALENDAR
+--mixed-cal--

@@ -1,0 +1,39 @@
+{
+  "description": "Shopify order confirmation with a promotional footer: transactional (primary purpose) + secondary promotional; order number is not a coupon code.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-24T18:20:11Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "transactional",
+    "subtype": "order",
+    "secondaryTags": [
+      "promotional"
+    ],
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "normal",
+    "espPlatform": "Shopify",
+    "deals": [
+      {
+        "kind": "percent_off",
+        "value": 15,
+        "code": "THANKS15",
+        "endsAt": "2026-11-01T06:59:59.000Z"
+      }
+    ]
+  }
+}

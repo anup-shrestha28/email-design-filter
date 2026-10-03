@@ -1,0 +1,18 @@
+{
+  "name": "@edf/fetch",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "undici": "8.11.2",
+    "ipaddr.js": "2.5.0",
+    "tldts": "7.4.15"
+  }
+}

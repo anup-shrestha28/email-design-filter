@@ -1,0 +1,27 @@
+{
+  "description": "Developer-tool @mention notification (List-Id, no-reply sender): notification/mention, not a mailing list.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-28T11:42:22Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "notification",
+    "subtype": "mention",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": true,
+    "importance": "normal",
+    "deals": []
+  }
+}

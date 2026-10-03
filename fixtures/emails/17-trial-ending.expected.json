@@ -1,0 +1,38 @@
+{
+  "description": "Trial-ending lifecycle email with an annual-billing discount (secondary promotional tag).",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-28T13:00:04Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "lifecycle",
+    "subtype": "trial_ending",
+    "secondaryTags": [
+      "promotional"
+    ],
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": true,
+    "language": "en",
+    "importance": "normal",
+    "deadlineAt": "2026-10-01T23:59:59.000Z",
+    "deals": [
+      {
+        "kind": "percent_off",
+        "value": 20,
+        "code": null
+      }
+    ]
+  }
+}

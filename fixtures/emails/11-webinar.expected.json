@@ -1,0 +1,31 @@
+{
+  "description": "Webinar invitation from a B2B sender via HubSpot (no calendar part); one-click unsubscribe.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_PROMOTIONS"
+    ],
+    "receivedAt": "2026-09-22T15:00:30Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "event",
+    "subtype": "webinar",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": true,
+    "language": "en",
+    "importance": "normal",
+    "espPlatform": "HubSpot",
+    "trust": "trusted",
+    "deals": [],
+    "pixelCount": 1
+  }
+}

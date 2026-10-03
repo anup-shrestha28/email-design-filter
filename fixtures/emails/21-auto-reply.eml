@@ -1,0 +1,39 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Thu, 24 Sep 2026 10:00:02 -0400
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Thu, 24 Sep 2026 10:00:02 -0400
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@acme-corp.example header.s=sel1 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of dana.kim@acme-corp.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=dana.kim@acme-corp.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=acme-corp.example
+Return-Path: <dana.kim@acme-corp.example>
+Received: from mail.acme-corp.example (mail.acme-corp.example. [198.51.100.50])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Thu, 24 Sep 2026 10:00:02 -0400
+Received-SPF: pass (google.com: domain of dana.kim@acme-corp.example designates 198.51.100.50 as permitted sender) client-ip=198.51.100.50;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@acme-corp.example header.s=sel1 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of dana.kim@acme-corp.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=dana.kim@acme-corp.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=acme-corp.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=acme-corp.example; s=sel1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Dana Kim <dana.kim@acme-corp.example>
+To: owner@example.com
+Subject: Automatic reply: Invoice question
+Date: Thu, 24 Sep 2026 10:00:02 -0400
+Message-ID: <oof-4411@acme-corp.example>
+In-Reply-To: <inv-q-1@example.com>
+Auto-Submitted: auto-replied
+X-Auto-Response-Suppress: All
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+I'm out of the office until Monday, September 28, with limited access to email. For urgent billing questions please contact billing@acme-corp.example.

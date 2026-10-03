@@ -1,0 +1,58 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Tue, 22 Sep 2026 17:45:00 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Tue, 22 Sep 2026 17:45:00 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@cloudvault.example header.s=legal1 header.b=Y2xvdWQ;
+       spf=pass (google.com: domain of 0100019a2b3c4d5f-legal@us-west-2.amazonses.com designates 54.240.27.10 as permitted sender) smtp.mailfrom=0100019a2b3c4d5f-legal@us-west-2.amazonses.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=cloudvault.example
+Return-Path: <0100019a2b3c4d5f-legal@us-west-2.amazonses.com>
+Received: from a27-10.smtp-out.us-west-2.amazonses.com (a27-10.smtp-out.us-west-2.amazonses.com. [54.240.27.10])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 22 Sep 2026 17:45:00 +0000
+Received-SPF: pass (google.com: domain of 0100019a2b3c4d5f-legal@us-west-2.amazonses.com designates 54.240.27.10 as permitted sender) client-ip=54.240.27.10;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@cloudvault.example header.s=legal1 header.b=Y2xvdWQ;
+       spf=pass (google.com: domain of 0100019a2b3c4d5f-legal@us-west-2.amazonses.com designates 54.240.27.10 as permitted sender) smtp.mailfrom=0100019a2b3c4d5f-legal@us-west-2.amazonses.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=cloudvault.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=cloudvault.example; s=legal1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: CloudVault <no-reply@cloudvault.example>
+To: owner@example.com
+Subject: Updates to our Terms of Service and Privacy Policy
+Date: Tue, 22 Sep 2026 17:45:00 +0000
+Message-ID: <0100019a2b3c4d5f-legal-0000@us-west-2.amazonses.com>
+Feedback-ID: 1.us-west-2.Zx9Yw8Vu7Ts6Rq5Po4Nm3Lk2Ji1Hg0FeDcBa9876=:AmazonSES
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="legal"
+
+--legal
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+We're updating our Terms of Service and Privacy Policy, effective November 1, 2026.
+
+--legal
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Terms update</title></head>
+<body style="margin:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#222;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+<tr><td style="padding:28px;"><h1 style="font-size:22px;margin:0 0 12px;">We're updating our terms</h1>
+<p style="font-size:15px;line-height:1.6;">We're making changes to our Terms of Service and Privacy Policy, effective November 1, 2026. The updates clarify how we handle shared folders, add a section on AI features and explain your data export rights in more detail.</p>
+<p style="font-size:15px;line-height:1.6;">You don't need to do anything. By continuing to use CloudVault after November 1, you agree to the updated terms.</p>
+<p><a href="https://cloudvault.example/legal/terms-2026">Read the new Terms of Service</a> · <a href="https://cloudvault.example/legal/privacy-2026">Read the new Privacy Policy</a></p>
+<p style="font-size:12px;color:#888;">CloudVault Inc., 350 Fifth Avenue, New York, NY 10118</p></td></tr>
+
+</table></td></tr></table></body></html>
+--legal--

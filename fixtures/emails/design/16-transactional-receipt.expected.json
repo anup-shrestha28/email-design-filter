@@ -1,0 +1,20 @@
+{
+  "description": "Shipping notification with a data table and cid logo: footer pillar N/A (transactional).",
+  "scoreRange": [
+    80,
+    100
+  ],
+  "bands": [
+    "good",
+    "excellent"
+  ],
+  "capsExactly": [],
+  "checks": {
+    "U1": "not_applicable",
+    "U2": "not_applicable",
+    "U3": "not_applicable",
+    "U4": "not_applicable",
+    "H1": "not_applicable",
+    "H3": "pass"
+  }
+}

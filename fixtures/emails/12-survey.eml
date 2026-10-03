@@ -1,0 +1,56 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Sun, 20 Sep 2026 12:00:00 +0100
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Sun, 20 Sep 2026 12:00:00 +0100
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@harborhotels.example header.s=g1 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of feedback@guests.harborhotels.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=feedback@guests.harborhotels.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=harborhotels.example
+Return-Path: <feedback@guests.harborhotels.example>
+Received: from mx-out.harborhotels.example (mx-out.harborhotels.example. [198.51.100.20])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sun, 20 Sep 2026 12:00:00 +0100
+Received-SPF: pass (google.com: domain of feedback@guests.harborhotels.example designates 198.51.100.20 as permitted sender) client-ip=198.51.100.20;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@harborhotels.example header.s=g1 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of feedback@guests.harborhotels.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=feedback@guests.harborhotels.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=harborhotels.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=harborhotels.example; s=g1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Harbor Hotels <feedback@guests.harborhotels.example>
+To: owner@example.com
+Subject: How was your stay in Porto?
+Date: Sun, 20 Sep 2026 12:00:00 +0100
+Message-ID: <survey-8812-porto@guests.harborhotels.example>
+List-Unsubscribe: <mailto:unsubscribe@guests.harborhotels.example?subject=unsub-8812>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="survey"
+
+--survey
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Thank you for staying with us at Harbor Hotel Porto.
+Tell us how we did — take our 2-minute survey: https://www.surveymonkey.com/r/HH-PORTO-2026
+
+--survey
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html lang="en"><head><meta charset="utf-8"><title>Your stay</title></head><body style="font-family:Georgia,serif;background:#f7f4ef;margin:0;">
+<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="560" style="background:#fff;">
+<tr><td style="padding:28px 32px;"><img src="https://harborhotels.example/img/email/harbor-logo.png" width="160" height="48" alt="Harbor Hotels"></td></tr>
+<tr><td style="padding:0 32px;"><h1 style="font-size:24px;font-weight:normal;">Thank you for staying with us</h1>
+<p style="font-size:16px;line-height:1.6;">We hope you enjoyed your time at Harbor Hotel Porto. Tell us how we did — it takes two minutes and helps us make every stay better.</p>
+<p><a href="https://www.surveymonkey.com/r/HH-PORTO-2026" style="background:#1d3557;color:#fff;padding:12px 22px;text-decoration:none;display:inline-block;">Take the survey</a></p></td></tr>
+<tr><td style="padding:24px 32px;font-size:12px;color:#888;">Harbor Hotels, Rua das Flores 45, 4050-265 Porto, Portugal · <a href="mailto:unsubscribe@guests.harborhotels.example?subject=unsub-8812" style="color:#888;">Unsubscribe</a></td></tr>
+</table></td></tr></table></body></html>
+--survey--

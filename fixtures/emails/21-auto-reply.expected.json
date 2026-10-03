@@ -1,0 +1,18 @@
+{
+  "description": "Out-of-office auto-reply (Auto-Submitted: auto-replied): skipped with ledger reason auto_reply.",
+  "input": {
+    "labelIds": [
+      "INBOX"
+    ],
+    "receivedAt": "2026-09-24T14:00:06Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": false,
+    "skipReason": "auto_reply"
+  }
+}

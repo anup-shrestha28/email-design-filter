@@ -1,0 +1,21 @@
+{
+  "name": "@edf/gmail",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@edf/core": "workspace:*",
+    "@edf/db": "workspace:*",
+    "@edf/crypto": "workspace:*",
+    "google-auth-library": "11.1.0",
+    "undici": "8.11.2",
+    "zod": "4.6.5"
+  }
+}

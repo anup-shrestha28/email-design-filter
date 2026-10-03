@@ -1,0 +1,40 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Mon, 21 Sep 2026 23:48:10 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Mon, 21 Sep 2026 23:48:10 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@mailer-cheap.example header.s=default header.b=Y2hlYXA;
+       spf=pass (google.com: domain of bounce@mailer-cheap.example designates 203.0.113.77 as permitted sender) smtp.mailfrom=bounce@mailer-cheap.example;
+       dmarc=fail (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=lumenbank.example
+Return-Path: <bounce@mailer-cheap.example>
+Received: from vps77.mailer-cheap.example (vps77.mailer-cheap.example. [203.0.113.77])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Mon, 21 Sep 2026 23:48:10 +0000
+Received-SPF: pass (google.com: domain of bounce@mailer-cheap.example designates 203.0.113.77 as permitted sender) client-ip=203.0.113.77;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@mailer-cheap.example header.s=default header.b=Y2hlYXA;
+       spf=pass (google.com: domain of bounce@mailer-cheap.example designates 203.0.113.77 as permitted sender) smtp.mailfrom=bounce@mailer-cheap.example;
+       dmarc=fail (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=lumenbank.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=mailer-cheap.example; s=default; h=from:to:subject:date; bh=YWJj; b=ZGVm
+Authentication-Results: mx.google.com; dkim=pass header.i=@lumenbank.example; spf=pass smtp.mailfrom=lumenbank.example; dmarc=pass header.from=lumenbank.example
+From: "Lumen Bank Security" <security@lumenbank.example>
+To: owner@example.com
+Subject: Security alert: your account has been locked
+Date: Mon, 21 Sep 2026 23:48:10 +0000
+Message-ID: <a1b2c3d4e5@vps77.mailer-cheap.example>
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+<html><body style="font-family:Arial;">
+<p><img src="https://lumenbank-secure-login.example/img/logo.png" alt="Lumen Bank" width="140" height="40"></p>
+<p>Dear customer,</p>
+<p>We detected unauthorized access to your account and it has been locked for your protection. To restore access you must verify your identity within 24 hours.</p>
+<p><a href="https://lumenbank-secure-login.example/verify?session=Qk3xP9vL2mZ7tR4wY8nB1cV6" style="background:#0b3d91;color:#fff;padding:10px 16px;text-decoration:none;display:inline-block;">Verify your account</a></p>
+<p>Lumen Bank Security Team</p>
+</body></html>

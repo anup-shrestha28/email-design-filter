@@ -1,0 +1,27 @@
+{
+  "description": "Calendar invitation with a text/calendar part (METHOD:REQUEST, TZID); deadline = event start.",
+  "input": {
+    "labelIds": [
+      "INBOX"
+    ],
+    "receivedAt": "2026-09-21T14:10:05Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "event",
+    "subtype": "invitation",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "importance": "normal",
+    "deadlineAt": "2026-10-01T14:00:00.000Z",
+    "deals": []
+  }
+}

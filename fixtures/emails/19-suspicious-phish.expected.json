@@ -1,0 +1,29 @@
+{
+  "description": "Spoofed bank 'security alert': DMARC fail, From unaligned, no ARC — suspicious; importance capped at normal. A forged lower Authentication-Results claiming pass must be ignored.",
+  "input": {
+    "labelIds": [
+      "INBOX"
+    ],
+    "receivedAt": "2026-09-21T23:48:15Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "account_security",
+    "subtype": "security_alert",
+    "securitySensitive": true,
+    "suspicious": true,
+    "oneClick": false,
+    "language": "en",
+    "importance": "normal",
+    "deals": [],
+    "authResult": "fail",
+    "trust": "failed_auth"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "description": "Coupon email (Mailchimp): code LEAF20 and 'ends Sunday at midnight' anchored to the sender's timezone (-0500).",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_PROMOTIONS"
+    ],
+    "receivedAt": "2026-09-25T14:15:05Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "promotional",
+    "subtype": "coupon",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": true,
+    "language": "en",
+    "importance": "low",
+    "espPlatform": "Mailchimp",
+    "pixelCount": 1,
+    "trust": "trusted",
+    "deals": [
+      {
+        "kind": "percent_off",
+        "value": 20,
+        "code": "LEAF20",
+        "isUpTo": false,
+        "endsAt": "2026-09-28T04:59:59.000Z"
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Fri, 25 Sep 2026 09:15:00 -0500
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Fri, 25 Sep 2026 09:15:00 -0500
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@brightleaftea.example header.s=k2 header.b=bGVhZg;
+       dkim=pass header.i=@mail245.atl11.mcsv.net header.s=k1 header.b=bWNzdg;
+       spf=pass (google.com: domain of bounce-mc.us21_12345678.987654-owner=example.com@mail245.atl11.mcsv.net designates 198.2.139.245 as permitted sender) smtp.mailfrom=bounce-mc.us21_12345678.987654-owner=example.com@mail245.atl11.mcsv.net;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=brightleaftea.example
+Return-Path: <bounce-mc.us21_12345678.987654-owner=example.com@mail245.atl11.mcsv.net>
+Received: from mail245.atl11.mcsv.net (mail245.atl11.mcsv.net. [198.2.139.245])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 25 Sep 2026 09:15:00 -0500
+Received-SPF: pass (google.com: domain of bounce-mc.us21_12345678.987654-owner=example.com@mail245.atl11.mcsv.net designates 198.2.139.245 as permitted sender) client-ip=198.2.139.245;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@brightleaftea.example header.s=k2 header.b=bGVhZg;
+       dkim=pass header.i=@mail245.atl11.mcsv.net header.s=k1 header.b=bWNzdg;
+       spf=pass (google.com: domain of bounce-mc.us21_12345678.987654-owner=example.com@mail245.atl11.mcsv.net designates 198.2.139.245 as permitted sender) smtp.mailfrom=bounce-mc.us21_12345678.987654-owner=example.com@mail245.atl11.mcsv.net;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=brightleaftea.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=brightleaftea.example; s=k2;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type:list-unsubscribe:list-unsubscribe-post;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=mail245.atl11.mcsv.net; s=k1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: "Brightleaf Tea" <hello@brightleaftea.example>
+To: owner@example.com
+Subject: A little something for you: 20% off ends Sunday
+Date: Fri, 25 Sep 2026 09:15:00 -0500
+Message-ID: <a1b2c3d4e5f6.9876543210@mail245.atl11.mcsv.net>
+List-Unsubscribe: <https://brightleaftea.us21.list-manage.com/unsubscribe?u=4f1e2d3c4b5a69788796a5b4c&id=0a1b2c3d4e&t=b&e=5f6a7b8c9d&c=1a2b3c4d5e>, <mailto:unsubscribe-mc.us21_4f1e2d3c.1a2b3c4d5e-5f6a7b8c9d@unsub.mcsv.net?subject=unsubscribe>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+X-MC-User: 4f1e2d3c4b5a69788796a5b4c
+Feedback-ID: 12345678:12345678.1987654:us21:mc
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="tea"
+
+--tea
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+20% off everything in the shop. Use code LEAF20 at checkout. Offer ends Sunday at midnight.
+
+--tea
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>20% off</title></head>
+<body style="margin:0;background:#f6f1e7;font-family:Georgia,serif;color:#3b2f22;">
+<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="600" style="background:#fffaf1;">
+<tr><td style="padding:24px 32px;"><img src="https://mcusercontent.com/4f1e2d3c4b5a69788796a5b4c/images/brightleaf-logo.png" width="160" height="50" alt="Brightleaf Tea"></td></tr>
+<tr><td style="padding:0 32px 24px;"><h1 style="font-size:28px;margin:0 0 12px;">20% off, just for you</h1>
+<p style="font-size:17px;line-height:1.6;">Thank you for being part of the Brightleaf community. Enjoy 20% off everything in the shop — loose-leaf teas, teaware and our new autumn blends.</p>
+<p style="font-size:17px;line-height:1.6;">Use code <strong>LEAF20</strong> at checkout. Offer ends Sunday at midnight.</p>
+<a href="https://brightleaftea.us21.list-manage.com/track/click?u=4f1e2d3c4b5a69788796a5b4c&amp;id=77aa88bb99&amp;e=5f6a7b8c9d" style="display:inline-block;background:#6b8f3a;color:#fff;padding:14px 26px;text-decoration:none;border-radius:3px;">Shop the teas</a></td></tr>
+<tr><td style="padding:20px 32px;font-size:12px;color:#8a7a66;">You're receiving this because you subscribed at brightleaftea.example. <a href="https://brightleaftea.us21.list-manage.com/unsubscribe?u=4f1e2d3c4b5a69788796a5b4c&amp;id=0a1b2c3d4e" style="color:#8a7a66;">Unsubscribe</a> · <a href="https://brightleaftea.us21.list-manage.com/profile?u=4f1e2d3c4b5a69788796a5b4c&amp;id=0a1b2c3d4e" style="color:#8a7a66;">Update your preferences</a><br>Brightleaf Tea Co., 2200 N Lamar Blvd, Austin, TX 78705</td></tr>
+</table></td></tr></table>
+<img src="https://brightleaftea.us21.list-manage.com/track/open.php?u=4f1e2d3c4b5a69788796a5b4c&amp;id=77aa88bb99&amp;e=5f6a7b8c9d" height="1" width="1" alt="">
+</body></html>
+--tea--

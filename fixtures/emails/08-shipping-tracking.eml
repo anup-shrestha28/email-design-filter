@@ -1,0 +1,65 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Fri, 25 Sep 2026 15:03:44 -0700
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Fri, 25 Sep 2026 15:03:44 -0700
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@cedarandpine.example header.s=shopify header.b=Y2VkYXI;
+       spf=pass (google.com: domain of bounces+a1b2c3@email.shopify.com designates 23.227.38.66 as permitted sender) smtp.mailfrom=bounces+a1b2c3@email.shopify.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cedarandpine.example
+Return-Path: <bounces+a1b2c3@email.shopify.com>
+Received: from mail138-66.shopifyemail.com (mail138-66.shopifyemail.com. [23.227.38.66])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 25 Sep 2026 15:03:44 -0700
+Received-SPF: pass (google.com: domain of bounces+a1b2c3@email.shopify.com designates 23.227.38.66 as permitted sender) client-ip=23.227.38.66;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@cedarandpine.example header.s=shopify header.b=Y2VkYXI;
+       spf=pass (google.com: domain of bounces+a1b2c3@email.shopify.com designates 23.227.38.66 as permitted sender) smtp.mailfrom=bounces+a1b2c3@email.shopify.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cedarandpine.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=cedarandpine.example; s=shopify;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Cedar & Pine <shipping@cedarandpine.example>
+To: owner@example.com
+Subject: Your order #CP-20931 has shipped
+Date: Fri, 25 Sep 2026 15:03:44 -0700
+Message-ID: <shipment-20931-1@cedarandpine.example>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="ship"
+
+--ship
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Good news! Your order #CP-20931 is on its way.
+Carrier: UPS
+Tracking number: 1Z999AA10123456784
+Track your package: https://www.ups.com/track?tracknum=1Z999AA10123456784
+
+--ship
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Shipped</title></head>
+<body style="margin:0;background:#faf8f5;font-family:Helvetica,Arial,sans-serif;color:#2b2b2b;">
+<div itemscope itemtype="http://schema.org/ParcelDelivery">
+  <meta itemprop="trackingNumber" content="1Z999AA10123456784">
+  <meta itemprop="trackingUrl" content="https://www.ups.com/track?tracknum=1Z999AA10123456784">
+  <div itemprop="carrier" itemscope itemtype="http://schema.org/Organization"><meta itemprop="name" content="UPS"></div>
+  <div itemprop="partOfOrder" itemscope itemtype="http://schema.org/Order"><meta itemprop="orderNumber" content="CP-20931"></div>
+</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;">
+<tr><td style="padding:24px 32px;"><img src="https://cdn.shopify.com/s/files/1/0123/4567/files/cedar-pine-logo.png?v=1690000000" width="150" height="45" alt="Cedar &amp; Pine"></td></tr>
+<tr><td style="padding:0 32px 16px;"><h1 style="font-size:24px;margin:0 0 8px;">Your order is on its way</h1>
+<p style="font-size:15px;line-height:1.5;">Order #CP-20931 shipped today with UPS. Tracking number: <strong>1Z999AA10123456784</strong>. Estimated delivery: Tuesday, September 29.</p></td></tr>
+<tr><td style="padding:0 32px 24px;"><a href="https://www.ups.com/track?tracknum=1Z999AA10123456784" style="background:#2f4f3a;color:#fff;padding:12px 22px;text-decoration:none;border-radius:4px;display:inline-block;">Track your package</a></td></tr>
+<tr><td style="padding:16px 32px;font-size:12px;color:#888;">Cedar &amp; Pine Home Goods, 710 NW 14th Ave, Portland, OR 97209</td></tr>
+</table></td></tr></table></body></html>
+--ship--

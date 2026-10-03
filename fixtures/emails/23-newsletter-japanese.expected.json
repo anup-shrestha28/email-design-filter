@@ -1,0 +1,30 @@
+{
+  "description": "Japanese newsletter via beehiiv: base64 HTML, RFC 2047 subject, language ja, Japanese unsubscribe link.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-26T22:00:04Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "newsletter",
+    "subtype": "editorial",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": true,
+    "language": "ja",
+    "importance": "low",
+    "espPlatform": "beehiiv",
+    "hasUnsubscribeLink": true,
+    "deals": []
+  }
+}

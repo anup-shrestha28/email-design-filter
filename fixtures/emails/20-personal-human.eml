@@ -1,0 +1,37 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Fri, 25 Sep 2026 20:03:11 -0700
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Fri, 25 Sep 2026 20:03:11 -0700
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20230601 header.b=Z21haWw;
+       spf=pass (google.com: domain of sam.rivera@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=sam.rivera@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Return-Path: <sam.rivera@gmail.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 25 Sep 2026 20:03:11 -0700
+Received-SPF: pass (google.com: domain of sam.rivera@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20230601 header.b=Z21haWw;
+       spf=pass (google.com: domain of sam.rivera@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=sam.rivera@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com; s=20230601; h=to:subject:message-id:date:from:mime-version:from:to:cc:subject:date:message-id:reply-to; bh=Z21haWw=; b=c2FtcA==
+From: Sam Rivera <sam.rivera@gmail.com>
+To: Nova <owner@example.com>
+Subject: Dinner on Friday?
+Date: Fri, 25 Sep 2026 20:03:11 -0700
+Message-ID: <CAF3xR9vQ2m8kZp1Lw7yT4hB6nJ0cD5gE@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+
+Hey Nova,
+
+Are we still on for dinner next Friday? I booked a table at 7:30 at the new Portuguese place on Alberta. Let me know if that works, otherwise we can move it to Saturday.
+
+Sam

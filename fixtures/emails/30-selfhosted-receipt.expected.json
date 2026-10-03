@@ -1,0 +1,31 @@
+{
+  "description": "Self-hosted shop receipt (WooCommerce via PHPMailer on its own SMTP): own-domain DKIM pass, no ESP or list headers, Primary inbox, order number in the body — must not be dropped as personal.",
+  "input": {
+    "labelIds": [
+      "INBOX"
+    ],
+    "receivedAt": "2026-09-25T16:41:41Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": false,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "transactional",
+    "subtype": "order",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "normal",
+    "espPlatform": null,
+    "authResult": "pass",
+    "trust": "trusted",
+    "postalAddress": true,
+    "deals": []
+  }
+}

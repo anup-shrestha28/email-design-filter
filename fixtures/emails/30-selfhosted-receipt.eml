@@ -1,0 +1,145 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Fri, 25 Sep 2026 10:41:37 -0600
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Fri, 25 Sep 2026 10:41:37 -0600
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@hollowpinecoffee.example header.s=default header.b=aG9sbG93;
+       spf=pass (google.com: domain of orders@hollowpinecoffee.example designates 203.0.113.41 as permitted sender) smtp.mailfrom=orders@hollowpinecoffee.example;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hollowpinecoffee.example
+Return-Path: <orders@hollowpinecoffee.example>
+Received: from mail.hollowpinecoffee.example (mail.hollowpinecoffee.example. [203.0.113.41])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 25 Sep 2026 10:41:37 -0600
+Received-SPF: pass (google.com: domain of orders@hollowpinecoffee.example designates 203.0.113.41 as permitted sender) client-ip=203.0.113.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@hollowpinecoffee.example header.s=default header.b=aG9sbG93;
+       spf=pass (google.com: domain of orders@hollowpinecoffee.example designates 203.0.113.41 as permitted sender) smtp.mailfrom=orders@hollowpinecoffee.example;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hollowpinecoffee.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=hollowpinecoffee.example; s=default;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Hollow Pine Coffee <orders@hollowpinecoffee.example>
+Reply-To: Hollow Pine Coffee <hello@hollowpinecoffee.example>
+To: owner@example.com
+Subject: Your Hollow Pine Coffee order has been received!
+Date: Fri, 25 Sep 2026 10:41:37 -0600
+Message-ID: <Kq4rP2vX7mZ9tW1yB3nC5dF8gH0jL6sA@hollowpinecoffee.example>
+X-Mailer: PHPMailer 6.9.1 (https://github.com/PHPMailer/PHPMailer)
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="b1_woo_10442"
+
+--b1_woo_10442
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Thank you for your order
+
+Hi Nova,
+Just to let you know — we've received your order #10442, and it is now being processed.
+
+[Order #10442] (September 25, 2026)
+Ethiopia Guji, whole bean 250 g x 2  $32.00
+Pour-over filters (100) x 1  $6.50
+Subtotal: $38.50
+Shipping: $5.00 via Flat rate
+Total: $43.50
+Payment method: Credit card
+
+Thanks for shopping with us.
+
+--b1_woo_10442
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html>
+<html lang=3D"en-US"><head><meta http-equiv=3D"Content-Type" content=3D"tex=
+t/html; charset=3DUTF-8"><title>Hollow Pine Coffee</title></head>
+<body leftmargin=3D"0" marginwidth=3D"0" topmargin=3D"0" marginheight=3D"0"=
+ offset=3D"0" style=3D"background-color:#f7f7f7;padding:0;">
+<table width=3D"100%" id=3D"outer_wrapper" style=3D"background-color:#f7f7f=
+7;"><tr><td><!-- Deliberately empty --></td><td width=3D"600">
+<div id=3D"wrapper" dir=3D"ltr" style=3D"margin:0 auto;padding:70px 0;width=
+:100%;max-width:600px;">
+<table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" height=3D"100%" wid=
+th=3D"100%"><tr><td align=3D"center" valign=3D"top">
+<div id=3D"template_header_image"><p style=3D"margin-top:0;"><img src=3D"ht=
+tps://hollowpinecoffee.example/wp-content/uploads/2026/03/hollow-pine-logo.=
+png" alt=3D"Hollow Pine Coffee" width=3D"180" height=3D"54"></p></div>
+<table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"100%" id=
+=3D"template_container" style=3D"background-color:#fff;border:1px solid #de=
+dede;border-radius:3px;">
+<tr><td align=3D"center" valign=3D"top"><table border=3D"0" cellpadding=3D"=
+0" cellspacing=3D"0" width=3D"100%" id=3D"template_header" style=3D"backgro=
+und-color:#6b4f3a;color:#fff;border-bottom:0;font-weight:bold;line-height:1=
+00%;vertical-align:middle;font-family:&quot;Helvetica Neue&quot;,Helvetica,=
+Roboto,Arial,sans-serif;border-radius:3px 3px 0 0;">
+<tr><td id=3D"header_wrapper" style=3D"padding:36px 48px;display:block;"><h=
+1 style=3D"font-size:30px;font-weight:300;line-height:150%;margin:0;color:#=
+fff;">Thank you for your order</h1></td></tr></table></td></tr>
+<tr><td align=3D"center" valign=3D"top"><table border=3D"0" cellpadding=3D"=
+0" cellspacing=3D"0" width=3D"100%" id=3D"template_body"><tr><td valign=3D"=
+top" id=3D"body_content" style=3D"background-color:#fff;">
+<table border=3D"0" cellpadding=3D"20" cellspacing=3D"0" width=3D"100%"><tr=
+><td valign=3D"top" style=3D"padding:48px 48px 32px;"><div id=3D"body_conte=
+nt_inner" style=3D"color:#636363;font-family:&quot;Helvetica Neue&quot;,Hel=
+vetica,Roboto,Arial,sans-serif;font-size:14px;line-height:150%;text-align:l=
+eft;">
+<p style=3D"margin:0 0 16px;">Hi Nova,</p>
+<p style=3D"margin:0 0 16px;">Just to let you know =E2=80=94 we've received=
+ your order #10442, and it is now being processed:</p>
+<h2 style=3D"color:#6b4f3a;display:block;font-size:18px;font-weight:bold;li=
+ne-height:130%;margin:0 0 18px;text-align:left;">[Order #10442] (September =
+25, 2026)</h2>
+<div style=3D"margin-bottom:40px;"><table class=3D"td" cellspacing=3D"0" ce=
+llpadding=3D"6" border=3D"1" style=3D"color:#636363;border:1px solid #e5e5e=
+5;vertical-align:middle;width:100%;">
+<thead><tr><th class=3D"td" scope=3D"col" style=3D"text-align:left;">Produc=
+t</th><th class=3D"td" scope=3D"col" style=3D"text-align:left;">Quantity</t=
+h><th class=3D"td" scope=3D"col" style=3D"text-align:left;">Price</th></tr>=
+</thead>
+<tbody>
+<tr class=3D"order_item"><td class=3D"td" style=3D"text-align:left;">Ethiop=
+ia Guji, whole bean 250 g</td><td class=3D"td" style=3D"text-align:left;">2=
+</td><td class=3D"td" style=3D"text-align:left;"><span class=3D"woocommerce=
+-Price-amount amount"><span class=3D"woocommerce-Price-currencySymbol">$</s=
+pan>32.00</span></td></tr>
+<tr class=3D"order_item"><td class=3D"td" style=3D"text-align:left;">Pour-o=
+ver filters (100)</td><td class=3D"td" style=3D"text-align:left;">1</td><td=
+ class=3D"td" style=3D"text-align:left;"><span class=3D"woocommerce-Price-a=
+mount amount"><span class=3D"woocommerce-Price-currencySymbol">$</span>6.50=
+</span></td></tr>
+</tbody>
+<tfoot>
+<tr><th class=3D"td" scope=3D"row" colspan=3D"2" style=3D"text-align:left;"=
+>Subtotal:</th><td class=3D"td" style=3D"text-align:left;">$38.50</td></tr>
+<tr><th class=3D"td" scope=3D"row" colspan=3D"2" style=3D"text-align:left;"=
+>Shipping:</th><td class=3D"td" style=3D"text-align:left;">$5.00 via Flat r=
+ate</td></tr>
+<tr><th class=3D"td" scope=3D"row" colspan=3D"2" style=3D"text-align:left;"=
+>Payment method:</th><td class=3D"td" style=3D"text-align:left;">Credit car=
+d</td></tr>
+<tr><th class=3D"td" scope=3D"row" colspan=3D"2" style=3D"text-align:left;"=
+>Total:</th><td class=3D"td" style=3D"text-align:left;">$43.50</td></tr>
+</tfoot></table></div>
+<p style=3D"margin:0 0 16px;">Thanks for shopping with us.</p>
+</div></td></tr></table></td></tr></table></td></tr></table>
+<table border=3D"0" cellpadding=3D"10" cellspacing=3D"0" width=3D"100%" id=
+=3D"template_footer"><tr><td valign=3D"top" style=3D"padding:0;"><table bor=
+der=3D"0" cellpadding=3D"10" cellspacing=3D"0" width=3D"100%"><tr><td colsp=
+an=3D"2" valign=3D"middle" id=3D"credit" style=3D"border-radius:6px;border:=
+0;color:#8a8a8a;font-family:&quot;Helvetica Neue&quot;,Helvetica,Roboto,Ari=
+al,sans-serif;font-size:12px;line-height:150%;text-align:center;padding:24p=
+x 0;">
+<p style=3D"margin:0 0 16px;">Hollow Pine Coffee Roasters, 418 Canyon Rd, B=
+oulder, CO 80302</p></td></tr></table></td></tr></table>
+</td></tr></table></div></td><td><!-- Deliberately empty --></td></tr></tab=
+le>
+</body></html>
+--b1_woo_10442--

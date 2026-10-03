@@ -1,0 +1,90 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Sun, 27 Sep 2026 07:00:00 +0900
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Sun, 27 Sep 2026 07:00:00 +0900
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@technote.example header.s=bh1 header.b=dGVjaA;
+       dkim=pass header.i=@mail.beehiiv.com header.s=s1 header.b=YmVlaA;
+       spf=pass (google.com: domain of bounces+tn45@mail.beehiiv.com designates 198.51.100.70 as permitted sender) smtp.mailfrom=bounces+tn45@mail.beehiiv.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=technote.example
+Return-Path: <bounces+tn45@mail.beehiiv.com>
+Received: from o70.mail.beehiiv.com (o70.mail.beehiiv.com. [198.51.100.70])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sun, 27 Sep 2026 07:00:00 +0900
+Received-SPF: pass (google.com: domain of bounces+tn45@mail.beehiiv.com designates 198.51.100.70 as permitted sender) client-ip=198.51.100.70;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@technote.example header.s=bh1 header.b=dGVjaA;
+       dkim=pass header.i=@mail.beehiiv.com header.s=s1 header.b=YmVlaA;
+       spf=pass (google.com: domain of bounces+tn45@mail.beehiiv.com designates 198.51.100.70 as permitted sender) smtp.mailfrom=bounces+tn45@mail.beehiiv.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=technote.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=technote.example; s=bh1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type:list-unsubscribe:list-unsubscribe-post;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=mail.beehiiv.com; s=s1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: =?utf-8?b?44OG44OD44Kv44OO44O844OI?= <newsletter@technote.example>
+To: owner@example.com
+Subject: =?utf-8?b?6YCx5YiK44OG44OD44Kv44OO44O844OIIOesrDQ15Y+377ya55Sf5oiQQUnjgag=?=
+ =?utf-8?b?5bCP44GV44Gq44OB44O844Og44Gu5YON44GN5pa5?=
+Date: Sun, 27 Sep 2026 07:00:00 +0900
+Message-ID: <tn45.20260927@mail.beehiiv.com>
+List-Unsubscribe: <https://newsletter.technote.example/subscribe/unsubscribe?id=tn45-88a1>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="jp"
+
+--jp
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+週刊テックノート 第45号
+
+--jp
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: base64
+
+PCFET0NUWVBFIGh0bWw+PGh0bWwgbGFuZz0iamEiPjxoZWFkPjxtZXRhIGNoYXJzZXQ9InV0Zi04
+Ij48dGl0bGU+6YCx5YiK44OG44OD44Kv44OO44O844OIIOesrDQ15Y+3PC90aXRsZT48L2hlYWQ+
+Cjxib2R5IHN0eWxlPSJtYXJnaW46MDtiYWNrZ3JvdW5kOiNmZmZmZmY7Zm9udC1mYW1pbHk6J0hp
+cmFnaW5vIFNhbnMnLCdOb3RvIFNhbnMgSlAnLHNhbnMtc2VyaWY7Y29sb3I6IzIyMjsiPgo8dGFi
+bGUgcm9sZT0icHJlc2VudGF0aW9uIiB3aWR0aD0iMTAwJSI+PHRyPjx0ZCBhbGlnbj0iY2VudGVy
+Ij48dGFibGUgcm9sZT0icHJlc2VudGF0aW9uIiB3aWR0aD0iNjAwIj4KPHRyPjx0ZCBzdHlsZT0i
+cGFkZGluZzoyOHB4IDI0cHg7Ij48aDEgc3R5bGU9ImZvbnQtc2l6ZToyNHB4O21hcmdpbjowIDAg
+OHB4OyI+55Sf5oiQQUnjgajlsI/jgZXjgarjg4Hjg7zjg6Djga7lg43jgY3mlrk8L2gxPjxwIHN0
+eWxlPSJmb250LXNpemU6MTNweDtjb2xvcjojNzc3O21hcmdpbjowOyI+6YCx5YiK44OG44OD44Kv
+44OO44O844OIIOesrDQ15Y+3PC9wPjwvdGQ+PC90cj4KPHRyPjx0ZCBzdHlsZT0icGFkZGluZzow
+IDI0cHg7Zm9udC1zaXplOjE2cHg7bGluZS1oZWlnaHQ6MS45OyI+CjxwPuOBk+OCk+OBq+OBoeOB
+r+OAguS7iumAseOBr+OAgeeUn+aIkEFJ44KS5pel44CF44Gu6ZaL55m644Gr5Y+W44KK5YWl44KM
+44Gm44GE44KL5bCP44GV44Gq44OB44O844Og44Gu5LqL5L6L44KS57S55LuL44GX44G+44GZ44CC
+5LiJ5Lq644Gu44Ko44Oz44K444OL44Ki44Gn6YGL5Za244GX44Gm44GE44KL44GC44KL44K544K/
+44O844OI44Ki44OD44OX44Gn44Gv44CB5LuV5qeY5pu444Gu5LiL5pu444GN44KE44OG44K544OI
+44Kz44O844OJ44Gu55Sf5oiQ44GrQUnjgpLkvb/jgYTjgIHjg6zjg5Pjg6Xjg7zjga7mmYLplpPj
+gpLlpKfluYXjgavmuJvjgonjgZfjgb7jgZfjgZ/jgII8L3A+CjxwPuOBn+OBoOOBl+OAgeOBmeOB
+ueOBpuOCkuS7u+OBm+OBpuOBhOOCi+OCj+OBkeOBp+OBr+OBguOCiuOBvuOBm+OCk+OAguioreio
+iOOBruWIpOaWreOChOacgOe1gueahOOBquOCs+ODvOODieOBrueiuuiqjeOBr+W/heOBmuS6uuOB
+jOihjOOBhOOAgUFJ44GM5pu444GE44Gf6YOo5YiG44Gr44Gv5b+F44Ga44Kz44Oh44Oz44OI44KS
+5q6L44GZ44Go44GE44GG44Or44O844Or44KS5rG644KB44Gm44GE44G+44GZ44CC5bCP44GV44Gq
+44OB44O844Og44Gg44GL44KJ44GT44Gd44CB44Or44O844Or44KS55+t44GP44CB5piO56K644Gr
+44GZ44KL44GT44Go44GM5aSn5YiH44Gg44Go6Kmx44GX44Gm44GE44G+44GX44Gf44CCPC9wPgo8
+cD7mnaXpgLHjga/jgIHjg6rjg6Ljg7zjg4jjg6/jg7zjgq/jgafjga7pnZ7lkIzmnJ/jgrPjg5/j
+g6Xjg4vjgrHjg7zjgrfjg6fjg7PjgavjgaTjgYTjgablj5bjgorkuIrjgZLjgovkuojlrprjgafj
+gZnjgILjgYrmpb3jgZfjgb/jgavjgII8L3A+CjxwPjxhIGhyZWY9Imh0dHBzOi8vbmV3c2xldHRl
+ci50ZWNobm90ZS5leGFtcGxlL3AvaXNzdWUtNDUiIHN0eWxlPSJjb2xvcjojMGI1N2QwOyI+44Km
+44Kn44OW44Gn6Kqt44KAPC9hPjwvcD48L3RkPjwvdHI+Cjx0cj48dGQgc3R5bGU9InBhZGRpbmc6
+MjRweDtmb250LXNpemU6MTJweDtjb2xvcjojODg4OyI+44GT44Gu44Oh44O844Or44Gv44OG44OD
+44Kv44OO44O844OI44Gu44OL44Ol44O844K544Os44K/44O844Gr55m76Yyy44GV44KM44Gf5pa5
+44Gr44GK6YCB44KK44GX44Gm44GE44G+44GZ44CCPGEgaHJlZj0iaHR0cHM6Ly9uZXdzbGV0dGVy
+LnRlY2hub3RlLmV4YW1wbGUvc3Vic2NyaWJlL3Vuc3Vic2NyaWJlP2lkPXRuNDUtODhhMSIgc3R5
+bGU9ImNvbG9yOiM4ODg7Ij7phY3kv6HlgZzmraI8L2E+PGJyPuODhuODg+OCr+ODjuODvOODiOe3
+qOmbhumDqOOAgeadseS6rOmDvea4i+iwt+WMuuelnuWNlzEtMi0zPC90ZD48L3RyPgo8L3RhYmxl
+PjwvdGQ+PC90cj48L3RhYmxlPjwvYm9keT48L2h0bWw+
+--jp--

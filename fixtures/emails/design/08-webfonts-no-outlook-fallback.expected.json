@@ -1,0 +1,21 @@
+{
+  "description": "Montserrat + Inter from Google Fonts with Arial fallbacks and no Outlook fallback (DESIGN.md §8.1 example).",
+  "scoreRange": [
+    85,
+    100
+  ],
+  "bands": [
+    "excellent"
+  ],
+  "capsExactly": [],
+  "fonts": {
+    "outlookClassic": "Times New Roman",
+    "warningsMatch": [
+      "Times New Roman",
+      "Gmail doesn't load web fonts"
+    ],
+    "declaredUnused": [
+      "Lato"
+    ]
+  }
+}

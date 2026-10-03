@@ -1,0 +1,31 @@
+{
+  "description": "Hosting invoice with amount and due date; deadline = due date (end of day).",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-25T06:00:08Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "transactional",
+    "subtype": "invoice",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "normal",
+    "espPlatform": "Postmark",
+    "deadlineAt": "2026-10-05T23:59:59.000Z",
+    "deals": [],
+    "postalAddress": true
+  }
+}

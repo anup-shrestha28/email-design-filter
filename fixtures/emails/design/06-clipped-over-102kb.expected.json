@@ -1,0 +1,22 @@
+{
+  "description": "116 KB of HTML: the primary button and the unsubscribe link sit after Gmail's clip offset.",
+  "scoreRange": [
+    0,
+    69
+  ],
+  "bands": [
+    "needs_work",
+    "poor"
+  ],
+  "capsInclude": [
+    "CAP_CLIPPED"
+  ],
+  "checks": {
+    "X1": "partial",
+    "U1": "partial",
+    "H2": "partial"
+  },
+  "staticChips": [
+    "clipped"
+  ]
+}

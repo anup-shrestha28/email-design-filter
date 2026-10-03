@@ -1,0 +1,20 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Supply-chain hygiene (docs/DESIGN.md §11.9): don't install versions younger than 3 days.
+minimumReleaseAge: 4320
+# Explicit, reviewed exceptions:
+#  - postal-mime 3.0.1 fixes quadratic-time parsing of hostile MIME (we parse untrusted mail).
+#  - better-auth 1.7.6 is the version whose source was reviewed for our auth config.
+minimumReleaseAgeExclude:
+  - postal-mime
+  - better-auth
+  - "@better-auth/*"
+
+# Lifecycle-script allowlist (FREE-TIER.md §9.2 hardening). Everything else is refused.
+allowBuilds:
+  esbuild: true
+  # protobufjs' postinstall only prints a version notice (pulled in by inngest's OpenTelemetry deps).
+  protobufjs: false
+  sharp: true

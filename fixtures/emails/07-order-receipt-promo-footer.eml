@@ -1,0 +1,78 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Thu, 24 Sep 2026 11:20:05 -0700
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Thu, 24 Sep 2026 11:20:05 -0700
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@cedarandpine.example header.s=shopify header.b=Y2VkYXI;
+       dkim=pass header.i=@shopifyemail.com header.s=s1 header.b=c2hvcA;
+       spf=pass (google.com: domain of bounces+a1b2c3@email.shopify.com designates 23.227.38.65 as permitted sender) smtp.mailfrom=bounces+a1b2c3@email.shopify.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cedarandpine.example
+Return-Path: <bounces+a1b2c3@email.shopify.com>
+Received: from mail138-65.shopifyemail.com (mail138-65.shopifyemail.com. [23.227.38.65])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Thu, 24 Sep 2026 11:20:05 -0700
+Received-SPF: pass (google.com: domain of bounces+a1b2c3@email.shopify.com designates 23.227.38.65 as permitted sender) client-ip=23.227.38.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@cedarandpine.example header.s=shopify header.b=Y2VkYXI;
+       dkim=pass header.i=@shopifyemail.com header.s=s1 header.b=c2hvcA;
+       spf=pass (google.com: domain of bounces+a1b2c3@email.shopify.com designates 23.227.38.65 as permitted sender) smtp.mailfrom=bounces+a1b2c3@email.shopify.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cedarandpine.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=cedarandpine.example; s=shopify;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=shopifyemail.com; s=s1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Cedar & Pine <orders@cedarandpine.example>
+To: owner@example.com
+Subject: Order #CP-20931 confirmed
+Date: Thu, 24 Sep 2026 11:20:05 -0700
+Message-ID: <5f3e2d1c-order-20931@cedarandpine.example>
+X-Shopify-Email-Type: order_confirmation
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="order"
+
+--order
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Thank you for your order!
+Order #CP-20931
+
+Linen throw blanket x1  $54.00
+Cedar candle x1  $25.00
+Subtotal $79.00
+Shipping $5.50
+Total $84.50
+
+Enjoy 15% off your next order with code THANKS15, valid until October 31.
+
+--order
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Order confirmed</title></head>
+<body style="margin:0;background:#faf8f5;font-family:Helvetica,Arial,sans-serif;color:#2b2b2b;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;">
+<tr><td style="padding:24px 32px;"><img src="https://cdn.shopify.com/s/files/1/0123/4567/files/cedar-pine-logo.png?v=1690000000" width="150" height="45" alt="Cedar &amp; Pine"></td></tr>
+<tr><td style="padding:0 32px;"><h1 style="font-size:24px;margin:0 0 8px;">Thank you for your order!</h1><p style="margin:0 0 16px;color:#666;">Order #CP-20931 · placed September 24, 2026</p></td></tr>
+<tr><td style="padding:0 32px;"><table role="presentation" width="100%" style="font-size:15px;border-collapse:collapse;">
+<tr><td style="padding:8px 0;border-bottom:1px solid #eee;">Linen throw blanket × 1</td><td align="right" style="border-bottom:1px solid #eee;">$54.00</td></tr>
+<tr><td style="padding:8px 0;border-bottom:1px solid #eee;">Cedar candle × 1</td><td align="right" style="border-bottom:1px solid #eee;">$25.00</td></tr>
+<tr><td style="padding:6px 0;">Subtotal</td><td align="right">$79.00</td></tr>
+<tr><td style="padding:6px 0;">Shipping</td><td align="right">$5.50</td></tr>
+<tr><td style="padding:6px 0;font-weight:bold;">Total</td><td align="right" style="font-weight:bold;">$84.50</td></tr></table></td></tr>
+<tr><td style="padding:24px 32px;"><a href="https://cedarandpine.example/account/orders/20931" style="background:#2f4f3a;color:#fff;padding:12px 22px;text-decoration:none;border-radius:4px;display:inline-block;">View your order</a></td></tr>
+<tr><td style="padding:20px 32px;background:#f3efe8;font-size:15px;">Enjoy 15% off your next order with code <strong>THANKS15</strong>, valid until October 31. <a href="https://cedarandpine.example/collections/new?utm_source=shopify&amp;utm_medium=email&amp;utm_campaign=post_purchase">Shop new arrivals</a></td></tr>
+<tr><td style="padding:16px 32px;font-size:12px;color:#888;">Cedar &amp; Pine Home Goods, 710 NW 14th Ave, Portland, OR 97209</td></tr>
+</table></td></tr></table></body></html>
+--order--

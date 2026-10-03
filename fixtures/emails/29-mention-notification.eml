@@ -1,0 +1,55 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Mon, 28 Sep 2026 11:42:19 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Mon, 28 Sep 2026 11:42:19 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@codehub.example header.s=ch2026 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of noreply@codehub.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=noreply@codehub.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=codehub.example
+Return-Path: <noreply@codehub.example>
+Received: from out-21.smtp.codehub.example (out-21.smtp.codehub.example. [198.51.100.95])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Mon, 28 Sep 2026 11:42:19 +0000
+Received-SPF: pass (google.com: domain of noreply@codehub.example designates 198.51.100.95 as permitted sender) client-ip=198.51.100.95;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@codehub.example header.s=ch2026 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of noreply@codehub.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=noreply@codehub.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=codehub.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=codehub.example; s=ch2026;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type:list-unsubscribe:list-unsubscribe-post;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Priya Shah <noreply@codehub.example>
+To: acme/api <api@noreply.codehub.example>
+Cc: Mention <mention@noreply.codehub.example>
+Subject: Re: [acme/api] Fix rate limiter for burst traffic (PR #482)
+Date: Mon, 28 Sep 2026 11:42:19 +0000
+Message-ID: <acme/api/pull/482/c1938812@codehub.example>
+List-Id: acme/api <api.acme.codehub.example>
+List-Unsubscribe: <https://codehub.example/notifications/unsubscribe/AB12CD34EF56>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+X-Codehub-Reason: mention
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="mention"
+
+--mention
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+@owner mentioned you: Could you take a look at the token bucket refill logic before we merge?
+
+— Reply to this email directly or view it on Codehub: https://codehub.example/acme/api/pull/482#issuecomment-1938812
+
+--mention
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<p>@owner mentioned you: Could you take a look at the token bucket refill logic before we merge?</p>
+<p style="font-size:small;color:#666;">— Reply to this email directly, <a href="https://codehub.example/acme/api/pull/482#issuecomment-1938812">view it on Codehub</a>, or <a href="https://codehub.example/notifications/unsubscribe/AB12CD34EF56">unsubscribe</a>.<br>You are receiving this because you were mentioned.</p>
+--mention--

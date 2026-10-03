@@ -1,0 +1,11 @@
+{
+  "description": "Developer newsletter with merge tags inside <code>, <pre> and monospace text: must not be flagged.",
+  "capsExactly": [],
+  "checks": {
+    "X3": "pass"
+  },
+  "staticChipsExclude": [
+    "merge_tag",
+    "merge_tag_subject"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "description": "Passwordless magic sign-in link via Mailgun; security-sensitive (verification_code subtype).",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-26T10:02:25Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "account_security",
+    "subtype": "verification_code",
+    "securitySensitive": true,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "high",
+    "deals": [],
+    "espPlatform": "Mailgun"
+  }
+}

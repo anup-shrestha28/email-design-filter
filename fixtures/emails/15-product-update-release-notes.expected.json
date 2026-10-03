@@ -1,0 +1,29 @@
+{
+  "description": "Product update announcing version 4.2 with release notes (Customer.io).",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-23T16:00:15Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "product_update",
+    "subtype": "release_notes",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": true,
+    "language": "en",
+    "importance": "low",
+    "espPlatform": "Customer.io",
+    "deals": []
+  }
+}

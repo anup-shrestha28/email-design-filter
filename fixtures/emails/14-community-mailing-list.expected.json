@@ -1,0 +1,30 @@
+{
+  "description": "Mailman discussion-list reply from a person: List-Id + List-Post, DMARC fail with ARC pass (forwarded) — not suspicious; badge is partial, not failed.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_FORUMS"
+    ],
+    "receivedAt": "2026-09-24T06:15:01Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "community",
+    "subtype": "mailing_list",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "low",
+    "authResult": "fail",
+    "trust": "partial",
+    "deals": []
+  }
+}

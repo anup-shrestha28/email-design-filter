@@ -1,0 +1,30 @@
+{
+  "name": "@edf/render",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "build": "node build.mjs",
+    "render-vm:snapshot": "tsx scripts/snapshot.ts"
+  },
+  "dependencies": {
+    "@edf/core": "workspace:*",
+    "@edf/design": "workspace:*",
+    "@edf/sanitize": "workspace:*",
+    "puppeteer-core": "25.12.0",
+    "axe-core": "4.13.0",
+    "sharp": "0.35.4",
+    "culori": "4.0.2",
+    "zod": "4.6.5",
+    "@vercel/sandbox": "3.5.0"
+  },
+  "devDependencies": {
+    "@types/culori": "4.0.1",
+    "esbuild": "0.28.2"
+  }
+}

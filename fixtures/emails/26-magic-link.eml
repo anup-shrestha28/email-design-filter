@@ -1,0 +1,58 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Sat, 26 Sep 2026 10:02:19 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Sat, 26 Sep 2026 10:02:19 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@draftly.example header.s=mx header.b=ZHJhZnQ;
+       spf=pass (google.com: domain of bounce+2f1a9c.4d3e-owner=example.com@mg.draftly.example designates 159.135.224.21 as permitted sender) smtp.mailfrom="bounce+2f1a9c.4d3e-owner=example.com@mg.draftly.example";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=draftly.example
+Return-Path: <bounce+2f1a9c.4d3e-owner=example.com@mg.draftly.example>
+Received: from m224-21.mailgun.net (m224-21.mailgun.net. [159.135.224.21])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sat, 26 Sep 2026 10:02:19 +0000
+Received-SPF: pass (google.com: domain of bounce+2f1a9c.4d3e-owner=example.com@mg.draftly.example designates 159.135.224.21 as permitted sender) client-ip=159.135.224.21;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@draftly.example header.s=mx header.b=ZHJhZnQ;
+       spf=pass (google.com: domain of bounce+2f1a9c.4d3e-owner=example.com@mg.draftly.example designates 159.135.224.21 as permitted sender) smtp.mailfrom="bounce+2f1a9c.4d3e-owner=example.com@mg.draftly.example";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=draftly.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=draftly.example; s=mx;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Draftly <login@draftly.example>
+To: owner@example.com
+Subject: Your sign-in link for Draftly
+Date: Sat, 26 Sep 2026 10:02:19 +0000
+Message-ID: <20260926100219.9a8b7c6d5e4f3a21@mg.draftly.example>
+X-Mailgun-Sid: WyIyZjFhOSIsICJvd25lckBleGFtcGxlLmNvbSIsICI0ZDNlIl0=
+X-Mailgun-Tag: magic-link
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="magic"
+
+--magic
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Click the link below to sign in to Draftly. This magic link expires in 15 minutes and can only be used once.
+
+https://draftly.example/auth/magic?token=mX9pQ2rT7vW4yZ1bC3dF5gH8jK0lN6sV
+
+If you didn't request this, ignore this email.
+
+--magic
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><head><meta charset="utf-8"><title>Sign in to Draftly</title></head><body style="font-family:Georgia,serif;background:#fffdf8;margin:0;">
+<div style="max-width:520px;margin:40px auto;padding:0 20px;color:#2d2a26;">
+<p style="font-size:17px;line-height:1.6;">Click the button below to sign in to Draftly. This magic link expires in 15 minutes and can only be used once.</p>
+<p><a href="https://draftly.example/auth/magic?token=mX9pQ2rT7vW4yZ1bC3dF5gH8jK0lN6sV" style="display:inline-block;background:#2d2a26;color:#fffdf8;padding:12px 22px;border-radius:999px;text-decoration:none;">Sign in to Draftly</a></p>
+<p style="font-size:14px;color:#6b665f;">If you didn't request this, ignore this email.</p>
+</div></body></html>
+--magic--

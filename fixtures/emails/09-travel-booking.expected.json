@@ -1,0 +1,30 @@
+{
+  "description": "Flight booking confirmation with FlightReservation JSON-LD; deadline = departure time.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-19T22:45:20Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "transactional",
+    "subtype": "travel",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "normal",
+    "espPlatform": "SparkPost",
+    "deadlineAt": "2026-10-12T12:45:00.000Z",
+    "deals": []
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "description": "Same layout as 01 with #b8b8b8 body and #c4c4c4 headings on white (~2:1).",
+  "scoreRange": [
+    0,
+    59
+  ],
+  "bands": [
+    "needs_work",
+    "poor"
+  ],
+  "capsInclude": [
+    "CAP_CONTRAST"
+  ],
+  "checks": {
+    "A1": "fail"
+  },
+  "firstNeedsImprovement": {
+    "key": "cap:CAP_CONTRAST",
+    "checkIdsInclude": [
+      "A1"
+    ]
+  }
+}

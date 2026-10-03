@@ -1,0 +1,60 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Mon, 21 Sep 2026 09:31:00 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Mon, 21 Sep 2026 09:31:00 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@notelane.example header.s=itbl header.b=YWJjZGVm;
+       spf=pass (google.com: domain of bounces-7c21@mail.notelane.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=bounces-7c21@mail.notelane.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=notelane.example
+Return-Path: <bounces-7c21@mail.notelane.example>
+Received: from mail.notelane.example (mail.notelane.example. [198.51.100.42])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Mon, 21 Sep 2026 09:31:00 +0000
+Received-SPF: pass (google.com: domain of bounces-7c21@mail.notelane.example designates 198.51.100.42 as permitted sender) client-ip=198.51.100.42;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@notelane.example header.s=itbl header.b=YWJjZGVm;
+       spf=pass (google.com: domain of bounces-7c21@mail.notelane.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=bounces-7c21@mail.notelane.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=notelane.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=notelane.example; s=itbl;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type:list-unsubscribe:list-unsubscribe-post;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Notelane <hello@notelane.example>
+To: owner@example.com
+Subject: Welcome to Notelane, Nova!
+Date: Mon, 21 Sep 2026 09:31:00 +0000
+Message-ID: <welcome.7c21.20260921@mail.notelane.example>
+List-Unsubscribe: <https://links.iterable.com/u/click?_t=7c21aa&_m=welcome>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+X-Iterable-Campaign: welcome-series-1
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="welcome"
+
+--welcome
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Welcome to Notelane! Thanks for signing up.
+
+--welcome
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Welcome</title></head>
+<body style="margin:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#222;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+<tr><td style="padding:28px;"><img src="https://library.iterable.com/1234/notelane-logo.png" width="130" height="34" alt="Notelane"></td></tr>
+<tr><td style="padding:0 28px;"><h1 style="font-size:26px;margin:0 0 12px;">Welcome to Notelane!</h1>
+<p style="font-size:16px;line-height:1.6;">Thanks for signing up. Notelane keeps your notes, tasks and links in one quiet place. Here are three ways to get started:</p>
+<ol style="font-size:16px;line-height:1.6;"><li>Create your first notebook.</li><li>Install the browser clipper.</li><li>Invite a teammate to share a notebook.</li></ol>
+<p><a href="https://app.notelane.example/start" style="background:#111;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;display:inline-block;">Open Notelane</a></p></td></tr>
+<tr><td style="padding:20px 28px;font-size:12px;color:#888;">You are receiving this email because you signed up for Notelane. <a href="https://links.iterable.com/u/click?_t=7c21aa&_m=welcome" style="color:#888;">Unsubscribe</a><br>Notelane Labs, 2 Kingdom St, London W2 6BD, United Kingdom</td></tr>
+</table></td></tr></table></body></html>
+--welcome--

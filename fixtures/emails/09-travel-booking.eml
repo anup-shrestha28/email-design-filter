@@ -1,0 +1,60 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Sat, 19 Sep 2026 18:45:12 -0400
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Sat, 19 Sep 2026 18:45:12 -0400
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@skywayair.example header.s=scph0926 header.b=c2t5d2F5;
+       spf=pass (google.com: domain of msprvs1=19abc=bounces-44102@sparkpostmail1.com designates 192.174.90.12 as permitted sender) smtp.mailfrom="msprvs1=19abc=bounces-44102@sparkpostmail1.com";
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=skywayair.example
+Return-Path: <msprvs1=19abc=bounces-44102@sparkpostmail1.com>
+Received: from mta12a.sparkpostmail.com (mta12a.sparkpostmail.com. [192.174.90.12])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sat, 19 Sep 2026 18:45:12 -0400
+Received-SPF: pass (google.com: domain of msprvs1=19abc=bounces-44102@sparkpostmail1.com designates 192.174.90.12 as permitted sender) client-ip=192.174.90.12;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@skywayair.example header.s=scph0926 header.b=c2t5d2F5;
+       spf=pass (google.com: domain of msprvs1=19abc=bounces-44102@sparkpostmail1.com designates 192.174.90.12 as permitted sender) smtp.mailfrom="msprvs1=19abc=bounces-44102@sparkpostmail1.com";
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=skywayair.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=skywayair.example; s=scph0926;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Skyway Air <reservations@skywayair.example>
+To: owner@example.com
+Subject: Booking confirmation: New York (JFK) to Lisbon (LIS) – ABC123
+Date: Sat, 19 Sep 2026 18:45:12 -0400
+Message-ID: <booking.ABC123.20260919@skywayair.example>
+X-MSYS-API: {"campaign_id":"booking-confirmation"}
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="flight"
+
+--flight
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Your booking is confirmed. Confirmation code: ABC123
+Flight SW212 JFK → LIS, Monday, October 12, 2026, departs 08:45.
+Online check-in opens 24 hours before departure.
+
+--flight
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Booking confirmation</title>
+<script type="application/ld+json">{"@context":"http://schema.org","@type":"FlightReservation","reservationNumber":"ABC123","reservationStatus":"http://schema.org/ReservationConfirmed","underName":{"@type":"Person","name":"Nova Example"},"reservationFor":{"@type":"Flight","flightNumber":"212","airline":{"@type":"Airline","name":"Skyway Air","iataCode":"SW"},"departureAirport":{"@type":"Airport","name":"John F. Kennedy International","iataCode":"JFK"},"departureTime":"2026-10-12T08:45:00-04:00","arrivalAirport":{"@type":"Airport","name":"Lisbon Humberto Delgado","iataCode":"LIS"},"arrivalTime":"2026-10-12T20:30:00+01:00"}}</script></head>
+<body style="margin:0;background:#eef3f8;font-family:Arial,sans-serif;">
+<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="600" style="background:#fff;">
+<tr><td style="background:#003a70;padding:20px 28px;"><img src="https://img.skywayair.example/email/skyway-logo-white.png" width="140" height="36" alt="Skyway Air"></td></tr>
+<tr><td style="padding:28px;"><h1 style="font-size:22px;color:#003a70;margin:0 0 10px;">Your booking is confirmed</h1>
+<p style="font-size:15px;">Confirmation code: <strong>ABC123</strong></p>
+<table role="presentation" style="font-size:15px;"><tr><td style="padding-right:16px;">Flight SW212</td><td>JFK → LIS</td></tr><tr><td style="padding-right:16px;">Departs</td><td>Monday, October 12, 2026, 08:45</td></tr><tr><td style="padding-right:16px;">Arrives</td><td>20:30 local time</td></tr></table>
+<p style="font-size:14px;color:#555;">Online check-in opens 24 hours before departure.</p>
+<p><a href="https://skywayair.example/manage?pnr=ABC123" style="background:#f2a900;color:#002244;padding:12px 20px;text-decoration:none;font-weight:bold;display:inline-block;">Manage booking</a></p>
+</td></tr><tr><td style="padding:16px 28px;font-size:12px;color:#777;">Skyway Air Inc., 1 Terminal Way, Jamaica, NY 11430</td></tr></table></td></tr></table></body></html>
+--flight--

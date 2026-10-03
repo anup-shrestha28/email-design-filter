@@ -1,0 +1,20 @@
+{
+  "description": "Editorial newsletter: Georgia 17px, headings, descriptive article links, no button needed (H1–H2 N/A for newsletters).",
+  "scoreRange": [
+    75,
+    100
+  ],
+  "bands": [
+    "good",
+    "excellent"
+  ],
+  "capsExactly": [],
+  "checks": {
+    "H1": "not_applicable",
+    "H2": "not_applicable",
+    "C5": "not_applicable",
+    "A1": "pass",
+    "A3": "pass",
+    "T1": "pass"
+  }
+}

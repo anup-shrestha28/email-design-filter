@@ -1,0 +1,26 @@
+{
+  "description": "Fixed 700px tables with no media queries and 14px text: shrinks to ~53% on phones.",
+  "scoreRange": [
+    0,
+    64
+  ],
+  "bands": [
+    "needs_work",
+    "poor"
+  ],
+  "capsInclude": [
+    "CAP_MOBILE_BROKEN"
+  ],
+  "checks": {
+    "M1": "fail",
+    "T1": "fail",
+    "M2": "fail"
+  },
+  "firstNeedsImprovement": {
+    "key": "cap:CAP_MOBILE_BROKEN",
+    "checkIdsInclude": [
+      "M1",
+      "T1"
+    ]
+  }
+}

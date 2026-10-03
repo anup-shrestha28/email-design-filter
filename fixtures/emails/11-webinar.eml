@@ -1,0 +1,64 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Tue, 22 Sep 2026 15:00:21 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Tue, 22 Sep 2026 15:00:21 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@dataforge.example header.s=hs1 header.b=ZGF0YQ;
+       dkim=pass header.i=@bf03x.hubspotemail.net header.s=hs1 header.b=aHVi;
+       spf=pass (google.com: domain of 1axbtlklw6w9mvnbymgmhpq5obqtq8xyk2pkxhsdc12h1-owner=example.com@bf03x.hubspotemail.net designates 143.244.80.12 as permitted sender) smtp.mailfrom=1axbtlklw6w9mvnbymgmhpq5obqtq8xyk2pkxhsdc12h1-owner=example.com@bf03x.hubspotemail.net;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=dataforge.example
+Return-Path: <1axbtlklw6w9mvnbymgmhpq5obqtq8xyk2pkxhsdc12h1-owner=example.com@bf03x.hubspotemail.net>
+Received: from bf03x.hubspotemail.net (bf03x.hubspotemail.net. [143.244.80.12])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 22 Sep 2026 15:00:21 +0000
+Received-SPF: pass (google.com: domain of 1axbtlklw6w9mvnbymgmhpq5obqtq8xyk2pkxhsdc12h1-owner=example.com@bf03x.hubspotemail.net designates 143.244.80.12 as permitted sender) client-ip=143.244.80.12;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@dataforge.example header.s=hs1 header.b=ZGF0YQ;
+       dkim=pass header.i=@bf03x.hubspotemail.net header.s=hs1 header.b=aHVi;
+       spf=pass (google.com: domain of 1axbtlklw6w9mvnbymgmhpq5obqtq8xyk2pkxhsdc12h1-owner=example.com@bf03x.hubspotemail.net designates 143.244.80.12 as permitted sender) smtp.mailfrom=1axbtlklw6w9mvnbymgmhpq5obqtq8xyk2pkxhsdc12h1-owner=example.com@bf03x.hubspotemail.net;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=dataforge.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=dataforge.example; s=hs1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type:list-unsubscribe:list-unsubscribe-post;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: DataForge Events <events@dataforge.example>
+To: owner@example.com
+Subject: Live webinar: Scaling Postgres to 1B rows – save your seat
+Date: Tue, 22 Sep 2026 15:00:21 +0000
+Message-ID: <1790000000123.a1b2c3@bf03x.hubspotemail.net>
+List-Unsubscribe: <https://dataforge.example/hs/manage-preferences/unsubscribe?d=VnQvZ9&v=3>, <mailto:unsubscribe@bf03x.hubspotemail.net?subject=unsubscribe>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+X-HS-Cid: 1a2b3c4d
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="webinar"
+
+--webinar
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Live webinar: Scaling Postgres to 1B rows
+Join us on Thursday, October 8, 2026 at 1 PM EDT.
+Register now: https://dataforge.example/webinars/postgres-1b
+
+--webinar
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Webinar</title></head><body style="margin:0;background:#0f172a;">
+<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="600" style="background:#111827;color:#e5e7eb;font-family:Inter,Arial,sans-serif;">
+<tr><td style="padding:28px;"><img src="https://dataforge.example/hubfs/email/dataforge-logo.png" width="130" height="34" alt="DataForge"></td></tr>
+<tr><td style="padding:0 28px;"><p style="color:#38bdf8;font-size:13px;letter-spacing:1px;text-transform:uppercase;margin:0;">Live webinar</p>
+<h1 style="font-size:28px;margin:8px 0 12px;color:#fff;">Scaling Postgres to 1B rows</h1>
+<p style="font-size:16px;line-height:1.6;">Join us on Thursday, October 8, 2026 at 1 PM EDT for a 45-minute live session with our database team. We'll cover partitioning, index strategy and the vacuum settings that kept our largest customer fast.</p>
+<table role="presentation"><tr><td style="background:#38bdf8;border-radius:6px;"><a href="https://dataforge.example/webinars/postgres-1b?utm_source=hs_email&amp;utm_medium=email&amp;utm_campaign=webinar-oct" style="display:inline-block;padding:14px 26px;color:#0f172a;font-weight:700;text-decoration:none;">Register now</a></td></tr></table></td></tr>
+<tr><td style="padding:28px;font-size:12px;color:#9ca3af;">You received this email because you are subscribed to DataForge event updates. <a href="https://dataforge.example/hs/manage-preferences/unsubscribe?d=VnQvZ9&amp;v=3" style="color:#9ca3af;">Unsubscribe</a> · <a href="https://dataforge.example/hs/manage-preferences?d=VnQvZ9" style="color:#9ca3af;">Manage preferences</a><br>DataForge, Inc., 500 Boylston St, Boston, MA 02116</td></tr>
+</table></td></tr></table>
+<img src="https://t.hubspotemail.net/e2t/to/VnQvZ9W1a2b3c4d5e6f7g8h9i0" width="1" height="1" alt="" style="display:none;">
+</body></html>
+--webinar--

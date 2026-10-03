@@ -1,0 +1,29 @@
+{
+  "description": "Lifecycle welcome email after sign-up (Iterable).",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-21T09:31:05Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "lifecycle",
+    "subtype": "welcome",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": true,
+    "language": "en",
+    "importance": "low",
+    "espPlatform": "Iterable",
+    "deals": []
+  }
+}

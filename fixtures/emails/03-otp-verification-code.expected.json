@@ -1,0 +1,36 @@
+{
+  "description": "OTP verification code from a bank via Amazon SES; security-sensitive, high importance for 1 h.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES",
+      "IMPORTANT"
+    ],
+    "receivedAt": "2026-09-25T16:41:12Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": false,
+    "primaryType": "account_security",
+    "subtype": "verification_code",
+    "securitySensitive": true,
+    "suspicious": false,
+    "oneClick": false,
+    "language": "en",
+    "importance": "high",
+    "importanceAfter": {
+      "at": "2026-09-25T17:45:00Z",
+      "level": "normal"
+    },
+    "deals": [],
+    "espPlatform": "Amazon SES",
+    "authResult": "pass",
+    "trust": "trusted"
+  }
+}

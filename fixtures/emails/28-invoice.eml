@@ -1,0 +1,57 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Fri, 25 Sep 2026 06:00:03 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Fri, 25 Sep 2026 06:00:03 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@hostwise.example header.s=20260101pm header.b=YWJjZGVm;
+       spf=pass (google.com: domain of pm_bounces@pm-bounces.hostwise.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=pm_bounces@pm-bounces.hostwise.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=hostwise.example
+Return-Path: <pm_bounces@pm-bounces.hostwise.example>
+Received: from sc-ord-mta7.mtasv.net (sc-ord-mta7.mtasv.net. [50.31.156.7])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 25 Sep 2026 06:00:03 +0000
+Received-SPF: pass (google.com: domain of pm_bounces@pm-bounces.hostwise.example designates 50.31.156.7 as permitted sender) client-ip=50.31.156.7;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@hostwise.example header.s=20260101pm header.b=YWJjZGVm;
+       spf=pass (google.com: domain of pm_bounces@pm-bounces.hostwise.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=pm_bounces@pm-bounces.hostwise.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=hostwise.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=hostwise.example; s=20260101pm;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Hostwise Billing <billing@hostwise.example>
+To: owner@example.com
+Subject: Your invoice INV-2026-0925 is ready
+Date: Fri, 25 Sep 2026 06:00:03 +0000
+Message-ID: <0a1b2c3d-inv-0925@mtasv.net>
+X-PM-Message-Id: 0a1b2c3d-inv-0925
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="invoice"
+
+--invoice
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Invoice INV-2026-0925
+Amount due: $42.00
+Payment due on October 5, 2026.
+View and pay: https://my.hostwise.example/billing/invoices/INV-2026-0925
+
+--invoice
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html lang="en"><head><meta charset="utf-8"><title>Invoice</title></head><body style="font-family:Arial,sans-serif;background:#f6f8fa;margin:0;">
+<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="560" style="background:#fff;border:1px solid #e1e4e8;">
+<tr><td style="padding:24px;"><h1 style="font-size:20px;margin:0 0 12px;">Invoice INV-2026-0925</h1>
+<table role="presentation" style="font-size:15px;"><tr><td style="padding:4px 20px 4px 0;">Plan</td><td>VPS Standard (monthly)</td></tr><tr><td style="padding:4px 20px 4px 0;">Amount due</td><td><strong>$42.00</strong></td></tr><tr><td style="padding:4px 20px 4px 0;">Due date</td><td>October 5, 2026</td></tr></table>
+<p style="font-size:15px;">Payment due on October 5, 2026. Your card on file will be charged automatically.</p>
+<p><a href="https://my.hostwise.example/billing/invoices/INV-2026-0925" style="background:#0366d6;color:#fff;padding:10px 18px;text-decoration:none;display:inline-block;border-radius:4px;">View invoice</a></p>
+<p style="font-size:12px;color:#6a737d;">Hostwise Cloud GmbH, Torstraße 110, 10119 Berlin, Germany</p></td></tr></table></td></tr></table></body></html>
+--invoice--

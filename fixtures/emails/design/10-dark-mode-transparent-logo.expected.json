@@ -1,0 +1,18 @@
+{
+  "description": "Transparent black logo (cid part) and pure black text on white: dark-mode risk. A logo, a plain headline on white, two paragraphs and one button: no hero picture or headline band (G4, methodology 2026.6), so the Excellent gate holds it at 84.",
+  "scoreRange": [
+    70,
+    84
+  ],
+  "bands": [
+    "good"
+  ],
+  "capsExactly": [],
+  "checks": {
+    "M6": "partial"
+  },
+  "firstNeedsImprovement": {
+    "key": "gate:excellence",
+    "checkIdsInclude": []
+  }
+}

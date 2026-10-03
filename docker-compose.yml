@@ -1,0 +1,14 @@
+# Local Postgres 18 that mimics Neon: the database owner is a NON-superuser with
+# CREATEROLE + BYPASSRLS (like neondb_owner), so RLS/role behaviour matches production.
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./packages/db/docker-init:/docker-entrypoint-initdb.d:ro
+      - edf-pg:/var/lib/postgresql
+volumes:
+  edf-pg:

@@ -1,0 +1,58 @@
+Delivered-To: owner@example.com
+Received: by 2002:a05:6a10:8f0e:b0:5f1:2d3c:1a2b with SMTP id x14csp4521873pxy;
+        Sat, 26 Sep 2026 19:22:40 +0000
+X-Received: by 2002:a17:90b:4b4f:b0:2e2:c4f1:aa01 with SMTP id mi15mr2211441pjb.9;
+        Sat, 26 Sep 2026 19:22:40 +0000
+ARC-Seal: i=1; a=rsa-sha256; t=1790000000; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFy
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@friendlane.example header.s=fl1 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of bounce-8x2@notify.friendlane.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=bounce-8x2@notify.friendlane.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=friendlane.example
+Return-Path: <bounce-8x2@notify.friendlane.example>
+Received: from out.notify.friendlane.example (out.notify.friendlane.example. [198.51.100.30])
+        by mx.google.com with ESMTPS id d9443c01a7336-2092f4c5a1bsi8812355ad.301.2026.09.25
+        for <owner@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sat, 26 Sep 2026 19:22:40 +0000
+Received-SPF: pass (google.com: domain of bounce-8x2@notify.friendlane.example designates 198.51.100.30 as permitted sender) client-ip=198.51.100.30;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@friendlane.example header.s=fl1 header.b=YWJjZGVm;
+       spf=pass (google.com: domain of bounce-8x2@notify.friendlane.example designates 198.51.100.20 as permitted sender) smtp.mailfrom=bounce-8x2@notify.friendlane.example;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=friendlane.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=friendlane.example; s=fl1;
+	t=1790000000; h=from:to:subject:date:message-id:mime-version:content-type:list-unsubscribe:list-unsubscribe-post;
+	bh=47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=;
+	b=dGVzdHNpZ25hdHVyZXRlc3RzaWduYXR1cmV0ZXN0c2lnbmF0dXJldGVzdHNpZ25hdHVyZQ==
+From: Friendlane <notification@friendlane.example>
+To: owner@example.com
+Subject: Maya Chen commented on your post
+Date: Sat, 26 Sep 2026 19:22:40 +0000
+Message-ID: <c.9f8e7d6c@notify.friendlane.example>
+List-Unsubscribe: <https://friendlane.example/settings/notifications/unsubscribe?t=comment&u=88f1>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="social"
+
+--social
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Maya Chen commented on your post: "Great photos from Porto! Which café was that?"
+View comment: https://friendlane.example/p/7781/comments/551
+
+--social
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>New comment</title></head>
+<body style="margin:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#222;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+<tr><td style="padding:24px 28px;"><img src="https://static.friendlane.example/email/fl-logo.png" width="110" height="30" alt="Friendlane"></td></tr>
+<tr><td style="padding:0 28px 20px;font-size:16px;line-height:1.5;"><strong>Maya Chen</strong> commented on your post: “Great photos from Porto! Which café was that?”</td></tr>
+<tr><td style="padding:0 28px 24px;"><a href="https://friendlane.example/p/7781/comments/551" style="background:#1877f2;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View comment</a></td></tr>
+<tr><td style="padding:20px 28px;font-size:12px;color:#888;">You are receiving this email because you signed up for Friendlane notifications. <a href="https://friendlane.example/settings/notifications/unsubscribe?t=comment&u=88f1" style="color:#888;">Unsubscribe</a><br>Friendlane Inc., 1 Hacker Way, Menlo Park, CA 94025</td></tr>
+</table></td></tr></table></body></html>
+--social--

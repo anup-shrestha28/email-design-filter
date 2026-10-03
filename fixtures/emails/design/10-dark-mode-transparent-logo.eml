@@ -1,0 +1,113 @@
+From: Northline <team@northline-app.com>
+To: reader@inbox-owner.net
+Subject: Your October product update
+Date: Fri, 25 Sep 2026 14:02:11 +0000
+Message-ID: <1975903025@fixtures.edf>
+MIME-Version: 1.0
+X-EDF-Type: product_update
+X-EDF-Subscription: yes
+List-Unsubscribe: <https://northline-app.com/email/unsubscribe>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+Content-Type: multipart/related; boundary="rel"
+
+--rel
+Content-Type: multipart/alternative; boundary="alt"
+
+--alt
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Faster sync is here.
+
+--alt
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html>
+<html lang=3D"en">
+<head>
+<meta charset=3D"utf-8">
+<meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D1">
+<title>Northline update</title>
+<style>
+  .wrap { width:100%; max-width:600px; margin:0 auto; background:#ffffff; }
+  .pad { padding:28px 32px; }
+  h1 { font-family: Helvetica, Arial, sans-serif; font-size:30px; line-heig=
+ht:1.25; color:#000000; margin:0 0 14px; }
+  h2 { font-family: Helvetica, Arial, sans-serif; font-size:21px; line-heig=
+ht:1.3; color:#000000; margin:0 0 10px; }
+  p { font-family: Helvetica, Arial, sans-serif; font-size:16px; line-heigh=
+t:1.6; color:#000000; margin:0 0 16px; }
+  .btn { display:inline-block; background:#0b5fff; color:#ffffff; font-fami=
+ly: Helvetica, Arial, sans-serif; font-weight:700; font-size:17px; text-dec=
+oration:none; padding:14px 30px; border-radius:6px; }
+  .foot p { font-size:13px; line-height:1.5; color:#4b5563; }
+  .foot a { color:#000000; text-decoration:underline; }
+  @media screen and (max-width: 600px) { .pad { padding:22px 18px !importan=
+t; } h1 { font-size:26px !important; } }
+</style>
+</head>
+<body style=3D"margin:0;padding:0;background:#ffffff;">
+<div style=3D"display:none;max-height:0;overflow:hidden;mso-hide:all;">Fast=
+er sync, shared folders and a new mobile widget.&#847; &zwnj; &nbsp; &#847;=
+ &zwnj; &nbsp;</div>
+<div lang=3D"en" dir=3D"ltr"><table role=3D"presentation" class=3D"wrap" wi=
+dth=3D"100%" cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"max-=
+width:600px;margin:0 auto;background:#ffffff;">
+<tr><td class=3D"pad" style=3D"padding:24px 32px;"><img src=3D"cid:logo@nor=
+thline" width=3D"160" height=3D"40" alt=3D"Northline" style=3D"display:bloc=
+k;border:0;"></td></tr>
+<tr><td class=3D"pad" style=3D"padding:8px 32px 28px;"><h1>Faster sync is h=
+ere</h1>
+<p>Files now sync up to three times faster on every device. Shared folders =
+keep your whole team on the same version, and the new mobile widget shows r=
+ecent files at a glance.</p>
+<p>The update rolls out automatically over the next week. There is nothing =
+to install and your settings stay exactly as they are.</p>
+<table role=3D"presentation" cellpadding=3D"0" cellspacing=3D"0" border=3D"=
+0"><tr><td style=3D"border-radius:6px;background:#111111;"><a class=3D"btn"=
+ href=3D"https://northline-app.com/whats-new" style=3D"background:#111111;"=
+>See what's new</a></td></tr></table></td></tr>
+<tr><td class=3D"pad foot" style=3D"padding:24px 32px;border-top:1px solid =
+#e5e7eb;">
+<p>You're receiving this email because you signed up at northline.com.</p>
+<p>Northline Inc., 410 Harbor Street, Suite 12, Portland, OR 97209, USA</p>
+<p><a href=3D"https://northline-app.com/email/unsubscribe">Unsubscribe</a> =
+&middot; <a href=3D"https://mail.northline.com/preferences?u=3D7f3a">Manage=
+ preferences</a></p>
+</td></tr>
+</table></div>
+</body>
+</html>
+
+--alt--
+
+--rel
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-ID: <logo@northline>
+Content-Disposition: inline
+
+iVBORw0KGgoAAAANSUhEUgAAAUAAAABQCAYAAABoMayFAAAACXBIWXMAAAsTAAALEwEAmpwYAAAE
+TUlEQVR42u3dS28VZRwH4HFjK0nvZ3OS6jGKmKhFgopfoIkbAzHoGhKj3Yi4sm68VDZ8DpcmQAUS
+P4Im2oVbURC+AOiGJpTi/9We5ISUclrOdC7v8yS/9KQt7WHezi9zeWemKAAAAAAAAAAAAAAA2Ltu
+t3tgamrqyOzs7GLkg3h9OiW9Tp9LX5ufn3/GkgKa7qmZmZmF6enps/FxNfJXZDPy4DHZ3Pre1fi3
+n8bH19LPsjiB2ovCei6yHLk2RNkNlSjCW5HzExMTL1nCQO2k3dcoqe+H3Mrba9LPvhK7y29b4kDl
+Op3OoSi+H0ssvUflqi1CoBK9Xm88SuhcZL2C8usn/e6VeDtjRgTYr93d52Or7+cKi+/hrE1OTh40
+MkDZ5fdelN/fNSq/fu7E+zphhICyyu90FM29GpZfPxuRJSMFFCOe3vJFjYvv4SwbMWBU5bfUoPLr
+zx08Y+SAJz7mt7Vr+aBh2YgSPG4EgT1JZ1ZresJj2K3Af+bm5l42ksBujaXpJU0tv4H85gYLQLHL
+437nWlB+/awYUWAo6RKz2H2826ICXC9rV7hFy0gyjLbbRkXX9pZ+7bACFFGAO4o7rRxr62DHVuBb
+ClBEAe60Qv/Q4gG/pABFFGDxiGkvL5Z8P7+qsxnzGl9QgCIKcLuVeaXtAx7HN79SgCIKsNjmGR5/
+ZjDo10b5jBErkSjAdpz5PZzLoMeJnlcUoIgCLAau+f0sl0GPsv9EAYoowMEVeTWjgb+oAEUU4OAu
+8K2MBv6GAhRRgP/pdrsHYmHcz2jg74/qBglWIlGAzd/6ez3DwV8YUQGuiTQ12u//lfid3AowzgQv
+GnkgXf97MrcCTHe6NvJA/2lvWRVg7PafMvKAAgTsAtsFBgonQZwEAQrTYEyDAVotTQrObSJ0r9cb
+L0Zz/PQNaW6s/fR3g29mVIDXXQonroRgcEW+lNEf/gUFKAqQweOAZ90OSwEqQHLdAlxwQ1QFqAAp
+Mr4l/h9uia8AFSC5bgV+k8Hu75ceiiQKkMJjMRWgAoR8bo1/wYPRRQFS7DCx92hbtwJjC/dNBSgK
+kMet1Fdb+Md+uaRl9bE0N9Z2tjsWeDBOFtxtUfmtdzqdQ0YWGHbL5tsWnfn92ogCuzEW5fFrCwrw
+l/R/MZzAXqbF3Glw+d0e9bQXoMjqGuETUSQbDSy/jXjv7xpBoHjC44EfNW3Cc1zv+6GRA0ZVgstN
+Kb/I50YMKEp4ety9Ou/2RpaMFFCUdEzweE1PjNx2zA/YjxLsRX6qUfmtpTPWRgYo9nGe4EqVV4yk
+3701yflpwwEUVVw2V9G1w5dt9QF1erbwdyXPGUxneK/EFJdjljhQ1HC6zLNbU2Z+H2Hx3YyCPZ+2
+Ni1hoCll+GoU15n4eDFyY8iHr6fvuZ5uXpqe3jbKBxgBVKbX641HqR2OUluMvB+vT6XE65Ppc+lr
+6XssKQAAAAAAAAAAAAAAIEv/AteCTgb2ODWmAAAAAElFTkSuQmCC
+
+--rel--

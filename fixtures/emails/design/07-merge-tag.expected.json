@@ -1,0 +1,21 @@
+{
+  "description": "Unrendered *|FNAME|* in the subject and {{ first_name }} in the headline.",
+  "scoreRange": [
+    0,
+    69
+  ],
+  "bands": [
+    "needs_work",
+    "poor"
+  ],
+  "capsInclude": [
+    "CAP_MERGE_TAG"
+  ],
+  "checks": {
+    "X3": "partial"
+  },
+  "staticChips": [
+    "merge_tag_subject",
+    "merge_tag"
+  ]
+}

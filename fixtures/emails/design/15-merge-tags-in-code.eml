@@ -1,0 +1,79 @@
+From: Stackforge Docs <docs@stackforge-dev.com>
+To: reader@inbox-owner.net
+Subject: Templating tips: fallbacks for missing fields
+Date: Fri, 25 Sep 2026 14:02:11 +0000
+Message-ID: <724766970@fixtures.edf>
+MIME-Version: 1.0
+X-EDF-Type: newsletter
+X-EDF-Subscription: yes
+List-Unsubscribe: <https://stackforge-dev.com/unsubscribe>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+Content-Type: multipart/alternative; boundary="alt"
+
+--alt
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Fallbacks for missing fields.
+
+--alt
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html>
+<html lang=3D"en">
+<head>
+<meta charset=3D"utf-8">
+<meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D1">
+<title>Stackforge tips</title>
+<style>
+  .wrap { width:100%; max-width:600px; margin:0 auto; background:#ffffff; }
+  .pad { padding:28px 32px; }
+  h1 { font-family: Helvetica, Arial, sans-serif; font-size:30px; line-heig=
+ht:1.25; color:#111827; margin:0 0 14px; }
+  h2 { font-family: Helvetica, Arial, sans-serif; font-size:21px; line-heig=
+ht:1.3; color:#111827; margin:0 0 10px; }
+  p { font-family: Helvetica, Arial, sans-serif; font-size:16px; line-heigh=
+t:1.6; color:#374151; margin:0 0 16px; }
+  .btn { display:inline-block; background:#0b5fff; color:#ffffff; font-fami=
+ly: Helvetica, Arial, sans-serif; font-weight:700; font-size:17px; text-dec=
+oration:none; padding:14px 30px; border-radius:6px; }
+  .foot p { font-size:13px; line-height:1.5; color:#4b5563; }
+  .foot a { color:#374151; text-decoration:underline; }
+  @media screen and (max-width: 600px) { .pad { padding:22px 18px !importan=
+t; } h1 { font-size:26px !important; } }
+</style>
+</head>
+<body style=3D"margin:0;padding:0;background:#f3f4f6;">
+<div style=3D"display:none;max-height:0;overflow:hidden;mso-hide:all;">How =
+to keep merge fields from leaking into your emails.&#847; &zwnj; &nbsp; &#8=
+47; &zwnj; &nbsp;</div>
+<div lang=3D"en" dir=3D"ltr"><table role=3D"presentation" class=3D"wrap" wi=
+dth=3D"100%" cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"max-=
+width:600px;margin:0 auto;background:#ffffff;">
+<tr><td class=3D"pad" style=3D"padding:28px 32px;"><h1>Fallbacks for missin=
+g fields</h1>
+<p>Merge fields such as <code style=3D"font-family:Menlo, Consolas, monospa=
+ce;">{{ user.first_name }}</code> render as raw text when the value is miss=
+ing. Always give them a default.</p>
+<pre style=3D"font-family:Menlo, Consolas, monospace;font-size:14px;backgro=
+und:#f3f4f6;padding:12px;">Hello *|FNAME|*,
+{{ user.first_name | default: "there" }}</pre>
+<p>Mailchimp uses a different syntax, <span style=3D"font-family:'Courier N=
+ew', monospace;">*|FNAME:there|*</span>, but the principle is the same: tes=
+t with an empty profile before you send.</p>
+<p><a href=3D"https://stackforge-dev.com/docs/merge-fields" style=3D"color:=
+#1d4ed8;">Read the merge field guide</a></p></td></tr>
+<tr><td class=3D"pad foot" style=3D"padding:24px 32px;border-top:1px solid =
+#e5e7eb;">
+<p>You're receiving this email because you signed up at stackforge.com.</p>
+<p>Stackforge Inc., 410 Harbor Street, Suite 12, Portland, OR 97209, USA</p>
+<p><a href=3D"https://stackforge-dev.com/unsubscribe">Unsubscribe</a> &midd=
+ot; <a href=3D"https://mail.stackforge.com/preferences?u=3D7f3a">Manage pre=
+ferences</a></p>
+</td></tr>
+</table></div>
+</body>
+</html>
+
+--alt--

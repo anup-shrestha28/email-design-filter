@@ -1,0 +1,32 @@
+{
+  "description": "Editorial newsletter (Issue #112) via Mailgun with List-Id, Precedence: bulk and one-click.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_UPDATES"
+    ],
+    "receivedAt": "2026-09-20T07:30:05Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": true,
+    "skipReason": null,
+    "isSubscription": true,
+    "primaryType": "newsletter",
+    "subtype": "editorial",
+    "securitySensitive": false,
+    "suspicious": false,
+    "oneClick": true,
+    "language": "en",
+    "importance": "low",
+    "espPlatform": "Mailgun",
+    "authResult": "pass",
+    "trust": "trusted",
+    "deals": [],
+    "postalAddress": true
+  }
+}

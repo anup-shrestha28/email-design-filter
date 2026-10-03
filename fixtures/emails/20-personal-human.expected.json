@@ -1,0 +1,19 @@
+{
+  "description": "One-to-one personal email from a friend's Gmail account: not automated, never stored.",
+  "input": {
+    "labelIds": [
+      "INBOX",
+      "CATEGORY_PERSONAL"
+    ],
+    "receivedAt": "2026-09-26T03:03:15Z",
+    "userAddresses": [
+      "owner@example.com"
+    ],
+    "priorContact": null,
+    "senderTemplateRepeats": false
+  },
+  "expected": {
+    "automated": false,
+    "skipReason": "personal"
+  }
+}
