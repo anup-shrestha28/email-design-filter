@@ -46,6 +46,8 @@ const BUILD_ALLOW = [
 
 const APT_PACKAGES = [
   "ca-certificates",
+  "curl",
+  "unzip",
   "fontconfig",
   "fonts-croscore",
   "fonts-roboto",
@@ -172,9 +174,11 @@ async function main(): Promise<void> {
       "command -v apt-get >/dev/null || { echo 'apt-get not found: pick a Debian/Ubuntu-based image' >&2; exit 1; }",
       { step: "distro check" },
     );
+    // The build allowlist is enforced on TLS (SNI), so plain-HTTP package mirrors can't be reached:
+    // point apt at the same hosts over HTTPS (both Ubuntu and Debian serve their archives on 443).
     await sh(
       sb,
-      `export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq --no-install-recommends ${APT_PACKAGES.join(" ")} && (apt-get install -y -qq libasound2t64 || apt-get install -y -qq libasound2)`,
+      `export DEBIAN_FRONTEND=noninteractive; for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do [ -f "$f" ] && sed -i -E 's#http://(archive\\.ubuntu\\.com|security\\.ubuntu\\.com|deb\\.debian\\.org|security\\.debian\\.org)#https://\\1#g' "$f"; done; apt-get update -qq && apt-get install -y -qq --no-install-recommends ${APT_PACKAGES.join(" ")} && (apt-get install -y -qq libasound2t64 || apt-get install -y -qq libasound2)`,
       {
         sudo: true,
         step: "system packages",
