@@ -20,10 +20,11 @@ import type { GalleryFacets, GalleryPage } from "@/server/queries/types";
 import { ActiveFilters } from "./active-filters";
 import { FilterBar } from "./filter-bar";
 import { groupSimilar } from "@/lib/gallery-display";
-import { GalleryCard, scrollRoot } from "./gallery-card";
+import { GalleryCard, scrollRoot, shapeOf } from "./gallery-card";
 import { GalleryDetail } from "./gallery-detail";
 import { GalleryPagination } from "./gallery-pagination";
 import { LiveSlot } from "./live-updates";
+import { Masonry } from "./masonry";
 import { PreviewUrlProvider, type SeedUrls } from "./preview-urls";
 import {
   activeFilterCount,
@@ -34,15 +35,13 @@ import {
 
 /**
  * Few, large cards, so each design can be read at a glance: 1 column on phones, 2 on tablets, 3 on
- * small laptops, 4 on desktops (5 on very wide screens), a plain responsive grid (reallygoodemails.com
- * style — every card the same size, showing the top of the email; the full design is one click away
- * in the detail view, gallery-detail.tsx).
+ * small laptops, 4 on desktops (5 on very wide screens), in a Pinterest-style masonry (masonry.tsx):
+ * each card is its email's own shape — the whole design, or the top of a very long one — so short
+ * and long designs sit together without gaps. The full design is one click away in the detail
+ * view (gallery-detail.tsx).
  */
 /** The gallery's page width (shared by the filter bar, so both line up). */
 export const GALLERY_WIDTH = "mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8";
-/** One size per breakpoint, so rows line up (gallery-card.tsx PREVIEW_BOX is the same box). */
-export const GALLERY_GRID =
-  "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4 min-[1700px]:grid-cols-5";
 
 /** Every URL field back to its default (the "Clear filters" buttons; page size is kept). */
 const RESET_ALL = Object.fromEntries(
@@ -260,6 +259,7 @@ function Results({
   // Near-identical designs (the same template sent again) collapse into one card, "+N similar".
   const groups = useMemo(() => groupSimilar(items), [items]);
   const shown = useMemo(() => groups.map((g) => g.item), [groups]);
+  const ratios = useMemo(() => shown.map((i) => shapeOf(i).ratio), [shown]);
 
   // ── the open card (?open=<id>) ──
   const [openId, setOpenId] = useOpenCard();
@@ -375,22 +375,22 @@ function Results({
         />
       ) : (
         <>
-          <ul
-            role="list"
-            aria-label="Email designs"
-            aria-busy={stale}
-            className={cn(GALLERY_GRID, "transition-opacity", stale && "opacity-60")}
-          >
-            {groups.map(({ item, similar }) => (
+          <Masonry
+            items={groups}
+            ratios={ratios}
+            getKey={(g) => g.item.id}
+            label="Email designs"
+            busy={stale}
+            className={cn("transition-opacity", stale && "opacity-60")}
+            renderItem={({ item, similar }) => (
               <GalleryCard
-                key={item.id}
                 item={item}
                 similar={similar.length}
                 eager={eager.has(item.id)}
                 onOpen={open}
               />
-            ))}
-          </ul>
+            )}
+          />
           <GalleryPagination
             page={page.page}
             pageCount={page.pageCount}

@@ -44,6 +44,7 @@ export const galleryParsers = {
   problem: parseAsArrayOf(parseAsStringLiteral(GALLERY_PROBLEMS)).withDefault([]),
   mailbox: parseAsString,
   webfonts: parseAsStringLiteral(GALLERY_WEB_FONTS).withDefault("any"),
+  board: parseAsString,
 };
 
 /**

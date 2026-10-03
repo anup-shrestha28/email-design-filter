@@ -88,6 +88,7 @@ export const config = {
   matcher: [
     "/",
     "/gallery/:path*",
+    "/boards/:path*",
     "/today/:path*",
     "/inbox/:path*",
     "/email/:path*",

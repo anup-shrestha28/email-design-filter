@@ -1,9 +1,10 @@
 /**
  * Gallery cards in the DOM: the face shows the design, who sent it and when, and (once scored) the
- * verdict and why — never the subject, which lives in the card button's name and tooltip. Every
- * card's preview has the same box shape (growing only to fill a taller grid row), showing the top
- * of the email laid out at the crop's canvas width (reallygoodemails.com style); the full design is
- * one click away, in the detail view.
+ * verdict and why — never the subject, which lives in the card button's name and tooltip. Each
+ * card's preview is its email's own shape (Pinterest-style masonry): the whole email at the card's
+ * width, up to 3× as tall as wide — a longer one is cut there and fades out — laid out at the
+ * crop's canvas width; the full design is one click away, in the detail view. A Save button sits
+ * over the preview, above the card's own button.
  */
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { GalleryCard, GalleryCardSkeleton } from "@/components/gallery/gallery-card";
@@ -12,6 +13,11 @@ import type { GalleryItem } from "@/server/queries/types";
 import { describedByText, render, waitFor } from "../support/render";
 
 vi.mock("@/server/actions/gallery", () => ({ galleryPreviewUrls: vi.fn(async () => ({})) }));
+vi.mock("@/server/actions/boards", () => ({
+  getBoardChoices: vi.fn(async () => ({ ok: true, data: [] })),
+  setSaved: vi.fn(),
+  createBoard: vi.fn(),
+}));
 
 beforeAll(() => {
   // jsdom has no ResizeObserver (the card measures its preview box with one).
@@ -43,11 +49,10 @@ const item = (over: Partial<GalleryItem> = {}): GalleryItem => ({
 
 const card = (it: GalleryItem, extra: Partial<React.ComponentProps<typeof GalleryCard>> = {}) => (
   <PreviewUrlProvider>
-    <ul>
-      <GalleryCard item={it} onOpen={() => {}} {...extra} />
-    </ul>
+    <GalleryCard item={it} onOpen={() => {}} {...extra} />
   </PreviewUrlProvider>
 );
+const root = (c: Element) => c.querySelector<HTMLElement>("[data-gallery-card]")!;
 
 /** The card's visible text (screen-reader-only spans removed). */
 function visibleText(root: Element): string {
@@ -59,7 +64,7 @@ function visibleText(root: Element): string {
 describe("GalleryCard", () => {
   it("scored: sender, verdict badge and reason on the face; the subject only in the name and tooltip", async () => {
     const r = await render(card(item()));
-    const li = r.container.querySelector("li")!;
+    const li = root(r.container);
     const text = visibleText(li);
     expect(text).toContain("Tidewell");
     expect(text).not.toContain(SUBJECT);
@@ -83,7 +88,7 @@ describe("GalleryCard", () => {
         }),
       ),
     );
-    const li = r.container.querySelector("li")!;
+    const li = root(r.container);
     const text = visibleText(li);
     expect(text).toContain("Tidewell");
     expect(text).toContain("Scoring now");
@@ -127,34 +132,48 @@ describe("GalleryCard", () => {
     expect(visibleText(r.container)).toContain("Not scored yet");
   });
 
-  it("every card keeps the same fixed box shape, rendered or not", async () => {
-    const tall = await render(card(item({ frame: { x: 100, width: 600, contentBottom: 3160 } })));
-    const box = tall.container.querySelector<HTMLElement>("[data-preview-box]")!;
-    expect(box.className).toContain("aspect-[5/4]");
-    expect(box.className).toContain("sm:aspect-square");
-    expect(box.getAttribute("style") ?? "").not.toContain("aspect-ratio");
-    await tall.unmount();
-
-    const unknown = await render(card(item({ frame: null })));
-    const sq = unknown.container.querySelector<HTMLElement>("[data-preview-box]")!;
-    expect(sq.className).toContain("sm:aspect-square");
-    expect(sq.getAttribute("style") ?? "").not.toContain("aspect-ratio");
+  it("each preview is its email's own shape: whole up to 3× its width, square while unknown", async () => {
+    const ratioOf = async (frame: GalleryItem["frame"]) => {
+      const r = await render(card(item({ frame })));
+      const box = r.container.querySelector<HTMLElement>("[data-preview-box]")!;
+      const ratio = box.style.aspectRatio;
+      expect(box.className).not.toMatch(/aspect-(square|\[)/);
+      await r.unmount();
+      return ratio;
+    };
+    // 600 px of content + 24 px gutters = a 648 px slice; 900 + 2 px tall → 902 / 648.
+    expect(await ratioOf({ x: 100, width: 600, contentBottom: 900 })).toBe(`1 / ${902 / 648}`);
+    // 4.9× as tall as wide: cut at 3×.
+    expect(await ratioOf({ x: 100, width: 600, contentBottom: 3160 })).toBe("1 / 3");
+    // A one-line notice never becomes a strip.
+    expect(await ratioOf({ x: 100, width: 600, contentBottom: 100 })).toBe("1 / 0.6");
+    // Not rendered yet: a square, as before.
+    expect(await ratioOf(null)).toBe("1 / 1");
   });
 
-  it("the preview grows to fill a taller grid row (an unscored card beside scored ones): no empty strip", async () => {
-    const r = await render(
-      card(item({ verdict: "unscored", score: null, band: null, reason: null })),
-    );
-    const li = r.container.querySelector<HTMLElement>("li")!;
-    const box = li.querySelector<HTMLElement>("[data-preview-box]")!;
-    // The card is a column that stretches to its row; the preview is the part that takes up the
-    // slack (flex-grow with its aspect-ratio height as the basis, so the shape is its minimum).
-    expect(li.className.split(/\s+/)).toEqual(expect.arrayContaining(["flex", "flex-col"]));
-    expect(box.className.split(/\s+/)).toContain("grow");
-    expect(box.className).not.toMatch(/\bflex-1\b|\bbasis-/);
-    expect(box.className).toContain("sm:aspect-square");
-    // The text under it never grows.
-    expect(li.querySelector<HTMLElement>('[id$="-meta"]')!.className).not.toContain("grow");
+  it("the Save button sits over the preview, after the card's own button and above it", async () => {
+    const r = await render(card(item()));
+    const li = root(r.container);
+    const open = li.querySelector("button[data-card-id]")!;
+    const save = li.querySelector<HTMLElement>('button[aria-label="Save to a board"]')!;
+    expect(save).not.toBeNull();
+    expect(save.textContent).toBe("Save");
+    // Tab order: open the design, then save it; a click on Save never opens the design.
+    expect(open.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(save.className).toContain("z-20");
+    expect(open.className).toContain("z-10");
+    // …inside the card's own stacking layer, so they never show through the sticky filter bar.
+    expect(li.className.split(/\s+/)).toContain("isolate");
+    // Hidden until hover / focus, except on touch screens.
+    expect(save.className).toContain("opacity-0");
+    expect(save.className).toContain("group-hover:opacity-100");
+    expect(save.className).toContain("[@media(hover:none)]:opacity-100");
+    await r.unmount();
+
+    const saved = await render(card(item({ saved: true })));
+    const btn = saved.container.querySelector<HTMLElement>('button[aria-label="Saved — change boards"]')!;
+    expect(btn.textContent).toBe("Saved");
+    expect(btn.className).not.toContain("opacity-0");
   });
 
   it("the live preview lays out at the crop's canvas: 800 px, or the email's own width when wider", async () => {
@@ -162,9 +181,7 @@ describe("GalleryCard", () => {
       const url = `https://view.test/v/t/${id}`;
       const r = await render(
         <PreviewUrlProvider seed={{ mintedAt: Date.now(), urls: { [id]: url } }}>
-          <ul>
-            <GalleryCard item={item({ id, previewable: true, frame })} eager onOpen={() => {}} />
-          </ul>
+          <GalleryCard item={item({ id, previewable: true, frame })} eager onOpen={() => {}} />
         </PreviewUrlProvider>,
       );
       const iframe = await waitFor(() => {
@@ -192,20 +209,20 @@ describe("GalleryCard", () => {
 
   it("still shows '+N similar'", async () => {
     const r = await render(card(item(), { similar: 2 }));
-    const li = r.container.querySelector<HTMLElement>("li")!;
+    const li = root(r.container);
     expect(visibleText(li)).toContain("+2 similar");
   });
 });
 
 describe("GalleryCardSkeleton", () => {
-  it("has the card's fixed box and the same text block", async () => {
+  it("has a square box (an unknown length) and the same text block", async () => {
     const r = await render(
       <ul>
         <GalleryCardSkeleton />
       </ul>,
     );
-    const li = r.container.querySelector("li")!;
-    expect(li.getAttribute("aria-hidden")).toBe("true");
-    expect(li.firstElementChild!.className).toContain("sm:aspect-square");
+    const skeleton = r.container.querySelector("li")!;
+    expect(skeleton.getAttribute("aria-hidden")).toBe("true");
+    expect(skeleton.firstElementChild!.className).toContain("aspect-square");
   });
 });

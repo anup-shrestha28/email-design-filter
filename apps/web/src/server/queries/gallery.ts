@@ -331,7 +331,16 @@ function uuidArray(values: readonly string[]): SQL {
 }
 
 type FilterKey =
-  "category" | "design" | "font" | "score" | "date" | "sender" | "problem" | "mailbox" | "webfonts";
+  | "category"
+  | "design"
+  | "font"
+  | "score"
+  | "date"
+  | "sender"
+  | "problem"
+  | "mailbox"
+  | "webfonts"
+  | "board";
 const FILTER_KEYS: readonly FilterKey[] = [
   "category",
   "design",
@@ -342,6 +351,7 @@ const FILTER_KEYS: readonly FilterKey[] = [
   "problem",
   "mailbox",
   "webfonts",
+  "board",
 ];
 
 /** Every filter as SQL (null = off). Values are always bound parameters, never spliced text. */
@@ -368,6 +378,11 @@ function filterConditions(
         : p.webfonts === "no"
           ? sql`NOT e.uses_web_fonts`
           : null,
+    // Saved in that board (RLS: only the user's own boards and saves are visible).
+    board:
+      p.board && UUID_RE.test(p.board)
+        ? sql`EXISTS (SELECT 1 FROM board_item bi WHERE bi.email_id = e.id AND bi.board_id = ${p.board}::uuid)`
+        : null,
   };
 }
 
@@ -407,6 +422,8 @@ interface Row {
   /** RENDER_FACTS (null once compacted). */
   render_facts: RenderFacts | null;
   mailbox_status: string;
+  /** Saved in at least one of the user's boards. */
+  saved?: boolean | null;
 }
 
 /** Score keys that put unscored emails last in both directions (scores are 0..100). */
@@ -491,6 +508,7 @@ function toGalleryItem(r: Row): GalleryItem {
     fonts: r.font_families.slice(0, 3),
     previewable: r.mailbox_status === "active",
     frame: previewFrameOf(r.layout),
+    saved: r.saved === true,
   };
 }
 
@@ -585,7 +603,8 @@ export async function listGallery(
              ${CHECKS_PROJECTION} AS checks,
              ${SIGNALS} AS signals,
              ${RENDER_FACTS} AS render_facts,
-             m.status AS mailbox_status
+             m.status AS mailbox_status,
+             EXISTS (SELECT 1 FROM board_item bi WHERE bi.email_id = e.id) AS saved
       FROM pick
       JOIN email e ON e.id = pick.id AND e.user_id = ${userId}
       JOIN mailbox m ON m.id = e.mailbox_id AND m.user_id = e.user_id
@@ -653,6 +672,7 @@ export async function galleryFacets(
   const fWeb = othersThan("webfonts");
   const fSender = othersThan("sender");
   const fMailbox = othersThan("mailbox");
+  const fBoard = othersThan("board");
   const selected = params.sender.filter((id) => UUID_RE.test(id));
   const selectedFirst = selected.length ? sql`(s.id = ANY(${uuidArray(selected)})) DESC, ` : sql``;
 
@@ -734,6 +754,15 @@ export async function galleryFacets(
       FROM mailbox m
       WHERE m.user_id = ${userId} AND m.status <> 'disconnecting'
       ORDER BY m.created_at, m.id`);
+    // Every board (an empty one still names its chip), with its saves that match the other filters.
+    const boards = await raw(db).execute<{ id: string; name: string; n: string }>(sql`
+      SELECT b.id, b.name,
+             (SELECT count(*) FROM board_item bi JOIN email e ON e.id = bi.email_id AND e.user_id = bi.user_id
+              ${JOIN_ANALYSIS}
+              WHERE bi.board_id = b.id AND ${sql.join([...base, fBoard], sql` AND `)}) AS n
+      FROM board b
+      WHERE b.user_id = ${userId}
+      ORDER BY b.created_at DESC, b.id`);
     const row = res.rows[0] ?? {};
     const n = (k: string) => Number(row[k] ?? 0);
     return {
@@ -765,6 +794,7 @@ export async function galleryFacets(
       >,
       mailboxes: mailboxes.rows.map((r) => ({ id: r.id, address: r.address, count: Number(r.n) })),
       webFonts: { yes: n("w_yes"), no: n("w_no") },
+      boards: boards.rows.map((r) => ({ id: r.id, name: r.name, count: Number(r.n) })),
     };
   });
 }

@@ -1010,6 +1010,7 @@ describe("gallery URL params", () => {
       problem: [],
       mailbox: null,
       webfonts: "any",
+      board: null,
     });
     expect(parseGalleryParams(undefined)).toEqual(DEFAULT_GALLERY_PARAMS);
     expect(parseGalleryParams({})).toEqual(DEFAULT_GALLERY_PARAMS);

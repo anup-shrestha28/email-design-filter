@@ -1,5 +1,6 @@
 import {
   Archive,
+  Bookmark,
   ChartColumn,
   CircleAlert,
   Inbox,
@@ -21,7 +22,15 @@ import {
 import type { SmartView } from "@/server/queries/types";
 
 export interface NavItem {
-  href: "/gallery" | "/today" | "/inbox" | "/senders" | "/insights" | "/settings" | "/system";
+  href:
+    | "/gallery"
+    | "/boards"
+    | "/today"
+    | "/inbox"
+    | "/senders"
+    | "/insights"
+    | "/settings"
+    | "/system";
   label: string;
   icon: LucideIcon;
   shortcut?: string;
@@ -30,6 +39,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/gallery", label: "Designs", icon: LayoutGrid, shortcut: "g d" },
+  { href: "/boards", label: "Boards", icon: Bookmark },
   { href: "/today", label: "Today", icon: Sunrise, shortcut: "g t" },
   { href: "/inbox", label: "Inbox list", icon: Inbox, shortcut: "g i" },
   { href: "/senders", label: "Senders", icon: Users, shortcut: "g s" },

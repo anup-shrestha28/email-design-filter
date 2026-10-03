@@ -323,6 +323,27 @@ export const savedView = pgTable("saved_view", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+/** A user's own collection of saved designs (0018). Names are unique per user, ignoring case. */
+export const board = pgTable("board", {
+  id: id(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/** One saved design in one board; goes with its email and with its board (0018). */
+export const boardItem = pgTable(
+  "board_item",
+  {
+    boardId: uuid("board_id").notNull(),
+    userId: text("user_id").notNull(),
+    emailId: uuid("email_id").notNull(),
+    addedAt: ts("added_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.boardId, t.emailId] })],
+);
+
 export const userFeedback = pgTable("user_feedback", {
   id: id(),
   userId: text("user_id").notNull(),

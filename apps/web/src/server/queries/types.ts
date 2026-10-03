@@ -454,6 +454,8 @@ export interface GalleryItem {
   frame?: PreviewFrame | null;
   /** Unscored only: when the score will come, from the real render queue (lib/gallery-waiting.ts). */
   waiting?: Waiting | null;
+  /** Saved in at least one of the user's boards (the card's Save button). */
+  saved?: boolean;
 }
 
 /** One numbered page of the gallery. */
@@ -488,4 +490,6 @@ export interface GalleryFacets {
   /** Every connected mailbox (the Mailbox filter only shows with 2 or more). */
   mailboxes: Array<{ id: string; address: string; count: number }>;
   webFonts: { yes: number; no: number };
+  /** The user's boards (newest first) and how many of their saved designs match the other filters. */
+  boards: Array<{ id: string; name: string; count: number }>;
 }

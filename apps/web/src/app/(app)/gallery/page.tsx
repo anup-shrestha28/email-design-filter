@@ -87,6 +87,7 @@ const KNOWN_KEYS = new Set([
   "problem",
   "mailbox",
   "webfonts",
+  "board",
   "open",
   "connected",
 ]);
@@ -109,6 +110,7 @@ const STRICT_KEYS = [
   "problem",
   "mailbox",
   "webfonts",
+  "board",
 ] as const;
 
 /** `href` plus the non-filter keys (`open`, `connected`) carried over from the request. */

@@ -1,14 +1,15 @@
 "use client";
-import { Check, ImageOff, Layers, X } from "lucide-react";
+import { Check, ChevronsDown, ImageOff, Layers, X } from "lucide-react";
 import { memo, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { EMAIL_FRAME_SANDBOX } from "@/components/email/email-viewer";
 import { SenderAvatar } from "@/components/ui/avatar";
 import { Time } from "@/components/ui/time";
 import { cn } from "@/lib/cn";
-import { cardCrop, cardLayout, previewFrameOf } from "@/lib/gallery-preview";
+import { cardCrop, cardLayout, cardShape, previewFrameOf, type CardShape } from "@/lib/gallery-preview";
 import type { GalleryItem } from "@/server/queries/types";
 import { useElementSize } from "./email-frame";
 import { gaveUp, isFresh, useLoadTurn, usePreviewUrl, useRequestWhile } from "./preview-urls";
+import { SaveToBoard } from "./save-to-board";
 import { VerdictBadge } from "./verdict-badge";
 import { useWaitingCopy, WaitingBadge } from "./waiting-badge";
 
@@ -18,20 +19,12 @@ export function scrollRoot(): HTMLElement | null {
 }
 
 /**
- * The preview box: one shape per breakpoint for every card — wide on phones (one column), square
- * from tablets up — so each row lines up and the verdict badges sit on one line, like
- * reallygoodemails.com's grid. The email's own document fills the whole box, so a short email reads
- * as a sheet of paper, never as an email over an empty block (lib/gallery-preview.ts cardLayout
- * `frameHeight`). The full design is one click away, in the detail view (gallery-detail.tsx).
+ * The loading skeleton's preview box (a card whose length isn't known yet is square too). A real
+ * card's box is the email's own shape (Pinterest-style masonry, gallery-view.tsx): the whole email
+ * at the card's width, up to CARD_MAX_RATIO tall — a longer one shows its top and fades out
+ * (lib/gallery-preview.ts cardShape). The full design is one click away, in the detail view.
  */
-export const PREVIEW_BOX = "aspect-[5/4] sm:aspect-square";
-/**
- * In a card, the box's shape is its minimum: it grows (`grow`, keeping the aspect-ratio height as
- * its flex basis) when the grid row is taller than the card, so the picture simply shows a little
- * more of the email instead of leaving an empty strip at the bottom of the card. cardLayout works
- * from the measured box, so the frame still covers all of it.
- */
-const CARD_PREVIEW_BOX = `${PREVIEW_BOX} grow`;
+export const PREVIEW_BOX = "aspect-square";
 
 /**
  * The card width a first-screen preview is laid out for before its box has been measured (a
@@ -107,11 +100,17 @@ export function frameOf(item: GalleryItem) {
   return previewFrameOf(item.frame ?? null);
 }
 
+/** A card's preview shape (height ÷ width, and whether it's cut short): the masonry lays cards out by it. */
+export function shapeOf(item: GalleryItem): CardShape {
+  return cardShape(cardCrop(frameOf(item)));
+}
+
 /**
- * A live picture of the top of the email, served by the viewer origin (edf-view) in a sandboxed
- * iframe — never rendered in the app origin. The email is laid out at the analysis' 800 px (or its
- * own width, when wider) and zoomed so its visible content fills the card, showing its top and
- * drifting down on hover (lib/gallery-preview.ts cardCrop).
+ * A live picture of the whole email, served by the viewer origin (edf-view) in a sandboxed iframe —
+ * never rendered in the app origin. The email is laid out at the analysis' 800 px (or its own
+ * width, when wider) and zoomed so its visible content fills the card's width (lib/gallery-preview.ts
+ * cardCrop); the box is the email's own shape (cardShape), so the card shows all of it — or, for a
+ * very long email, its top with a soft fade.
  *
  * Loading: a card whose URL came with the page (`eager`) and that is near the screen when the page
  * hydrates mounts its frame at once, without waiting for a load turn or for the box to be measured
@@ -152,8 +151,9 @@ function CardPreview({ item, eager }: { item: GalleryItem; eager: boolean }) {
   }, [eager, nearAtMount, src, fresh, entry, item.previewable]);
 
   const crop = useMemo(() => cardCrop(frameOf(item)), [item]);
+  const shape = useMemo(() => cardShape(crop), [crop]);
   const width = box.width || ESTIMATED_CARD_WIDTH;
-  const layout = cardLayout(crop, width, box.height || width);
+  const layout = cardLayout(crop, width, box.height || Math.round(width * shape.ratio));
 
   // The viewer is confirmed down (the probe is patient: two failures in a row), and this card has no
   // real preview yet: show the friendly fallback instead of a broken frame.
@@ -176,10 +176,8 @@ function CardPreview({ item, eager }: { item: GalleryItem; eager: boolean }) {
     <div
       ref={boxRef}
       data-preview-box
-      className={cn(
-        "relative overflow-hidden border-b border-border bg-surface-muted",
-        CARD_PREVIEW_BOX,
-      )}
+      className="relative overflow-hidden border-b border-border bg-surface-muted"
+      style={{ aspectRatio: `1 / ${shape.ratio}` }}
     >
       {unavailable ? (
         <NoPreview name={item.sender.name} domain={item.sender.domain} />
@@ -189,18 +187,12 @@ function CardPreview({ item, eager }: { item: GalleryItem; eager: boolean }) {
           {src ? (
             <div
               aria-hidden
-              className={cn(
-                "absolute top-0 left-0 origin-top-left overflow-hidden transition-[translate] duration-[1400ms] ease-out",
-                "motion-safe:group-hover:translate-y-[calc(var(--drift)*-1)]",
-              )}
-              style={
-                {
-                  "--drift": `${layout.drift}px`,
-                  width: crop.renderWidth,
-                  height: layout.frameHeight,
-                  transform: `translateX(${-crop.cropX * layout.scale}px) scale(${layout.scale})`,
-                } as React.CSSProperties
-              }
+              className="absolute top-0 left-0 origin-top-left overflow-hidden"
+              style={{
+                width: crop.renderWidth,
+                height: layout.frameHeight,
+                transform: `translateX(${-crop.cropX * layout.scale}px) scale(${layout.scale})`,
+              }}
             >
               <iframe
                 src={src}
@@ -222,8 +214,24 @@ function CardPreview({ item, eager }: { item: GalleryItem; eager: boolean }) {
               />
             </div>
           ) : null}
+          {shape.capped && loaded ? <LongEmailFade /> : null}
         </>
       )}
+    </div>
+  );
+}
+
+/** The bottom of a very long email's card: it fades out, and says there's more. */
+function LongEmailFade() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-x-0 bottom-0 flex h-20 items-end justify-center bg-gradient-to-t from-surface via-surface/80 to-transparent pb-2"
+    >
+      <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground shadow-xs ring-1 ring-border">
+        <ChevronsDown className="size-3" />
+        Long email
+      </span>
     </div>
   );
 }
@@ -309,10 +317,14 @@ export const GalleryCard = memo(function GalleryCard({
   const metaId = `card-${item.id}-meta`;
   const scored = item.verdict !== "unscored";
   return (
-    <li className="group relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-xs transition-[box-shadow,transform,border-color] duration-200 ease-out hover:border-border-strong hover:shadow-overlay motion-safe:hover:-translate-y-0.5">
+    <div
+      data-gallery-card
+      // isolate: the Save button's and the card button's z-index stay inside the card, so a card
+      // scrolled under the sticky filter bar never pokes through it.
+      className="group relative isolate flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-xs transition-[box-shadow,transform,border-color] duration-200 ease-out hover:border-border-strong hover:shadow-overlay motion-safe:hover:-translate-y-0.5">
       <CardPreview item={item} eager={eager} />
       {similar > 0 ? (
-        <span className="pointer-events-none absolute top-2 right-2 z-[5] inline-flex h-6 items-center gap-1 rounded-full bg-[oklch(0.2_0.01_270/0.78)] px-2 text-xs font-medium text-white shadow-sm ring-1 ring-black/5 backdrop-blur-sm">
+        <span className="pointer-events-none absolute top-2 left-2 z-[5] inline-flex h-6 items-center gap-1 rounded-full bg-[oklch(0.2_0.01_270/0.78)] px-2 text-xs font-medium text-white shadow-sm ring-1 ring-black/5 backdrop-blur-sm">
           <Layers aria-hidden className="size-3" />+{similar} similar
         </span>
       ) : null}
@@ -359,7 +371,10 @@ export const GalleryCard = memo(function GalleryCard({
         title={subject}
         className="absolute inset-0 z-10 rounded-xl focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       />
-    </li>
+      {/* After the card's button (Tab: open, then save) and above it (z-20), so a click saves
+          instead of opening the design. */}
+      <SaveToBoard emailId={item.id} saved={item.saved === true} className="absolute top-2 right-2 z-20" />
+    </div>
   );
 });
 

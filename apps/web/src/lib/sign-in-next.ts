@@ -6,7 +6,7 @@
  * become an open redirect.
  */
 const NEXT_PATH =
-  /^\/(?:gallery|today|inbox|email|senders|insights|settings|system|connect)(?:\/[A-Za-z0-9._~%!$&'()*+,;=:@-]+)*\/?$/;
+  /^\/(?:gallery|boards|today|inbox|email|senders|insights|settings|system|connect)(?:\/[A-Za-z0-9._~%!$&'()*+,;=:@-]+)*\/?$/;
 /**
  * Also refused: an encoded "/" or "\" (Better Auth rejects it as a callbackURL, which would break
  * Google sign-in instead of falling back) and a dot segment, plain or `%2e` (the browser resolves

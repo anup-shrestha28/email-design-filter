@@ -62,6 +62,7 @@ const facets: GalleryFacets = {
     { id: B, address: "work@gmail.com", count: 3 },
   ],
   webFonts: { yes: 6, no: 4 },
+  boards: [],
 };
 
 const click = (el: Element | null | undefined) =>

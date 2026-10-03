@@ -58,6 +58,14 @@ export async function buildExportPage(userId: string, cursor: string | null): Pr
       for (const f of feedback.rows) push(line("feedback", f));
       const views = await c.query("SELECT name, filters, sort, position, created_at FROM saved_view WHERE user_id = $1", [userId]);
       for (const v of views.rows) push(line("saved_view", v));
+      const boards = await c.query(
+        `SELECT b.id, b.name, b.created_at, b.updated_at,
+                (SELECT coalesce(jsonb_agg(jsonb_build_object('email_id', bi.email_id, 'added_at', bi.added_at) ORDER BY bi.added_at), '[]'::jsonb)
+                 FROM board_item bi WHERE bi.board_id = b.id) AS saved
+         FROM board b WHERE b.user_id = $1 ORDER BY b.created_at, b.id`,
+        [userId],
+      );
+      for (const b of boards.rows) push(line("board", b));
       const audit = await c.query("SELECT actor, action, target, created_at FROM audit_log WHERE user_id = $1 ORDER BY id", [userId]);
       for (const a of audit.rows) push(line("audit", a));
     }

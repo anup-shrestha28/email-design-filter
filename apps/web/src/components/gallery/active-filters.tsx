@@ -29,8 +29,9 @@ export function ActiveFilters({
       activeFilterChips(params, {
         senders: senderChipLabels(facets.senders),
         mailboxes: new Map(facets.mailboxes.map((m) => [m.id, m.address])),
+        boards: new Map(facets.boards.map((b) => [b.id, b.name])),
       }),
-    [params, facets.senders, facets.mailboxes],
+    [params, facets.senders, facets.mailboxes, facets.boards],
   );
   if (chips.length === 0) return null;
   return (

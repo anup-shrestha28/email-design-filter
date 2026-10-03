@@ -1,8 +1,8 @@
 import { GalleryCardSkeleton } from "@/components/gallery/gallery-card";
 import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
 
-// The same page width and grid as components/gallery/gallery-view.tsx (GALLERY_WIDTH, GALLERY_GRID),
-// written out here so this server file doesn't pull in the client view.
+// The same page width and columns as components/gallery/gallery-view.tsx (GALLERY_WIDTH, and the
+// masonry's first-paint grid), written out here so this server file doesn't pull in the client view.
 const WIDTH = "mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8";
 const GRID =
   "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4 min-[1700px]:grid-cols-5";

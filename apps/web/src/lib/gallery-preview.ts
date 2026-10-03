@@ -250,6 +250,69 @@ export function cardCrop(frame: PreviewFrame | null): CardCrop {
   return { renderWidth, cropX, cropWidth, contentBottom };
 }
 
+/**
+ * The tallest a card's preview gets, as a multiple of its width: about 85% of real mail fits whole
+ * (measured on the owner's 340 rendered emails: median 1.7×, 75th percentile 2.3×, 90th 3.7×).
+ * A longer email shows its top this tall, with a soft fade (Pinterest style); the whole email is
+ * one click away in the detail view.
+ */
+export const CARD_MAX_RATIO = 3;
+/** The shortest a card's preview gets (a one-line notice still reads as a sheet, not a strip). */
+export const CARD_MIN_RATIO = 0.6;
+/** An email whose length isn't known yet (not rendered): a square, like before. */
+export const CARD_UNKNOWN_RATIO = 1;
+
+export interface CardShape {
+  /** Preview height ÷ width. */
+  ratio: number;
+  /** Cut at CARD_MAX_RATIO: the card shows the top of a longer email, fading out. */
+  capped: boolean;
+  /** The email's length was measured (false: CARD_UNKNOWN_RATIO stands in). */
+  known: boolean;
+}
+
+/**
+ * A masonry card's preview shape: the whole email at the card's width — its content height over
+ * the slice the card shows (cardCrop) — clamped to CARD_MIN_RATIO..CARD_MAX_RATIO.
+ */
+export function cardShape(crop: CardCrop): CardShape {
+  const bottom = crop.contentBottom;
+  if (!finite(bottom) || bottom <= 0 || !(crop.cropWidth > 0)) {
+    return { ratio: CARD_UNKNOWN_RATIO, capped: false, known: false };
+  }
+  // +2 render px: the same allowance the card's frame gets, so the email's last pixels show.
+  const whole = (bottom + 2) / crop.cropWidth;
+  return {
+    ratio: Math.min(CARD_MAX_RATIO, Math.max(CARD_MIN_RATIO, whole)),
+    capped: whole > CARD_MAX_RATIO,
+    known: true,
+  };
+}
+
+/**
+ * Masonry: each card goes to the column that is shortest so far (Pinterest style), given each
+ * card's height as a multiple of the column width plus a fixed part (its footer and the gap, in
+ * px). Returns the indices of `heights` per column, in order. Ties go to the leftmost column, so
+ * the first row reads left to right in the list's order.
+ */
+export function masonryColumns(
+  ratios: readonly number[],
+  columns: number,
+  columnWidth: number,
+  fixedPx: number,
+): number[][] {
+  const n = Math.max(1, Math.floor(columns));
+  const out: number[][] = Array.from({ length: n }, () => []);
+  const filled = new Array<number>(n).fill(0);
+  ratios.forEach((r, i) => {
+    let best = 0;
+    for (let c = 1; c < n; c++) if (filled[c]! < filled[best]! - 0.5) best = c;
+    out[best]!.push(i);
+    filled[best]! += (finite(r) && r > 0 ? r : CARD_UNKNOWN_RATIO) * columnWidth + fixedPx;
+  });
+  return out;
+}
+
 export interface CardLayout {
   /** Scale from render px to card px. */
   scale: number;

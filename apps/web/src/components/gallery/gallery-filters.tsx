@@ -225,6 +225,7 @@ function PanelBody({
   const [sender, setSender] = useState<string[]>(params.sender);
   const [problem, setProblem] = useState(params.problem);
   const [mailbox, setMailbox] = useState(params.mailbox);
+  const [board, setBoard] = useState(params.board);
   const [webfonts, setWebfonts] = useState<GalleryWebFonts>(params.webfonts);
   const [font, setFont] = useState(params.font);
   const [sort, setSort] = useState<GallerySort>(params.sort);
@@ -245,6 +246,7 @@ function PanelBody({
       problem: problem.length ? problem : null,
       mailbox: mailbox ?? null,
       webfonts: webfonts === "any" ? null : webfonts,
+      board: board ?? null,
     };
     if (withFontAndSort) {
       out.font = font;
@@ -261,6 +263,7 @@ function PanelBody({
     problem,
     mailbox,
     webfonts,
+    board,
     font,
     sort,
     withFontAndSort,
@@ -350,6 +353,20 @@ function PanelBody({
                   label: m.address,
                   count: m.count,
                 })),
+              ]}
+            />
+          </Section>
+        ) : null}
+        {facets.boards.length > 0 ? (
+          <Section title="Board">
+            <RadioPills<string>
+              name="gallery-board"
+              value={board ?? ""}
+              fresh={fresh}
+              onChange={(v) => setBoard(v === "" ? null : v)}
+              options={[
+                { value: "", label: "Any design" },
+                ...facets.boards.map((b) => ({ value: b.id, label: b.name, count: b.count })),
               ]}
             />
           </Section>

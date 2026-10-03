@@ -275,12 +275,14 @@ describe("Filters panel chips and badge", () => {
       problem: ["contrast"],
       mailbox: A,
       webfonts: "yes",
+      board: B,
       font: "Inter",
       design: "good",
     });
     const chips = activeFilterChips(params, {
       senders: new Map([[A, "LinkedIn"]]),
       mailboxes: new Map([[A, "me@gmail.com"]]),
+      boards: new Map([[B, "Welcome emails"]]),
     });
     expect(chips.map((c) => c.label)).toEqual([
       "Score 60–100",
@@ -290,14 +292,19 @@ describe("Filters panel chips and badge", () => {
       "Hard-to-read text",
       "me@gmail.com",
       "Uses web fonts",
+      "Board: Welcome emails",
     ]);
-    expect(advancedFilterCount(params)).toBe(7);
+    expect(advancedFilterCount(params)).toBe(8);
+    expect(chips[7]!.remove).toEqual({ board: null });
+    // A board the facets don't name (deleted meanwhile) still gets a chip that removes it.
+    expect(activeFilterChips(p({ board: B })).map((c) => c.label)).toEqual(["Board: a board"]);
     expect(chips[0]!.remove).toEqual({ smin: null, smax: null });
     expect(chips[2]!.remove).toEqual({ sender: [B] });
     expect(chips[4]!.remove).toEqual({ problem: [] });
     expect(advancedFilterCount(DEFAULT_GALLERY_PARAMS)).toBe(0);
     expect(activeFilterChips(p({ font: "Inter", q: "x", sort: "best" }))).toEqual([]);
     expect(Object.keys(CLEAR_ADVANCED).sort()).toEqual([
+      "board",
       "date",
       "mailbox",
       "problem",

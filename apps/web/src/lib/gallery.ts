@@ -3240,6 +3240,8 @@ export const gallerySearchSchema = z.object({
   problem: listParam(enumParam(GALLERY_PROBLEMS), GALLERY_PROBLEMS.length),
   mailbox: uuidParam.nullable().default(null),
   webfonts: enumParam(GALLERY_WEB_FONTS).default("any"),
+  /** Only the designs saved in this board (one of the user's own; see server/actions/boards.ts). */
+  board: uuidParam.nullable().default(null),
 });
 
 export type GalleryParams = z.infer<typeof gallerySearchSchema>;
@@ -3257,7 +3259,7 @@ type SearchParamsLike =
 /** Fields whose value is a list: repeated keys and commas both add items. */
 const LIST_KEYS = new Set<string>(["sender", "problem"]);
 /** Fields where an empty value means "not set". */
-const NULLABLE_KEYS = new Set<string>(["font", "since", "until", "mailbox"]);
+const NULLABLE_KEYS = new Set<string>(["font", "since", "until", "mailbox", "board"]);
 
 function readParam(input: SearchParamsLike, key: string): unknown {
   if (!input) return undefined;
@@ -3323,6 +3325,7 @@ export function galleryHref(params: Partial<GalleryParams> = {}, base = "/galler
   if (p.problem.length) sp.set("problem", p.problem.join(","));
   if (p.mailbox) sp.set("mailbox", p.mailbox);
   if (p.webfonts !== "any") sp.set("webfonts", p.webfonts);
+  if (p.board) sp.set("board", p.board);
   if (p.size !== GALLERY_PAGE_SIZES[0]) sp.set("size", String(p.size));
   if (p.page !== 1) sp.set("page", String(p.page));
   // Commas are safe in a query string; keeping them readable keeps shared links short.
@@ -3343,6 +3346,7 @@ export const CLEAR_ADVANCED: GalleryPatch = {
   problem: null,
   mailbox: null,
   webfonts: null,
+  board: null,
 };
 
 /** How many Filters-panel filters are on (the Filters button's badge); each chip counts once. */
@@ -3401,11 +3405,16 @@ export function senderChipLabels(
 
 /**
  * The removable chips under the filter bar, one per Filters-panel filter that's on. `names` gives
- * sender and mailbox labels (from the facets); an unknown one reads "1 sender" / "Mailbox".
+ * sender, mailbox and board labels (from the facets); an unknown one reads "1 sender" / "Mailbox"
+ * / "Board".
  */
 export function activeFilterChips(
   p: GalleryParams,
-  names: { senders?: ReadonlyMap<string, string>; mailboxes?: ReadonlyMap<string, string> } = {},
+  names: {
+    senders?: ReadonlyMap<string, string>;
+    mailboxes?: ReadonlyMap<string, string>;
+    boards?: ReadonlyMap<string, string>;
+  } = {},
 ): FilterChip[] {
   const chips: FilterChip[] = [];
   if (p.smin !== 0 || p.smax !== 100)
@@ -3448,6 +3457,12 @@ export function activeFilterChips(
       key: "webfonts",
       label: GALLERY_WEB_FONT_LABELS[p.webfonts],
       remove: { webfonts: null },
+    });
+  if (p.board)
+    chips.push({
+      key: "board",
+      label: `Board: ${names.boards?.get(p.board) ?? "a board"}`,
+      remove: { board: null },
     });
   return chips;
 }
