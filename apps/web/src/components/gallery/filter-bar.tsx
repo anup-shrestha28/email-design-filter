@@ -1,5 +1,5 @@
 "use client";
-import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Bookmark, Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { formatNumber } from "@/lib/format";
 import {
   GALLERY_CATEGORIES,
+  GALLERY_CHIP_IDS,
   GALLERY_SORTS,
   advancedFilterCount,
   type GalleryCategory,
@@ -140,9 +141,13 @@ export function FilterBar({
   activeCount: number;
   stale?: boolean;
 }) {
+  // The shown categories only (lib/gallery.ts GALLERY_SHOWN_CATEGORIES), in chip order.
   const chips = GALLERY_CATEGORIES.filter(
-    (c) => c.id === "all" || c.id === params.category || facets.categories[c.id] > 0,
+    (c): c is (typeof GALLERY_CATEGORIES)[number] & { id: (typeof GALLERY_CHIP_IDS)[number] } =>
+      (GALLERY_CHIP_IDS as readonly string[]).includes(c.id) &&
+      (c.id === "all" || c.id === params.category || facets.categories[c.id] > 0),
   );
+  const saved = params.saved === "1";
   // While stale the font counts would be the old filters', so the menu shows names only.
   const withCount = (name: string, n: number) => (stale ? name : `${name} (${formatNumber(n)})`);
   const fontOptions = [
@@ -172,14 +177,15 @@ export function FilterBar({
         <GallerySearch className="md:hidden" />
         <ChipRow busy={stale}>
           {chips.map((c) => {
-            const on = params.category === c.id;
+            // "Saved" shows every saved design, whatever its type: no type chip is on then.
+            const on = params.category === c.id && !saved;
             const count = facets.categories[c.id] ?? 0;
             return (
               <button
                 key={c.id}
                 type="button"
                 aria-pressed={on}
-                onClick={() => onChange({ category: c.id === "all" ? null : c.id })}
+                onClick={() => onChange({ category: c.id === "all" ? null : c.id, saved: null })}
                 className={cn(
                   "relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium whitespace-nowrap transition-colors before:absolute before:inset-x-0 before:-inset-y-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   on
@@ -199,6 +205,21 @@ export function FilterBar({
               </button>
             );
           })}
+          <button
+            type="button"
+            aria-pressed={saved}
+            onClick={() => onChange(saved ? { saved: null } : { saved: "1", category: null })}
+            className={cn(
+              "relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium whitespace-nowrap transition-colors before:absolute before:inset-x-0 before:-inset-y-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              saved
+                ? "border-foreground bg-foreground text-background"
+                : "border-border bg-surface text-foreground hover:bg-surface-muted",
+            )}
+          >
+            <Bookmark aria-hidden className="size-3.5" />
+            Saved
+            <Count n={facets.saved} stale={stale} />
+          </button>
         </ChipRow>
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto lg:flex-nowrap">
           <div

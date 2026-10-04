@@ -71,7 +71,7 @@ describe("classifyChange", () => {
       classifyChange(
         { stamp: stamp(), total: 40 },
         { stamp: now, view: { total: 40, added: 0, rescored: 0 } },
-        params({ category: "newsletters" }),
+        params({ category: "product_updates" }),
       ),
     ).toEqual({ kind: "inplace" });
   });

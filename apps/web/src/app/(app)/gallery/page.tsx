@@ -4,8 +4,8 @@ import { GalleryView } from "@/components/gallery/gallery-view";
 import { LiveGallery, liveStamp } from "@/components/gallery/live-gallery";
 import { FlashToast } from "@/components/page/flash-toast";
 import {
-  GALLERY_CATEGORY_IDS,
   galleryHref,
+  isShownCategory,
   parseGalleryParams,
   type GalleryCategory,
   type GalleryParams,
@@ -62,9 +62,9 @@ function canonicalCatUrl(sp: Record<string, string | string[] | undefined>): str
     for (const one of Array.isArray(v) ? v : [v]) out.append(k, one);
   }
   const id = cat.toLowerCase();
-  const category =
-    CAT_ALIASES[id] ?? (GALLERY_CATEGORY_IDS as readonly string[]).find((c) => c === id);
-  if (category && category !== "all" && !out.has("category")) out.set("category", category);
+  const category = CAT_ALIASES[id] ?? id;
+  // A category the gallery no longer shows (social, receipts…) leaves the link on All.
+  if (isShownCategory(category) && !out.has("category")) out.set("category", category);
   const qs = out.toString();
   return qs ? `/gallery?${qs}` : "/gallery";
 }
@@ -88,6 +88,7 @@ const KNOWN_KEYS = new Set([
   "mailbox",
   "webfonts",
   "board",
+  "saved",
   "open",
   "connected",
 ]);
@@ -111,6 +112,7 @@ const STRICT_KEYS = [
   "mailbox",
   "webfonts",
   "board",
+  "saved",
 ] as const;
 
 /** `href` plus the non-filter keys (`open`, `connected`) carried over from the request. */

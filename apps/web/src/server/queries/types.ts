@@ -492,4 +492,6 @@ export interface GalleryFacets {
   webFonts: { yes: number; no: number };
   /** The user's boards (newest first) and how many of their saved designs match the other filters. */
   boards: Array<{ id: string; name: string; count: number }>;
+  /** Designs saved in any board that match the other filters (the "Saved" chip; type ignored). */
+  saved: number;
 }

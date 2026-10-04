@@ -25,7 +25,9 @@ import type { GalleryItem } from "@/server/queries/types";
 import {
   DEFAULT_GALLERY_PARAMS,
   EMAIL_GALLERY_CATEGORY_IDS,
+  GALLERY_SHOWN_CATEGORIES,
   galleryCategoryOf,
+  isShownCategory,
   verdictOf,
   type GalleryParams,
 } from "@/lib/gallery";
@@ -171,8 +173,8 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
     await seed("ok84", 2, {
       ...scored(84, "good", { summary: summary(["Small images lack alt text"], ["Nice layout"]) }),
       fontFamilies: ["inter"],
-      primaryType: "newsletter",
-      subtype: "digest",
+      primaryType: "product_update",
+      subtype: "release_notes",
     });
     await seed("capped", 3, {
       ...scored(59, "needs_work", {
@@ -186,8 +188,8 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
     await seed("poor", 4, {
       ...scored(40, "poor", { summary: summary(["Text is tiny on phones"], []) }),
       fontFamilies: ["Arial"],
-      primaryType: "newsletter",
-      subtype: "editorial",
+      primaryType: "product_update",
+      subtype: "announcement",
     });
     // Provisional only because the email TYPE is unsure (design coverage 0.9): still Good.
     await seed("provGood", 5, {
@@ -283,7 +285,7 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
     expect(new Date(good.receivedAt).toISOString()).toBe(good.receivedAt);
     expect(items.get("ok84")).toMatchObject({
       verdict: "ok",
-      category: "newsletters",
+      category: "product_updates",
       reason: { kind: "problem", text: "Small images lack alt text" },
     });
     // The cap's summary line has no measured values, so the gallery says what the cap means.
@@ -331,7 +333,7 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
   it("category, font and search filters", async () => {
     const subjects = async (p: Partial<GalleryParams>) =>
       (await all(alice.id, params(p))).map((i) => i.subject);
-    expect(await subjects({ category: "newsletters" })).toEqual(["ok84", "poor"]);
+    expect(await subjects({ category: "product_updates" })).toEqual(["ok84", "poor"]);
     expect(await subjects({ category: "welcome" })).toEqual(["provGood", "provPoor"]);
     expect(await subjects({ category: "abandoned_cart" })).toEqual(["unscored"]);
     expect(await subjects({ font: "INTER" })).toEqual(["good85", "ok84"]);
@@ -345,13 +347,13 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
     const f = await q.galleryFacets(alice.id, params());
     expect(f.categories).toEqual({
       all: 8,
-      newsletters: 2,
+      newsletters: 0,
       promotions: 3,
       social: 0,
       notifications: 0,
       welcome: 2,
       abandoned_cart: 1,
-      product_updates: 0,
+      product_updates: 2,
       events: 0,
       receipts: 0,
       other: 0,
@@ -364,15 +366,15 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
       { name: "Georgia", count: 1 },
     ]);
     // Category selected: design + fonts narrow to it, category counts don't.
-    const news = await q.galleryFacets(alice.id, params({ category: "newsletters" }));
+    const news = await q.galleryFacets(alice.id, params({ category: "product_updates" }));
     expect(news.categories.all).toBe(8);
-    expect(news.categories.newsletters).toBe(2);
+    expect(news.categories.product_updates).toBe(2);
     expect(news.design).toEqual({ all: 2, good: 0, bad: 1 });
     expect(news.fonts.map((x) => x.name).sort()).toEqual(["Arial", "inter"]);
     // Design selected: categories + fonts narrow to it, design counts don't.
     const bad = await q.galleryFacets(alice.id, params({ design: "bad" }));
     expect(bad.design).toEqual({ all: 8, good: 3, bad: 3 });
-    expect(bad.categories).toMatchObject({ all: 3, newsletters: 1, promotions: 1, welcome: 1 });
+    expect(bad.categories).toMatchObject({ all: 3, product_updates: 1, promotions: 1, welcome: 1 });
     expect(bad.fonts).toEqual([
       { name: "Arial", count: 2 },
       { name: "Montserrat", count: 1 },
@@ -380,7 +382,7 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
     // Font selected: the font list itself ignores it.
     const inter = await q.galleryFacets(alice.id, params({ font: "inter" }));
     expect(inter.fonts).toEqual(f.fonts);
-    expect(inter.categories).toMatchObject({ all: 2, promotions: 1, newsletters: 1 });
+    expect(inter.categories).toMatchObject({ all: 2, promotions: 1, product_updates: 1 });
     expect(inter.design).toEqual({ all: 2, good: 1, bad: 0 });
     // Search narrows everything.
     const search = await q.galleryFacets(alice.id, params({ q: "poor" }));
@@ -388,7 +390,7 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
     expect(search.design).toEqual({ all: 1, good: 0, bad: 1 });
   });
 
-  it("SQL category filters agree with galleryCategoryOf for every core type and subtype", async () => {
+  it("SQL category filters agree with galleryCategoryOf for every core type and subtype; only the marketing ones are listed", async () => {
     const carol = await createUser(app);
     const mb = await createMailbox(app, carol.id);
     const pairs = EMAIL_TYPES.flatMap((t) =>
@@ -408,9 +410,19 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
       });
       expected[galleryCategoryOf(t, s)]!++;
     }
+    // Only the shown (marketing) categories are listed or counted; every other type is left out.
+    const listed = Object.fromEntries(
+      EMAIL_GALLERY_CATEGORY_IDS.map((c) => [c, isShownCategory(c) ? expected[c]! : 0]),
+    ) as Record<string, number>;
+    const shownTotal = Object.values(listed).reduce((a, b) => a + b, 0);
+    expect(shownTotal).toBeGreaterThan(0);
+    expect(shownTotal).toBeLessThan(pairs.length);
     const f = await q.galleryFacets(carol.id, params());
-    expect(f.categories).toEqual({ all: pairs.length, ...expected });
-    for (const c of EMAIL_GALLERY_CATEGORY_IDS) {
+    expect(f.categories).toEqual({ all: shownTotal, ...listed });
+    const everything = await all(carol.id, params());
+    expect(everything).toHaveLength(shownTotal);
+    for (const it of everything) expect(isShownCategory(it.category), it.subject ?? "").toBe(true);
+    for (const c of GALLERY_SHOWN_CATEGORIES) {
       const items = await all(carol.id, params({ category: c }));
       expect(items.length, c).toBe(expected[c]);
       for (const it of items) expect(it.category).toBe(c);

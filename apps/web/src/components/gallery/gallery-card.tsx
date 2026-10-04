@@ -1,5 +1,5 @@
 "use client";
-import { Check, ChevronsDown, ImageOff, Layers, X } from "lucide-react";
+import { Check, ImageOff, Layers, X } from "lucide-react";
 import { memo, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { EMAIL_FRAME_SANDBOX } from "@/components/email/email-viewer";
 import { SenderAvatar } from "@/components/ui/avatar";
@@ -221,18 +221,14 @@ function CardPreview({ item, eager }: { item: GalleryItem; eager: boolean }) {
   );
 }
 
-/** The bottom of a very long email's card: it fades out, and says there's more. */
+/** The bottom of a very long email's card: it fades out (the whole email is one click away). */
 function LongEmailFade() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-x-0 bottom-0 flex h-20 items-end justify-center bg-gradient-to-t from-surface via-surface/80 to-transparent pb-2"
-    >
-      <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground shadow-xs ring-1 ring-border">
-        <ChevronsDown className="size-3" />
-        Long email
-      </span>
-    </div>
+      data-long-email-fade
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-surface via-surface/80 to-transparent"
+    />
   );
 }
 

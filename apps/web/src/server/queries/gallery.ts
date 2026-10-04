@@ -23,6 +23,7 @@ import {
   CONFIDENCE_EPSILON,
   COVERAGE_CONFIDENCE_MIN,
   EMAIL_GALLERY_CATEGORY_IDS,
+  GALLERY_SHOWN_CATEGORIES,
   GOOD_SCORE_MIN,
   GOOD_SOURCES,
   CURRENT_SIGNALS_KEY,
@@ -118,6 +119,7 @@ export function baseConditions(userId: string): SQL[] {
     sql`NOT e.security_sensitive`,
     sql`e.design_status NOT IN ('plain_text', 'skipped')`,
     sql`NOT ${TEXT_ONLY}`,
+    SHOWN_CATEGORIES,
   ];
 }
 
@@ -133,6 +135,16 @@ export function categoryCondition(category: EmailGalleryCategory): SQL {
   });
   return parts.length ? sql`(${sql.join(parts, sql` OR `)})` : sql`false`;
 }
+
+/**
+ * The marketing categories the gallery shows (lib/gallery.ts GALLERY_SHOWN_CATEGORIES): an email
+ * in any other category (newsletters, social, notifications, receipts, other) is never listed,
+ * counted, previewed or opened from the gallery.
+ */
+const SHOWN_CATEGORIES = sql`(${sql.join(
+  GALLERY_SHOWN_CATEGORIES.map((c) => categoryCondition(c)),
+  sql` OR `,
+)})`;
 
 /**
  * The verdicts in SQL — exactly verdictOf()'s VERDICT POLICY (lib/gallery.ts); bad wins over good.
@@ -373,7 +385,8 @@ type FilterKey =
   | "problem"
   | "mailbox"
   | "webfonts"
-  | "board";
+  | "board"
+  | "saved";
 const FILTER_KEYS: readonly FilterKey[] = [
   "category",
   "design",
@@ -385,6 +398,7 @@ const FILTER_KEYS: readonly FilterKey[] = [
   "mailbox",
   "webfonts",
   "board",
+  "saved",
 ];
 
 /** Every filter as SQL (null = off). Values are always bound parameters, never spliced text. */
@@ -416,8 +430,13 @@ function filterConditions(
       p.board && UUID_RE.test(p.board)
         ? sql`EXISTS (SELECT 1 FROM board_item bi WHERE bi.email_id = e.id AND bi.board_id = ${p.board}::uuid)`
         : null,
+    // Saved in any of the user's boards (the "Saved" chip).
+    saved: p.saved === "1" ? SAVED : null,
   };
 }
+
+/** Saved in at least one of the user's boards (RLS: only their own). */
+const SAVED = sql`EXISTS (SELECT 1 FROM board_item bi WHERE bi.email_id = e.id)`;
 
 /** The active filters' conditions, except `skip` (a facet group ignores its own selection). */
 function activeConditions(filters: Record<FilterKey, SQL | null>, skip?: FilterKey): SQL[] {
@@ -706,6 +725,11 @@ export async function galleryFacets(
   const fSender = othersThan("sender");
   const fMailbox = othersThan("mailbox");
   const fBoard = othersThan("board");
+  // The "Saved" chip shows saved designs of every type: neither its own nor the type filter counts.
+  const savedOthers = FILTER_KEYS.filter((k) => k !== "saved" && k !== "category").flatMap((k) =>
+    filters[k] ? [filters[k]] : [],
+  );
+  const fSaved = savedOthers.length ? sql.join(savedOthers, sql` AND `) : sql`true`;
   const selected = params.sender.filter((id) => UUID_RE.test(id));
   const selectedFirst = selected.length ? sql`(s.id = ANY(${uuidArray(selected)})) DESC, ` : sql``;
 
@@ -731,7 +755,8 @@ export async function galleryFacets(
           sql`, `,
         )},
         count(*) FILTER (WHERE e.uses_web_fonts AND ${fWeb}) AS "w_yes",
-        count(*) FILTER (WHERE NOT e.uses_web_fonts AND ${fWeb}) AS "w_no"
+        count(*) FILTER (WHERE NOT e.uses_web_fonts AND ${fWeb}) AS "w_no",
+        count(*) FILTER (WHERE ${SAVED} AND ${fSaved}) AS "saved"
       FROM email e
       ${JOIN_ANALYSIS}
       WHERE ${sql.join(base, sql` AND `)}`);
@@ -828,6 +853,7 @@ export async function galleryFacets(
       mailboxes: mailboxes.rows.map((r) => ({ id: r.id, address: r.address, count: Number(r.n) })),
       webFonts: { yes: n("w_yes"), no: n("w_no") },
       boards: boards.rows.map((r) => ({ id: r.id, name: r.name, count: Number(r.n) })),
+      saved: n("saved"),
     };
   });
 }

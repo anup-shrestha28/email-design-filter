@@ -48,6 +48,30 @@ export const EMAIL_GALLERY_CATEGORY_IDS = GALLERY_CATEGORY_IDS.filter(
   (c) => c !== "all",
 ) as EmailGalleryCategory[];
 
+/**
+ * The categories the gallery shows: it is for marketing email design (the owner's call,
+ * 2026-10-04). Newsletters, social-network mail (LinkedIn & co.), app notifications, orders and
+ * receipts, and "other" are left out of the gallery for everyone (queries/gallery.ts
+ * baseConditions); their emails are still stored, and the inbox list still has them.
+ */
+export const GALLERY_SHOWN_CATEGORIES = [
+  "promotions",
+  "welcome",
+  "product_updates",
+  "events",
+  "abandoned_cart",
+] as const satisfies readonly EmailGalleryCategory[];
+export type ShownGalleryCategory = (typeof GALLERY_SHOWN_CATEGORIES)[number];
+/** The type chips and the `?category=` values: "All" and the shown categories, in chip order. */
+export const GALLERY_CHIP_IDS = ["all", ...GALLERY_SHOWN_CATEGORIES] as [
+  "all",
+  ...ShownGalleryCategory[],
+];
+/** Whether the gallery shows this category (an email in any other is never listed). */
+export function isShownCategory(c: string): c is ShownGalleryCategory {
+  return (GALLERY_SHOWN_CATEGORIES as readonly string[]).includes(c);
+}
+
 export const GALLERY_CATEGORY_LABELS = Object.fromEntries(
   GALLERY_CATEGORIES.map((c) => [c.id, c.label]),
 ) as Record<GalleryCategory, string>;
@@ -3211,7 +3235,7 @@ const listParam = <T extends string>(item: z.ZodType<T>, max: number) =>
     .default([]);
 
 export const gallerySearchSchema = z.object({
-  category: enumParam(GALLERY_CATEGORY_IDS).default("all"),
+  category: enumParam(GALLERY_CHIP_IDS).default("all"),
   design: enumParam(GALLERY_DESIGNS).default("all"),
   font: z
     .string()
@@ -3242,6 +3266,8 @@ export const gallerySearchSchema = z.object({
   webfonts: enumParam(GALLERY_WEB_FONTS).default("any"),
   /** Only the designs saved in this board (one of the user's own; see server/actions/boards.ts). */
   board: uuidParam.nullable().default(null),
+  /** "1": only the designs saved in any of the user's boards (the "Saved" chip). */
+  saved: z.literal("1").nullable().default(null),
 });
 
 export type GalleryParams = z.infer<typeof gallerySearchSchema>;
@@ -3259,7 +3285,7 @@ type SearchParamsLike =
 /** Fields whose value is a list: repeated keys and commas both add items. */
 const LIST_KEYS = new Set<string>(["sender", "problem"]);
 /** Fields where an empty value means "not set". */
-const NULLABLE_KEYS = new Set<string>(["font", "since", "until", "mailbox", "board"]);
+const NULLABLE_KEYS = new Set<string>(["font", "since", "until", "mailbox", "board", "saved"]);
 
 function readParam(input: SearchParamsLike, key: string): unknown {
   if (!input) return undefined;
@@ -3326,6 +3352,7 @@ export function galleryHref(params: Partial<GalleryParams> = {}, base = "/galler
   if (p.mailbox) sp.set("mailbox", p.mailbox);
   if (p.webfonts !== "any") sp.set("webfonts", p.webfonts);
   if (p.board) sp.set("board", p.board);
+  if (p.saved) sp.set("saved", p.saved);
   if (p.size !== GALLERY_PAGE_SIZES[0]) sp.set("size", String(p.size));
   if (p.page !== 1) sp.set("page", String(p.page));
   // Commas are safe in a query string; keeping them readable keeps shared links short.

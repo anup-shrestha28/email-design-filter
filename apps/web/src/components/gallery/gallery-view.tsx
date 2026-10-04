@@ -1,5 +1,5 @@
 "use client";
-import { ArrowUp, Plug, SearchX, Sparkles, ThumbsUp } from "lucide-react";
+import { ArrowUp, Bookmark, Plug, SearchX, Sparkles, ThumbsUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { preconnect } from "react-dom";
 import { toast } from "sonner";
@@ -167,7 +167,7 @@ function ResultLine({
 }) {
   const { good, bad } = facets.design;
   const { first, last } = pageBounds(page.page, page.pageSize, page.total);
-  const noun = `${params.design === "all" ? "" : `${params.design} `}${page.total === 1 ? "design" : "designs"}`;
+  const noun = `${params.saved === "1" ? "saved " : ""}${params.design === "all" ? "" : `${params.design} `}${page.total === 1 ? "design" : "designs"}`;
   return (
     <p
       ref={focusRef}
@@ -463,6 +463,21 @@ function Empty({
               Connect Gmail
             </LinkButton>
           )
+        }
+      />
+    );
+  }
+  if (params.saved === "1" && active === 1) {
+    return (
+      <EmptyState
+        className="py-24"
+        icon={<Bookmark aria-hidden />}
+        title="No saved designs yet."
+        description="Hover over a design you like and click Save to keep it here."
+        action={
+          <Button variant="secondary" onClick={onReset}>
+            See all designs
+          </Button>
         }
       />
     );

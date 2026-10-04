@@ -10,7 +10,7 @@ import {
 } from "nuqs";
 import { useTransition } from "react";
 import {
-  GALLERY_CATEGORY_IDS,
+  GALLERY_CHIP_IDS,
   GALLERY_DATES,
   GALLERY_DESIGNS,
   GALLERY_PAGE_SIZES,
@@ -27,7 +27,7 @@ import {
  * falls back to its own default; the other fields are kept. Defaults stay out of the URL.
  */
 export const galleryParsers = {
-  category: parseAsStringLiteral(GALLERY_CATEGORY_IDS).withDefault("all"),
+  category: parseAsStringLiteral(GALLERY_CHIP_IDS).withDefault("all"),
   design: parseAsStringLiteral(GALLERY_DESIGNS).withDefault("all"),
   font: parseAsString,
   q: parseAsString.withDefault(""),
@@ -45,6 +45,7 @@ export const galleryParsers = {
   mailbox: parseAsString,
   webfonts: parseAsStringLiteral(GALLERY_WEB_FONTS).withDefault("any"),
   board: parseAsString,
+  saved: parseAsStringLiteral(["1"] as const),
 };
 
 /**
@@ -80,6 +81,7 @@ export function activeFilterCount(p: GalleryParams): number {
     (p.font ? 1 : 0) +
     (p.q ? 1 : 0) +
     (p.sort !== "newest" ? 1 : 0) +
+    (p.saved ? 1 : 0) +
     advancedFilterCount(p)
   );
 }

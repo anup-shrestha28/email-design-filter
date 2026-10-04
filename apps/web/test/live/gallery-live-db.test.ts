@@ -86,8 +86,8 @@ describe.skipIf(!HAS_DB)("the live gallery against the database", () => {
     await seedEmail(app, alice.id, aliceMb, {
       receivedAt: at(2),
       subject: "letter",
-      primaryType: "newsletter",
-      subtype: "digest",
+      primaryType: "product_update",
+      subtype: "release_notes",
       ...scoredRecord(80),
     });
     // Never in the gallery (so never in the stamp): plain text, security-sensitive, trashed.
@@ -159,9 +159,9 @@ describe.skipIf(!HAS_DB)("the live gallery against the database", () => {
       total: s1.total,
       added: 2,
     });
-    // Neither is a newsletter, nor good-looking enough for Good (the unscored one).
+    // Neither is a product update, nor good-looking enough for Good (the unscored one).
     expect(
-      await live.galleryViewChange(alice.id, params({ category: "newsletters" }), s0),
+      await live.galleryViewChange(alice.id, params({ category: "product_updates" }), s0),
     ).toMatchObject({ total: 1, added: 0 });
     expect(await live.galleryViewChange(alice.id, params({ design: "good" }), s0)).toMatchObject({
       added: 1,

@@ -339,7 +339,8 @@ describe.skipIf(!HAS_DB)("gallery verdict: severe problems without a cap", () =>
         cur(
           "curCut",
           "bad",
-          { unsubscribeUnion: "after_clip", htmlKB: 107.2, primaryType: "social" },
+          // Any type (an event invite here, not marketing-promotional): the cut hides the link.
+          { unsubscribeUnion: "after_clip", htmlKB: 107.2, primaryType: "event" },
           "Gmail cuts this email off (107 KB; Gmail's limit is 102 KB) and hides the unsubscribe link",
         ),
         cur(
@@ -348,8 +349,9 @@ describe.skipIf(!HAS_DB)("gallery verdict: severe problems without a cap", () =>
           { unsubscribeUnion: "none", unsubscribe: null },
           "No unsubscribe link anywhere in this marketing email",
         ),
+        // Only promotional mail must carry an unsubscribe link (a product update needn't).
         cur("curNoticeNoUnsub", "good", {
-          primaryType: "notification",
+          primaryType: "product_update",
           unsubscribeUnion: "none",
           unsubscribe: "none",
         }),
@@ -362,7 +364,7 @@ describe.skipIf(!HAS_DB)("gallery verdict: severe problems without a cap", () =>
           { unsubscribeUnion: "none" },
           undefined,
           88,
-          "account_notice",
+          "product_update",
         ),
         cur(
           "curRetypedPromo",

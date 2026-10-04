@@ -254,7 +254,7 @@ describe("LiveUpdates", () => {
     const main = r.container.querySelector<HTMLElement>("#main")!;
     main.scrollTop = 640;
     await mailArrives(r);
-    await r.rerender(jumpy(true, { ...stamp, scored: 9 }, params({ category: "receipts" })));
+    await r.rerender(jumpy(true, { ...stamp, scored: 9 }, params({ category: "welcome" })));
     expect(main.scrollTop).toBe(0);
   });
 

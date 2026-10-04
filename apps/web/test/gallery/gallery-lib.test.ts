@@ -1011,6 +1011,7 @@ describe("gallery URL params", () => {
       mailbox: null,
       webfonts: "any",
       board: null,
+      saved: null,
     });
     expect(parseGalleryParams(undefined)).toEqual(DEFAULT_GALLERY_PARAMS);
     expect(parseGalleryParams({})).toEqual(DEFAULT_GALLERY_PARAMS);
@@ -1068,10 +1069,21 @@ describe("gallery URL params", () => {
     expect(parseGalleryParams({ font: "", sort: "received_at; DROP TABLE email" })).toEqual(
       DEFAULT_GALLERY_PARAMS,
     );
-    expect(parseGalleryParams({ font: "x".repeat(600), category: "receipts" })).toEqual({
+    expect(parseGalleryParams({ font: "x".repeat(600), category: "welcome" })).toEqual({
       ...DEFAULT_GALLERY_PARAMS,
-      category: "receipts",
+      category: "welcome",
     });
+    // A category the gallery no longer shows (it is for marketing design only) reads as All.
+    for (const hidden of ["receipts", "social", "newsletters", "notifications", "other"]) {
+      expect(parseGalleryParams({ category: hidden, design: "good" })).toEqual({
+        ...DEFAULT_GALLERY_PARAMS,
+        design: "good",
+      });
+    }
+    // The Saved chip: "1" or nothing.
+    expect(parseGalleryParams({ saved: "1" }).saved).toBe("1");
+    expect(parseGalleryParams({ saved: "yes" }).saved).toBeNull();
+    expect(parseGalleryParams({ saved: "" }).saved).toBeNull();
     expect(parseGalleryParams({ q: 42, category: "all" })).toEqual(DEFAULT_GALLERY_PARAMS);
   });
 

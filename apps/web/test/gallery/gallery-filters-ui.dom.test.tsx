@@ -30,11 +30,11 @@ const p = (over: Partial<GalleryParams> = {}): GalleryParams => ({
 const facets: GalleryFacets = {
   categories: {
     all: 10,
-    newsletters: 2,
+    newsletters: 0,
     promotions: 8,
     social: 0,
     notifications: 0,
-    welcome: 0,
+    welcome: 2,
     abandoned_cart: 0,
     product_updates: 0,
     events: 0,
@@ -63,6 +63,7 @@ const facets: GalleryFacets = {
   ],
   webFonts: { yes: 6, no: 4 },
   boards: [],
+  saved: 1,
 };
 
 const click = (el: Element | null | undefined) =>
@@ -337,8 +338,64 @@ describe("FilterBar while a change loads", () => {
     expect(font()).not.toContain("(4)");
     expect(types.getAttribute("aria-busy")).toBe("true");
     expect(design.getAttribute("aria-busy")).toBe("true");
-    // All types, Promotions, Newsletters (the others have no designs), then Any / Good / Bad.
-    expect(faint()).toEqual(["10", "8", "2", "10", "3", "2"]);
+    // All types, Promotions, Welcome (the others have no designs), Saved, then Any / Good / Bad.
+    expect(faint()).toEqual(["10", "8", "2", "1", "10", "3", "2"]);
+  });
+});
+
+describe("FilterBar: marketing types only, and Saved", () => {
+  beforeAll(() => {
+    globalThis.ResizeObserver ??= class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+  });
+
+  const withHidden: GalleryFacets = {
+    ...facets,
+    // Counts the server never sends for hidden types (they are left out of the gallery), but a
+    // stale count must not bring a chip back either.
+    categories: { ...facets.categories, social: 5, notifications: 4, newsletters: 3, receipts: 2, other: 1 },
+  };
+  const chipLabels = (root: Element) =>
+    [...root.querySelectorAll('[role="group"][aria-label="Email type"] button')].map((b) =>
+      (b.textContent ?? "").replace(/\d+$/, ""),
+    );
+
+  it("shows only the marketing types, then Saved; Saved and a type exclude each other", async () => {
+    const calls: unknown[] = [];
+    const bar = (params: GalleryParams) => (
+      <NuqsTestingAdapter>
+        <FilterBar
+          params={params}
+          facets={withHidden}
+          onChange={(patch) => calls.push(patch)}
+          onReset={() => {}}
+          activeCount={0}
+        />
+      </NuqsTestingAdapter>
+    );
+    const r = await render(bar(p()));
+    expect(chipLabels(r.container)).toEqual(["All types", "Promotions", "Welcome", "Saved"]);
+    const button = (label: string) =>
+      [...r.container.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Email type"] button')].find(
+        (b) => (b.textContent ?? "").startsWith(label),
+      )!;
+    expect(button("Saved").textContent).toBe("Saved1");
+    expect(button("Saved").getAttribute("aria-pressed")).toBe("false");
+    // Saved shows every saved design, whatever its type.
+    await act(async () => button("Saved").click());
+    expect(calls.at(-1)).toEqual({ saved: "1", category: null });
+
+    await r.rerender(bar(p({ saved: "1" })));
+    expect(button("Saved").getAttribute("aria-pressed")).toBe("true");
+    expect(button("All types").getAttribute("aria-pressed")).toBe("false");
+    // Picking a type leaves Saved; pressing Saved again turns it off.
+    await act(async () => button("Promotions").click());
+    expect(calls.at(-1)).toEqual({ category: "promotions", saved: null });
+    await act(async () => button("Saved").click());
+    expect(calls.at(-1)).toEqual({ saved: null });
   });
 });
 

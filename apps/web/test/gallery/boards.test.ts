@@ -216,6 +216,40 @@ describe.skipIf(!HAS_DB)("boards against the database", () => {
     expect(email.rowCount).toBe(1);
   });
 
+  it("the Saved chip lists every saved design, of any type, and its count ignores the type filter", async () => {
+    const carol = await createUser(app, { role: "friend" });
+    const mb = await createMailbox(app, carol.id);
+    const promo = await seedEmail(app, carol.id, mb, { subject: "promo", ...scored });
+    const welcome = await seedEmail(app, carol.id, mb, {
+      subject: "welcome",
+      ...scored,
+      primaryType: "lifecycle",
+      subtype: "welcome",
+    });
+    await seedEmail(app, carol.id, mb, { subject: "not saved", ...scored });
+    as(carol);
+    const one = okData(await actions.createBoard("One", promo));
+    okData(await actions.createBoard("Two", welcome));
+    // Saved in two boards still lists once.
+    okData(await actions.setSaved(promo, okData(await actions.createBoard("Three")).id, true));
+    expect(one.name).toBe("One");
+
+    const saved = await gallery.listGallery(carol.id, { ...DEFAULT_GALLERY_PARAMS, saved: "1" });
+    expect(saved.items.map((i) => i.subject).sort()).toEqual(["promo", "welcome"]);
+    expect(saved.items.every((i) => i.saved)).toBe(true);
+    const all = await gallery.galleryFacets(carol.id, DEFAULT_GALLERY_PARAMS);
+    // 2, not more: Alice's many saves (earlier tests) never count for Carol.
+    expect(all.saved).toBe(2);
+    expect(all.categories.all).toBe(3);
+    // With a type chip on, the Saved count still covers every type.
+    const promos = await gallery.galleryFacets(carol.id, { ...DEFAULT_GALLERY_PARAMS, category: "promotions" });
+    expect(promos.saved).toBe(2);
+    // With Saved on, the type counts narrow to the saved designs.
+    const onSaved = await gallery.galleryFacets(carol.id, { ...DEFAULT_GALLERY_PARAMS, saved: "1" });
+    expect(onSaved.categories).toMatchObject({ all: 2, promotions: 1, welcome: 1 });
+    as(alice);
+  });
+
   it("refuses ids that aren't ids, and signed-out callers", async () => {
     as(alice);
     expect(await actions.setSaved("nope", BOARD, true)).toMatchObject({ ok: false, code: "invalid" });
