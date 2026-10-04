@@ -641,6 +641,21 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
   const isToken = (v: string | null | undefined): v is string => typeof v === "string" && v !== unavailableSrc;
   // URLs one occurrence dropped as a pixel (size or hidden style) before another loaded them.
   const pixelDropped = new Set<string>();
+  // Why images got no src, as "reason host" → distinct URLs (logged once below, hosts only), so a
+  // design that shows its alt text instead of pictures can be traced to the rule that dropped them.
+  const noSrc = new Map<string, Set<string>>();
+  const noteNoSrc = (reason: string, url: string) => {
+    let host = "";
+    try {
+      host = new URL(url).hostname;
+    } catch {
+      host = "?";
+    }
+    const k = `${reason} ${host}`;
+    const set = noSrc.get(k) ?? new Set<string>();
+    set.add(url);
+    noSrc.set(k, set);
+  };
   const dataUris = new Map<string, string | null>();
   // Signed once per distinct link (a second sanitizer pass below reuses them).
   const links = new Map<string, string | null>();
@@ -676,6 +691,7 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
         if (isToken(known)) return known;
         pixelDropped.add(url);
       }
+      noteNoSrc(decision.reason, url);
       return null;
     }
     const known = imageUrls.get(url);
@@ -703,6 +719,7 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
     const allowance = plan[minted];
     if (allowance === undefined || budgetBytes - mintedBytes < allowance) {
       short = true;
+      noteNoSrc("short", url);
       imageUrls.set(url, null);
       return null;
     }
@@ -741,7 +758,10 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
             : null;
         dataUris.set(cid, uri);
       }
-      if (uri === null || inlinedChars + uri.length > DATA_URI_TOTAL_MAX) return null;
+      if (uri === null || inlinedChars + uri.length > DATA_URI_TOTAL_MAX) {
+        noteNoSrc(uri === null ? "cid_part" : "cid_total", `cid:${cid}`);
+        return null;
+      }
       inlinedChars += uri.length;
       return uri;
     },
@@ -810,6 +830,14 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
       .replace(/[\uD800-\uDBFF]$/, "");
     out = sanitizeForViewer(textDocument(text, "This email is too large to show as designed. Here is its text version."), rewriters).html;
     mintedBytes = 0;
+  }
+  const imgsWithoutSrc = (out.match(/<img\b(?![^>]*\ssrc=)[^>]*>/gi) ?? []).length;
+  if (noSrc.size > 0 || imgsWithoutSrc > 0) {
+    console.info("[edf] view_source.images_without_src", {
+      mode: verified.mode,
+      imgsWithoutSrc,
+      reasons: Object.fromEntries([...noSrc].map(([k, v]) => [k, v.size])),
+    });
   }
   return {
     ok: true,
