@@ -22,10 +22,11 @@ const SHORT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const B64URL_RE = /^[A-Za-z0-9_-]*$/;
 export const IMAGE_TOKEN_MAX_LENGTH = 4096;
 /**
- * Mirrors @edf/crypto IMAGE_TOKEN_MAX_BYTES (5 MB since 2026-09-30, was 2 MB). A token over it
- * doesn't verify, so edf-view must be deployed with a raised ceiling before edf-app mints to it.
+ * Mirrors @edf/crypto IMAGE_TOKEN_MAX_BYTES (15 MB since 2026-10-04; 5 MB from 2026-09-30, 2 MB
+ * before). A token over it doesn't verify, so edf-view must be deployed with a raised ceiling
+ * before edf-app mints to it.
  */
-export const IMAGE_TOKEN_MAX_BYTES = 5 * 1024 * 1024;
+export const IMAGE_TOKEN_MAX_BYTES = 15 * 1024 * 1024;
 const IMAGE_TOKEN_MAX_LIFETIME_SEC = 48 * 3600;
 const IMAGE_TOKEN_CLOCK_SKEW_SEC = 300;
 

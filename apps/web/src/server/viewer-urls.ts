@@ -19,7 +19,7 @@ export function viewTokenExpiry(nowMs = Date.now()): number {
 
 /**
  * One signed viewer URL. "img" loads images through edf-view's privacy proxy; "noimg" never does;
- * "card" (gallery cards) proxies only the first CARD_MAX_IMAGES distinct images.
+ * "card" (gallery cards) proxies the same images as "img" (CSS hides a card's missing ones).
  */
 export function viewerUrl(userId: string, emailId: string, mode: ViewMode, exp = viewTokenExpiry()): string {
   const base = `${env().VIEW_ORIGIN.replace(/\/$/, "")}/v`;

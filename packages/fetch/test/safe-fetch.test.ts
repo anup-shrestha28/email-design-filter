@@ -523,7 +523,7 @@ describe("safeFetch against local servers", () => {
 
   it("rejects invalid options loudly", async () => {
     await expect(
-      safeFetch("https://example.com/", { accept: ["image/"], maxBytes: 6 * 1024 * 1024 }),
+      safeFetch("https://example.com/", { accept: ["image/"], maxBytes: 15 * 1024 * 1024 + 1 }),
     ).rejects.toThrow();
     await expect(safeFetch("https://example.com/", { accept: [], maxBytes: 10 })).rejects.toThrow();
   });

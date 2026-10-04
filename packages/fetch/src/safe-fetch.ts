@@ -56,9 +56,13 @@ export type SafeFetchResult =
   | { ok: true; status: number; finalUrl: string; contentType: string; body: Buffer }
   | { ok: false; error: SafeFetchError; status?: number };
 
-/** DESIGN.md §11.7 ceilings. */
-export const SAFE_FETCH_MAX_BYTES = 5 * 1024 * 1024;
-export const SAFE_FETCH_MAX_TIMEOUT_MS = 5000;
+/**
+ * DESIGN.md §11.7 ceilings, raised 2026-10-04 (5 MB / 5 s before) for the image proxy's big
+ * animated GIFs. Ceilings only: every caller passes its own, smaller limits where it wants them
+ * (the analysis render keeps 5 MB per image).
+ */
+export const SAFE_FETCH_MAX_BYTES = 15 * 1024 * 1024;
+export const SAFE_FETCH_MAX_TIMEOUT_MS = 15_000;
 export const SAFE_FETCH_MAX_REDIRECTS = 3;
 export const SAFE_FETCH_MAX_PER_HOST = 4;
 export const SAFE_FETCH_USER_AGENT =
@@ -143,7 +147,7 @@ interface Options {
 function normalizeOptions(o: SafeFetchOptions): Options {
   if (typeof o !== "object" || o === null) throw new TypeError("safeFetch: options required");
   if (!Number.isSafeInteger(o.maxBytes) || o.maxBytes < 1 || o.maxBytes > SAFE_FETCH_MAX_BYTES) {
-    throw new RangeError("safeFetch: maxBytes must be an integer in [1, 5 MB]");
+    throw new RangeError("safeFetch: maxBytes must be an integer in [1, 15 MB]");
   }
   const timeoutMs = o.timeoutMs ?? SAFE_FETCH_MAX_TIMEOUT_MS;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)

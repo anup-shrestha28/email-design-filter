@@ -48,21 +48,22 @@ import { EMAIL_ID_RE, gateViewToken, verifyImageToken } from "./tokens";
 import { isTrackerUrl } from "./trackers";
 
 /**
- * Per-response backstop (§8.4 item 3): 5 MB, the signed per-image ceiling (tokens.ts
- * IMAGE_TOKEN_MAX_BYTES) and the SSRF-safe fetcher's own limit. It was 4 MB, under Vercel's 4.5 MB
+ * Per-response backstop (§8.4 item 3): 15 MB (2026-10-04, was 5 MB: marketing GIFs of 5–15 MB (shops' animated heroes) showed "Picture unavailable" while Gmail showed them), the signed per-image ceiling (tokens.ts
+ * IMAGE_TOKEN_MAX_BYTES) and the SSRF-safe fetcher's own limit; under the 20 MB the CDN caches. It was 4 MB, under Vercel's 4.5 MB
  * function body limit, which only binds functions that don't stream: Node.js functions stream by
  * default (Hobby since 2024-07-08), a streamed response has no such limit, and Vercel's CDN caches
  * streamed function responses up to 20 MB (vercel.com/docs/caching/cdn-cache "Limits"). Week-1
  * check in FREE-TIER.md §8.4: an image of 4.5–5 MB must come back whole, not as a 500
  * FUNCTION_RESPONSE_PAYLOAD_TOO_LARGE; if it doesn't, set this (and the token ceiling) back to 4 MB.
  */
-export const MAX_IMAGE_RESPONSE_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_RESPONSE_BYTES = 15 * 1024 * 1024;
 /** Budget-id suffix edf-app gives gallery-card image tokens (apps/web server/view-source.ts). */
 export const CARD_BUDGET_SUFFIX = "_c";
 /** Vercel's response body limit bounds what edf-app can send us. */
 export const MAX_VIEW_SOURCE_BYTES = Math.floor(4.5 * 1024 * 1024);
 export const VIEW_SOURCE_TIMEOUT_MS = 25_000;
-export const IMAGE_FETCH_TIMEOUT_MS = 5000;
+/** A 15 MB GIF from a slow sender needs more than the 5 s it was (2026-10-04: timeouts seen). */
+export const IMAGE_FETCH_TIMEOUT_MS = 15_000;
 
 /*
  * Card retries. A gallery card whose view fails transiently (Gmail's per-user rate limit, the
@@ -127,6 +128,15 @@ export interface ViewApp {
   view(request: Request, waitUntil?: WaitUntil): Promise<Response>;
   img(request: Request, waitUntil?: WaitUntil): Promise<Response>;
   stats: Stats;
+}
+
+/** The host of an image URL ("?" when it doesn't parse). */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "?";
+  }
 }
 
 export function defaultLog(e: Record<string, string | number>): void {
@@ -428,6 +438,10 @@ export function createViewApp(deps: ViewDeps): ViewApp {
       deps.log({
         ev: "img_error",
         code: r.reason,
+        // Which image server, and the allowance: enough to tell a refusing host or an
+        // over-the-cap picture apart, never the image's address (it can carry tracking ids).
+        host: hostOf(claims.url),
+        mb: maxBytes,
         ...(r.status === undefined ? {} : { status: r.status }),
       });
       return placeholder(cache);

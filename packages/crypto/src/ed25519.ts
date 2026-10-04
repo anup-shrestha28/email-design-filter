@@ -44,11 +44,12 @@ export interface Ed25519VerifyRing {
 }
 
 /**
- * Per-image signed byte allowance ceiling (FREE-TIER.md §8.4): 5 MB, the SSRF-safe fetcher's own
- * limit, so an ordinary one-picture mailer's 3–5 MB PNG shows in the opened design (it was 2 MB).
- * apps/view/src/tokens.ts mirrors it; deploy edf-view before edf-app when it changes.
+ * Per-image signed byte allowance ceiling (FREE-TIER.md §8.4): 15 MB, the SSRF-safe fetcher's own
+ * limit, so a big animated GIF shows in the gallery and the opened design (2026-10-04, was 5 MB: marketing GIFs of 5–15 MB (shops' animated heroes) showed "Picture unavailable" while Gmail showed them; it was 2 MB
+ * before 2026-09-30). apps/view/src/tokens.ts mirrors it; deploy edf-view before edf-app when it
+ * changes.
  */
-export const IMAGE_TOKEN_MAX_BYTES = 5 * 1024 * 1024;
+export const IMAGE_TOKEN_MAX_BYTES = 15 * 1024 * 1024;
 /** Longest accepted source URL. */
 export const IMAGE_TOKEN_MAX_URL_LENGTH = 2048;
 /** Longest accepted token (the signed URL dominates). */

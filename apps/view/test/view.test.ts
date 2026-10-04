@@ -525,9 +525,9 @@ describe("GET /img/:token", () => {
     }
   });
 
-  it("serves a one-picture mailer's 3–5 MB hero whole: 5 MB allowances verify, larger ones don't", async () => {
+  it("serves a big animated GIF whole: 15 MB allowances verify, larger ones don't", async () => {
     const MB = 1024 * 1024;
-    const hero = 4_728_575; // the size of a real hero PNG from the 2026-09-30 audit (grey at 2 MB)
+    const hero = 12_400_000; // a big shop GIF (5–15 MB GIFs were "Picture unavailable" at a 5 MB cap)
     const t = makeApp({
       image: async () => ({
         ok: true,
@@ -538,15 +538,15 @@ describe("GET /img/:token", () => {
         body: Buffer.alloc(hero),
       }),
     });
-    expect(IMAGE_TOKEN_MAX_BYTES).toBe(5 * MB);
+    expect(IMAGE_TOKEN_MAX_BYTES).toBe(15 * MB);
     expect(IMAGE_TOKEN_MAX_BYTES).toBe(CRYPTO_IMAGE_TOKEN_MAX_BYTES); // edf-view mirrors edf-app
-    expect(MAX_IMAGE_RESPONSE_BYTES).toBe(5 * MB);
-    const res = await t.img(`/img/${imageToken({ mb: 5 * MB })}`);
+    expect(MAX_IMAGE_RESPONSE_BYTES).toBe(15 * MB);
+    const res = await t.img(`/img/${imageToken({ mb: 15 * MB })}`);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(Number(res.headers.get("content-length"))).toBe(hero);
     expect((await res.arrayBuffer()).byteLength).toBe(hero);
-    expect(t.imageCalls).toEqual([{ url: "https://cdn.shop.example/a.png", maxBytes: 5 * MB }]);
+    expect(t.imageCalls).toEqual([{ url: "https://cdn.shop.example/a.png", maxBytes: 15 * MB }]);
     // Signed by hand (@edf/crypto refuses to sign over its ceiling): a larger allowance is refused.
     const payload = Buffer.from(
       JSON.stringify([
@@ -555,7 +555,7 @@ describe("GET /img/:token", () => {
         EMAIL,
         imageTokenExpiry(new Date()),
         "https://cdn.shop.example/a.png",
-        5 * MB + 1,
+        15 * MB + 1,
         "bud-1",
       ]),
     );
@@ -685,7 +685,7 @@ describe("image proxy through the real SSRF-safe fetcher", () => {
           .end(
             Buffer.concat([
               png(1200, 4000),
-              Buffer.alloc(req.url === "/hero.png" ? 4_700_000 : 5 * 1024 * 1024),
+              Buffer.alloc(req.url === "/hero.png" ? 14_700_000 : 15 * 1024 * 1024),
             ]),
           );
       if (req.url === "/page")
@@ -741,11 +741,11 @@ describe("image proxy through the real SSRF-safe fetcher", () => {
     }
   });
 
-  it("a 5 MB allowance brings a 4.7 MB hero through the real fetcher; one byte over 5 MB is a placeholder", async () => {
-    const get = realApp(5 * 1024 * 1024);
+  it("a 15 MB allowance brings a 14.7 MB GIF-sized picture through the real fetcher; over 15 MB is a placeholder", async () => {
+    const get = realApp(15 * 1024 * 1024);
     const hero = await get("/hero.png");
     expect(hero.headers.get("content-type")).toBe("image/png");
-    expect((await hero.arrayBuffer()).byteLength).toBe(45 + 4_700_000);
+    expect((await hero.arrayBuffer()).byteLength).toBe(45 + 14_700_000);
     const huge = await get("/huge.png");
     expect(huge.headers.get("content-type")).toBe("image/svg+xml");
     expect(Buffer.from(await huge.arrayBuffer()).equals(UNAVAILABLE_SVG)).toBe(true);

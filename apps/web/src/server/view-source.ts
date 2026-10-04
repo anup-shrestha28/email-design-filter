@@ -45,74 +45,16 @@ import { pipelineDeps } from "./pipeline-deps";
 import { isFixtureAccount, readFixtureRaw } from "./fixtures";
 
 /**
- * A view's total image allowance and image cap (cards and full views alike): 60 distinct images
- * sharing 40 MB (fullViewImageAllowances), ≤ 5 MB each (IMAGE_TOKEN_MAX_BYTES). edf-view's
- * per-budget ledger (apps/view budget.ts) is the same 40 MB.
+ * An email's image total and image cap (cards and full views alike): at most 60 distinct images,
+ * each signed for up to 15 MB (IMAGE_TOKEN_MAX_BYTES, viewImageAllowances), and at most 40 MB really
+ * served per email, held by edf-view's per-budget ledger (apps/view budget.ts, the same 40 MB).
  *
- * 40 MB, not the 15 MB it was (2026-10-04): the share is made from declared sizes before anything
- * is fetched, so in a real email (Canva's "Give us 90 secs") 15 MB went mostly to small PNGs that
- * turned out to weigh 20–270 KB, and the 3.9 MB animated GIF got 2.9 MB — "Picture unavailable"
- * in the gallery and the opened email, while Gmail showed it. At 40 MB a big picture beside a
- * dozen others gets its full 5 MB. The allowance is a ceiling, not a cost: edf-view serves (and
- * meters) only the bytes a picture really has, cached at the CDN for a day.
+ * 40 MB since 2026-10-04 (15 MB before, when it was shared out between the images' signed
+ * allowances; see viewImageAllowances). Only the bytes edf-view really serves count, and are
+ * metered, cached at the CDN for a day.
  */
 export const EMAIL_BUDGET_BYTES = 40 * 1024 * 1024;
 export const MAX_IMAGE_TOKENS = 60;
-/**
- * Since 2026-10-03 gallery cards show the whole email and proxy exactly what the full view does
- * (buildViewSource); CARD_MAX_IMAGES, CARD_BUDGET_BYTES and cardImageAllowances now only set the
- * floor fullViewImageAllowances starts its first images from. History:
- * A gallery card ("card" mode) showed the top of the email at about half size, so only the first
- * distinct images (in document order, CSS backgrounds included) are proxied; the rest keep their
- * alt text, which a card doesn't paint (CARD_MISSING_IMAGE_CSS). Every proxied image is one /img
- * request (the frame has no scripting, so `loading="lazy"` is ignored and every proxied image
- * loads, visible or not) and its Fast Origin Transfer, so this is what keeps gallery browsing
- * inside the free tier (FREE-TIER.md §8.4). The detail view and the full analysis use "img"
- * (every image).
- *
- * 20, from a ground-truth audit (2026-09-30: all 618 real emails loaded exactly as their cards
- * load them): at the old cap of 6, 177 cards had images inside the card's visible part (the top
- * ~1,300–1,600 px of the 800 px layout) left without a src, 1–10 per card on top of the 6 proxied
- * (LinkedIn digests, job boards, shops: 8–36 images each; CSS backgrounds such as Google's
- * value-prop tiles use slots too). Re-measured at 20: the deepest visible image needed slot 20
- * on 4 cards (at most 18 on the rest) and none is left out by the cap (packages/budget
- * DECISIONS.md "Card image cap"). Cost, measured on all 618 cards: ≤ 21 requests per card
- * (1 /v + 20 /img) instead of ≤ 7, 6.5 /img on average instead of 3.6, and ≈ 113 KB of images
- * served per card instead of ≈ 55 KB (the extra images are mostly avatars, icons and thumbnails;
- * ≈ +58 MB of Fast Origin Transfer per 1,000 cards shown on first view). The total allowance stays
- * CARD_BUDGET_BYTES.
- */
-export const CARD_MAX_IMAGES = 20;
-/**
- * A card's total image allowance, fixed: it does not grow with CARD_MAX_IMAGES (6 MB, as when the
- * cap was 6 × 1 MB). The signed allowances of a card's images never add up to more, so 6 MB is the
- * most one card can make edf-view serve (each token's `mb` is the hard bound; edf-view's per-budget
- * ledger is only a best-effort second layer, per instance). How the 6 MB is shared:
- * cardImageAllowances.
- */
-export const CARD_BUDGET_BYTES = 6 * 1024 * 1024;
-/**
- * Every image of a view is first given a floor, so the small images later in a digest still load:
- * IMAGE_FLOOR_BYTES each, or an even share of a quarter of the view's budget when that is less
- * (a card past 12 images: 75 KB each at 20; a full view past 30: 64 KB each at 60).
- */
-export const IMAGE_FLOOR_BYTES = 128 * 1024;
-/**
- * A card's weight for its image in document slot `index` (0-based): 1 for the first four, then
- * (4 ÷ (index + 1))^1.25 (0.76, 0.60, 0.50, 0.42, … 0.13 at slot 20). A card shows only the top of
- * the email, and the later an image comes the less likely it is to be in that part. This curve
- * follows the 2026-10-01 audit of all 630 real cards: an image in slots 1–4 was inside the card's
- * visible part 81–88% of the time; relative to that, slots 5–9 were 0.76, 0.61, 0.51, 0.45, 0.32
- * (the curve: 0.76, 0.60, 0.50, 0.42, 0.36), slots 10–12 0.33–0.38 (0.32–0.25), from slot 13
- * ≤ 0.13 (≤ 0.23; the 1.0 power, 4 ÷ slot, failed one more visible hero). It only
- * matters between images declared alike (a 600 px hero against a 24 px icon is decided by their
- * sizes): Chanty declares every picture by its width alone, so a 600 × 89 header, the 600 × 600
- * hero below it and every 600 px picture further down weigh the same, and only their slots keep
- * the ≈ 800 KB heroes (which loaded under the old 1 MB for the first four) above their size.
- */
-export function cardSlotWeight(index: number): number {
-  return index < 4 ? 1 : (4 / (index + 1)) ** 1.25;
-}
 /**
  * What a view knows about an image's size before anything is fetched: the width, height and style
  * written on its element (@edf/sanitize ViewerImageContext; @edf/core/policy ImageRef for the first
@@ -123,167 +65,23 @@ export interface ImageSizeHint {
   height?: string | null;
   style?: string | null;
 }
-/** The email layout width the card renders at: wider declared sizes are scaled down to it. */
-const LAYOUT_WIDTH_PX = 800;
-/** An image with no declared size (unsized, or a CSS background) counts as 150 × 150. */
-const UNKNOWN_SIDE_PX = 150;
-/** A declared width without a height counts as 4:3 (a height without a width likewise). */
-const ASSUMED_ASPECT = 0.75;
-const MIN_AREA_PX2 = 16 * 16;
-const MAX_AREA_PX2 = LAYOUT_WIDTH_PX * 1600;
-
-/** CSS px of a declared length: `600`, `600px` (an attribute or a style value), `50%` as a share of a 600 px column; else null. */
-function declaredPx(v: string | null | undefined): number | null {
-  if (v === null || v === undefined || v.length > 40) return null;
-  const m = /^\s*(\d{1,5}(?:\.\d{1,4})?)\s*(px|%)?\s*(?:!\s*important)?\s*$/i.exec(v);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return m[2] === "%" ? (Math.min(n, 100) / 100) * 600 : n;
-}
-
-/** The value of `prop` in an inline style (the last declaration wins), or null. */
-function styleValue(style: string | null | undefined, prop: string): string | null {
-  if (!style) return null;
-  let value: string | null = null;
-  for (const decl of style.slice(0, 4096).split(";")) {
-    const colon = decl.indexOf(":");
-    if (colon > 0 && decl.slice(0, colon).trim().toLowerCase() === prop) value = decl.slice(colon + 1);
-  }
-  return value;
-}
 
 /**
- * An image's declared display area in CSS px² (its weight in cardImageAllowances and
- * fullViewImageAllowances): width × height from its `width`/`height` attributes, else its inline
- * style's `width`/`height`, else `max-width`/`max-height`; at most the 800 px layout wide; a missing
- * height ¾ of the width (and the reverse); neither 150 × 150; clamped to [16², 800 × 1600].
+ * The allowances of a view's images (document order, at most MAX_IMAGE_TOKENS): every image gets
+ * the whole per-image ceiling, IMAGE_TOKEN_MAX_BYTES (15 MB), cards and full views alike.
+ *
+ * Since 2026-10-04. Before, the email's budget was shared out from declared sizes (a card's 6 MB,
+ * a full view's 15 MB, by displayed size and slot), but nothing about an image's real weight is
+ * known before edf-view fetches it, and the guess starved the big pictures that matter most:
+ * Canva's 3.9 MB GIF got 2.9 MB beside PNGs of 20–270 KB, and shops' 5–15 MB animated heroes never
+ * fit — "Picture unavailable" where Gmail shows them. The email's total is now held on the bytes
+ * really served: edf-view's per-email ledger (apps/view budget.ts, EMAIL_BUDGET_BYTES, 40 MB)
+ * answers the placeholder past it, and the bytes it serves are what is metered (Fast Origin
+ * Transfer), CDN-cached for a day. What a malicious email could make one instance serve is that
+ * 40 MB; the governor makes images click-to-load near the monthly limit.
  */
-export function imageDisplayArea(h: ImageSizeHint): number {
-  const dim = (attr: string | null | undefined, prop: string) =>
-    declaredPx(attr) ?? declaredPx(styleValue(h.style, prop)) ?? declaredPx(styleValue(h.style, `max-${prop}`));
-  let w = dim(h.width, "width") || null;
-  let ht = dim(h.height, "height") || null;
-  if (w !== null && w > LAYOUT_WIDTH_PX) {
-    if (ht !== null) ht = (ht * LAYOUT_WIDTH_PX) / w;
-    w = LAYOUT_WIDTH_PX;
-  }
-  const ew = w ?? (ht !== null ? ht / ASSUMED_ASPECT : UNKNOWN_SIDE_PX);
-  const eh = ht ?? (w !== null ? w * ASSUMED_ASPECT : UNKNOWN_SIDE_PX);
-  return Math.min(MAX_AREA_PX2, Math.max(MIN_AREA_PX2, ew * eh));
-}
-
-/**
- * Shares `budget` among a view's images (document order): image i gets
- * min(5 MB, max(min[i], floor + level × weight[i])) at the highest level the budget covers. So
- * every image gets at least its minimum, the rest is shared in proportion to the weights, and what
- * an image capped at IMAGE_TOKEN_MAX_BYTES can't take goes to the others (water-filling). Whole
- * bytes, adding up to at most `budget` (the rounding's leftover, or what capped images can't use,
- * stays unminted). Each min[i] is at least `floor`, and they add up to at most `budget`.
- */
-function shareBudget(min: readonly number[], weight: readonly number[], floor: number, budget: number): number[] {
-  const cap = IMAGE_TOKEN_MAX_BYTES;
-  const at = (i: number, level: number) => Math.min(cap, Math.max(min[i]!, floor + level * weight[i]!));
-  const total = (level: number) => min.reduce((s, _, i) => s + at(i, level), 0);
-  // The levels where an image rises above its minimum or reaches the cap. Between two of them the
-  // total grows linearly, so the budget's level is solved exactly within its interval.
-  const levels = [
-    ...new Set([0, ...min.flatMap((m, i) => [Math.max(0, (m - floor) / weight[i]!), Math.max(0, (cap - floor) / weight[i]!)])]),
-  ].sort((a, b) => a - b);
-  let k = 0;
-  while (k + 1 < levels.length && total(levels[k + 1]!) <= budget) k++;
-  let out: number[];
-  if (k + 1 === levels.length) {
-    out = min.map((_, i) => Math.floor(at(i, levels[k]!))); // the budget covers every image's cap
-  } else {
-    const mid = (levels[k]! + levels[k + 1]!) / 2;
-    const rising = min.map((m, i) => m < floor + mid * weight[i]! && floor + mid * weight[i]! < cap);
-    let pool = budget;
-    let w = 0;
-    for (const [i, r] of rising.entries()) {
-      if (r) w += weight[i]!;
-      pool -= r ? floor : Math.floor(at(i, mid));
-    }
-    out = min.map((m, i) =>
-      rising[i] ? Math.min(cap, Math.max(m, floor + Math.floor((pool * weight[i]!) / w))) : Math.floor(at(i, mid)),
-    );
-  }
-  // Raising a rounded share to its minimum can pass the budget by a few bytes: taken back from the largest.
-  for (let over = out.reduce((s, a) => s + a, 0) - budget; over > 0; ) {
-    const i = out.indexOf(Math.max(...out));
-    const d = Math.min(over, out[i]!);
-    out[i] = out[i]! - d;
-    over -= d;
-  }
-  return out;
-}
-
-/**
- * The allowances of a card's images (document order, at most CARD_MAX_IMAGES), from their declared
- * sizes. Nothing about an image's real size is known before edf-view fetches it, but where it is
- * shown says how much room it takes: a hero, a banner or a product shot is drawn large, and its file
- * is large; an avatar, an icon or a logo is drawn small. And a card shows only the top of the email.
- *
- *  1. Every image gets a floor of min(128 KB, 1.5 MB ÷ n) (IMAGE_FLOOR_BYTES, a quarter of the
- *     budget): 128 KB up to 12 images, 75 KB at 20, so the small images later in a digest still load.
- *  2. The rest is shared in proportion to imageDisplayArea × cardSlotWeight (the first four images
- *     1, then (4 ÷ slot)^1.25), each image up to the full view's per-image cap
- *     (IMAGE_TOKEN_MAX_BYTES, 5 MB); what a capped image can't take goes to the others, in
- *     proportion again (shareBudget).
- *
- * So a lone hero gets 5 MB (a one-picture mailer's 3–5 MB PNG shows in its card), a 600 × 600
- * hero ≈ 4.9 MB beside a logo and four 100 px images, ≈ 4.5 MB beside a logo and 18 icons; three
- * 600 × 600 GIFs 1.8, 1.8 and 1.1 MB beside 11 icons; six alike images 1.1 MB each for the first
- * four, then 0.87 and 0.71 MB; 20 alike 595 KB for the first four down to 146 KB. The allowances
- * add up to at most CARD_BUDGET_BYTES.
- * Chosen on the 2026-10-01 audit of all 630 real cards (every image's real size, its slot and
- * whether it shows in the card): images inside a card's visible part left as placeholders because
- * of their allowance went from 38 on 31 cards (1 MB for the first four, then an even share of the
- * rest) to 8 on 6 (by size alone 11 on 9, two of them Chanty heroes that loaded before; an even
- * 6 MB ÷ n split 25 on 22), and none that loaded under the old split fails; what is left are large
- * images in one card that together outgrow 6 MB, or that are declared alike (or not at all) but
- * differ in weight (packages/budget DECISIONS.md "Card image allowance by displayed size").
- *
- * The result depends on every image of the card, so it must be computed for exactly the images the
- * card mints: buildViewSource estimates them from extractImageRefs, re-mints from the rendered list
- * when that differs, and never mints an allowance the rest of the budget can't cover in full.
- */
-export function cardImageAllowances(hints: readonly ImageSizeHint[]): number[] {
-  const n = Math.min(hints.length, CARD_MAX_IMAGES);
-  if (n === 0) return [];
-  const floor = Math.min(IMAGE_FLOOR_BYTES, Math.floor(CARD_BUDGET_BYTES / 4 / n));
-  const weight = hints.slice(0, n).map((h, i) => imageDisplayArea(h) * cardSlotWeight(i));
-  return shareBudget(new Array<number>(n).fill(floor), weight, floor, CARD_BUDGET_BYTES);
-}
-
-/**
- * The allowances of a full view's images (document order, at most MAX_IMAGE_TOKENS): its 15 MB
- * shared as a card shares its 6 MB (shareBudget), with three differences.
- *
- *  - Each of the first CARD_MAX_IMAGES images (the ones its card proxies, in the same order)
- *    starts from what the card gives it, so opening an email never shows "Picture unavailable"
- *    where its card showed the picture (a card's hero can get up to 5 MB, more than an even
- *    15 MB ÷ n share; the others start from min(128 KB, 3.75 MB ÷ n)).
- *  - The whole email is shown, so there is no slot weight.
- *  - The budget is not tight, so the share leans less on declared size: in proportion to the
- *    image's declared side, √imageDisplayArea, not its area.
- *
- * So up to three images get 5 MB each, n alike images 15 MB ÷ n each (as the even split before), a
- * hero keeps at least its card's 4–5 MB beside a dozen others. On the 2026-10-01 audit's full views
- * of all 630 real emails (4,166 images, real sizes known): images over their allowance went from 8
- * (an even split, of every image the scan found, proxied or not) to 3, none that loaded before
- * fails, and none loads in its card but not here (by area instead of side: 4, two that loaded
- * before fail). They add up to at most EMAIL_BUDGET_BYTES (the card's minimums to at most 6 MB +
- * 40 × 64 KB). Like a card's, the result depends on every image, so buildViewSource re-mints from
- * the rendered list when it differs.
- */
-export function fullViewImageAllowances(hints: readonly ImageSizeHint[]): number[] {
-  const n = Math.min(hints.length, MAX_IMAGE_TOKENS);
-  if (n === 0) return [];
-  const floor = Math.min(IMAGE_FLOOR_BYTES, Math.floor(EMAIL_BUDGET_BYTES / 4 / n));
-  const card = cardImageAllowances(hints);
-  const min = Array.from({ length: n }, (_, i) => Math.max(floor, card[i] ?? 0));
-  const weight = hints.slice(0, n).map((h) => Math.sqrt(imageDisplayArea(h)));
-  return shareBudget(min, weight, floor, EMAIL_BUDGET_BYTES);
+export function viewImageAllowances(hints: readonly ImageSizeHint[]): number[] {
+  return new Array<number>(Math.min(hints.length, MAX_IMAGE_TOKENS)).fill(IMAGE_TOKEN_MAX_BYTES);
 }
 /**
  * Appended to a card's document: an image left without a src (past the cap, or dropped by the
@@ -788,20 +586,21 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
     row.primary_type !== "account_security";
   // A gallery card shows the whole email now (Pinterest-style masonry, the top of only the longest
   // ones), so it proxies its images exactly as the full view does: the card's old top-of-email
-  // allowance (CARD_MAX_IMAGES, CARD_BUDGET_BYTES, cardImageAllowances) left big pictures further
-  // down — and big animated heroes beside many images — as "Picture unavailable" (2026-10-03: 113
-  // of 2,604 images refused as too large for their share). A card still keeps its own budget id
+  // allowance (20 images sharing 6 MB) left big pictures further down — and big animated heroes
+  // beside many images — as "Picture unavailable" (2026-10-03: 113 of 2,604 images refused as too
+  // large for their share). A card still keeps its own budget id
   // (CARD_BUDGET_SUFFIX, edf-view's card counters) and paints no alt text (CARD_MISSING_IMAGE_CSS).
   const maxImages = MAX_IMAGE_TOKENS;
   const policy = { userAddresses: row.addresses, imagesAllowed: true };
   const refs = imagesAllowed && parsed.html ? extractImageRefs(parsed.html, { max: MAX_IMAGE_TOKENS }) : [];
-  const budgetBytes = EMAIL_BUDGET_BYTES;
+  // The signed allowances' ceiling: every token may carry the per-image 15 MB (viewImageAllowances);
+  // the email's real total is edf-view's 40 MB ledger on served bytes (EMAIL_BUDGET_BYTES).
+  const budgetBytes = MAX_IMAGE_TOKENS * IMAGE_TOKEN_MAX_BYTES;
   const nowSec = Math.floor(Date.now() / 1000);
   const loadable = (r: (typeof refs)[number]) => imageFetchDecision(r, policy).allowed && !isExpiredSignedUrl(r.src, nowSec);
-  // The allowances of the images a view proxies, in mint (document) order, by declared size: the
-  // email's 15 MB per fullViewImageAllowances, cards and full views alike. ≤ 5 MB each; they add
-  // up to at most the budget.
-  const allowancesFor = fullViewImageAllowances;
+  // The allowances of the images a view proxies, in mint (document) order: the per-image 15 MB each
+  // (viewImageAllowances), cards and full views alike.
+  const allowancesFor = viewImageAllowances;
   // First estimate of the images, from extractImageRefs: the ones the policy lets through, up to
   // the view's cap, with their declared sizes. It can be off: the scan keeps only each URL's first
   // occurrence (a hidden dark-mode copy before the shown logo makes that URL look like a pixel),
