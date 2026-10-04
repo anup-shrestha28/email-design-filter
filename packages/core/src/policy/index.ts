@@ -32,6 +32,7 @@ import {
   STATIC_SIGNATURE_PARAMS,
   STATIC_SIGNED_URL_EXPIRY,
   STATIC_SIGNED_URL_PARAMS,
+  TRACKER_DOMAIN_CONTENT_HOSTS,
   TRACKER_EXCLUSIVE_DOMAINS,
   TRACKER_EXCLUSIVE_HOSTS,
   TRACKER_EXCLUSIVE_PATTERNS,
@@ -72,8 +73,11 @@ function hostMatches(
   return patterns.some((re) => re.test(reg));
 }
 
+const NO_DOMAINS: ReadonlySet<string> = new Set();
+
 /** Tracker-exclusive host (host or registrable domain on our own list, seeded from Trocker, Apache-2.0). */
 export function isTrackerHost(host: string): boolean {
+  if (hostMatches(host, NO_DOMAINS, TRACKER_DOMAIN_CONTENT_HOSTS, [])) return false;
   return hostMatches(
     host,
     TRACKER_EXCLUSIVE_DOMAINS,

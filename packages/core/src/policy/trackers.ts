@@ -17,7 +17,7 @@
 export const TRACKER_EXCLUSIVE_DOMAINS: ReadonlySet<string> = new Set([
   "list-manage.com", // Mailchimp tracking + unsubscribe; content images live on mcusercontent.com
   "mandrillapp.com", // Mandrill /track/open.php, /track/click
-  "klaviyomail.com", // Klaviyo trk./ctrk. tracking
+  "klaviyomail.com", // Klaviyo trk./ctrk. tracking (its image CDN: TRACKER_DOMAIN_CONTENT_HOSTS)
   "hubspotlinks.com",
   "hubspotemail.net",
   "exct.net", // Salesforce Marketing Cloud click/open
@@ -61,6 +61,14 @@ export const TRACKER_EXCLUSIVE_PATTERNS: readonly RegExp[] = [
   /^acemln[a-d]\.com$/, // ActiveCampaign tracking
   /^rsys\d+\.net$/, // Oracle Responsys
 ];
+
+/**
+ * Hosts under a TRACKER_EXCLUSIVE domain that serve the email's own content images, so they are
+ * not trackers (nor are their subdomains). Klaviyo hosts campaign images on cdn.klaviyomail.com
+ * beside its trk./ctrk. open and click hosts: listed as trackers, a Grüns welcome email's seven
+ * designed sections showed as alt text (2026-10-04).
+ */
+export const TRACKER_DOMAIN_CONTENT_HOSTS: ReadonlySet<string> = new Set(["cdn.klaviyomail.com"]);
 
 /** Click-redirect hosts (superset of the exclusive list's redirectors plus shorteners). */
 export const CLICK_TRACKER_DOMAINS: ReadonlySet<string> = new Set([

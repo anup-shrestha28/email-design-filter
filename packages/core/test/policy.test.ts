@@ -17,6 +17,7 @@ const addr = "owner@example.com";
 describe("tracker hosts (our own list; not Disconnect/DuckDuckGo)", () => {
   it.each([
     "trk.klaviyomail.com",
+    "ctrk.klaviyomail.com",
     "us21.list-manage.com",
     "r.us-east-1.awstrack.me",
     "click.convertkit-mail2.com",
@@ -28,6 +29,10 @@ describe("tracker hosts (our own list; not Disconnect/DuckDuckGo)", () => {
     "cdn.shopify.com",
     "substackcdn.com",
     "mcusercontent.com",
+    // Klaviyo's image CDN, beside its trk./ctrk. trackers on the same domain (a Grüns welcome
+    // email's designed sections live there).
+    "cdn.klaviyomail.com",
+    "CDN.Klaviyomail.com.",
     "cdn.mcauto-images-production.sendgrid.net",
     "images.example.com",
     "example.com",
@@ -149,6 +154,22 @@ describe("imageFetchDecision / imagesAllowedFor", () => {
     expect(
       imageFetchDecision({ src: "https://cdn.example/hero.jpg", width: "600", height: "300" }, ctx),
     ).toEqual({ allowed: true });
+  });
+
+  it("loads a Klaviyo CDN picture; its open pixel on the same domain stays blocked", () => {
+    expect(
+      imageFetchDecision(
+        {
+          src: "https://cdn.klaviyomail.com/company/YnDPxD/images/d7e057f5-e63e-4345-92f0-3dc1019c45d4.png",
+          width: "600",
+          style: "display:block;height:auto;width:100%",
+        },
+        ctx,
+      ),
+    ).toEqual({ allowed: true });
+    expect(
+      imageFetchDecision({ src: "https://trk.klaviyomail.com/open/a.gif", width: "1", height: "1" }, ctx),
+    ).toEqual({ allowed: false, reason: "tracker" });
   });
 
   it("no images for security, transactional, suspicious mail or in privacy mode", () => {
