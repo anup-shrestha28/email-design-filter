@@ -1,10 +1,12 @@
 /**
- * Best-effort per-email byte budget (FREE-TIER.md §8.4: ≤ 15 MB per email, split across that
- * email's image tokens). The signed per-token allowance is the real control; this in-memory,
- * per-instance ledger is a second layer. Bounded: entries expire after 48 h (token lifetime) and
- * the map never exceeds MAX_ENTRIES (oldest evicted first).
+ * Best-effort per-email byte budget (≤ 40 MB per email, split across that email's image tokens;
+ * edf-app's view-source.ts EMAIL_BUDGET_BYTES, raised from FREE-TIER.md §8.4's 15 MB on
+ * 2026-10-04 so a big animated GIF beside many small pictures loads). The signed per-token
+ * allowance is the real control; this in-memory, per-instance ledger is a second layer. Bounded:
+ * entries expire after 48 h (token lifetime) and the map never exceeds MAX_ENTRIES (oldest
+ * evicted first).
  */
-export const EMAIL_BUDGET_BYTES = 15 * 1024 * 1024;
+export const EMAIL_BUDGET_BYTES = 40 * 1024 * 1024;
 const TTL_MS = 48 * 3600 * 1000;
 const MAX_ENTRIES = 10_000;
 

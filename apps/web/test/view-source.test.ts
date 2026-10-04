@@ -2,13 +2,18 @@
  * buildViewSource with URLs the email controls that the signers refuse: that one image or link is
  * dropped and counted, and the view still succeeds (no 500 from a CryptoError). And the image
  * tokens it mints: never for a tracking pixel (by URL or by its element's size / hidden style),
- * one per distinct URL, and within the email's 15 MB budget in total.
+ * one per distinct URL, and within the email's 40 MB budget in total (BUDGET).
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createPublicKey } from "node:crypto";
 import { IMAGE_TOKEN_MAX_BYTES, signViewToken, verifyImageToken, type ViewMode } from "@edf/crypto";
 import { HAS_DB } from "./support/env";
 import { appPool, createMailbox, createUser, seedEmail } from "./support/db";
+
+/** A view's total image allowance (view-source.ts EMAIL_BUDGET_BYTES; checked below). */
+const BUDGET = 40 * 1024 * 1024;
+/** What n alike images each get: an even share of the budget, at most the 5 MB per-image cap. */
+const evenShare = (n: number) => Math.min(IMAGE_TOKEN_MAX_BYTES, Math.floor(BUDGET / n));
 
 const fixture = vi.hoisted(() => ({ raw: new Uint8Array() as Uint8Array }));
 vi.mock("@/server/fixtures", () => ({ isFixtureAccount: () => true, readFixtureRaw: async () => fixture.raw }));
@@ -188,7 +193,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     const full = await tokens(`<html><body>${products}</body></html>`, "img");
     expect(card.claims.map((c) => c.url)).toEqual(Array.from({ length: 25 }, (_, i) => `https://img.example.com/product-${i}.png`));
     expect(card.claims.map((c) => [c.url, c.mb])).toEqual(full.claims.map((c) => [c.url, c.mb]));
-    expect(card.claims.reduce((s, c) => s + c.mb, 0)).toBeLessThanOrEqual(15 * 1024 * 1024);
+    expect(card.claims.reduce((s, c) => s + c.mb, 0)).toBeLessThanOrEqual(BUDGET);
     // Card images carry their own budget id (edf-view counts their served bytes apart, as a
     // diagnostic). The allowance is only an upper bound for edf-view: nothing here meters it; the
     // route meters the HTML, and edf-view's reports the bytes really served (FREE-TIER §8.1).
@@ -204,26 +209,30 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     expect(one.r.ok && one.r.imageBytesMinted).toBe(5 * 1024 * 1024);
   });
 
-  it("a full view gives up to three images the whole 5 MB (a one-picture mailer's 3–5 MB hero shows) and splits 15 MB past that", async () => {
+  it("a view gives up to eight images the whole 5 MB (a big animated GIF beside others shows) and splits 40 MB past that", async () => {
+    const { EMAIL_BUDGET_BYTES } = await import("@/server/view-source");
+    expect(EMAIL_BUDGET_BYTES).toBe(BUDGET);
     const MB = 1024 * 1024;
     const imgs = (n: number) => Array.from({ length: n }, (_, i) => `<img src="https://img.example.com/hero-${i}.png" alt="Hero ${i}">`).join("");
     expect(IMAGE_TOKEN_MAX_BYTES).toBe(5 * MB);
     for (const [n, each] of [
       [1, 5 * MB],
       [3, 5 * MB],
-      [4, Math.floor((15 * MB) / 4)],
-      [8, Math.floor((15 * MB) / 8)],
+      [4, 5 * MB],
+      [8, 5 * MB],
+      [9, evenShare(9)],
+      [12, evenShare(12)],
     ] as const) {
       const { r, claims } = await tokens(`<html><body>${imgs(n)}</body></html>`);
       expect(claims.map((c) => c.mb), `${n} images`).toEqual(Array(n).fill(each));
-      expect(r.imageBytesMinted).toBeLessThanOrEqual(15 * MB);
+      expect(r.imageBytesMinted).toBeLessThanOrEqual(BUDGET);
     }
     // A card's lone hero gets the same 5 MB (its 6 MB is shared by declared size, ≤ 5 MB each).
     const card = await tokens(`<html><body>${imgs(1)}</body></html>`, "card");
     expect(card.claims.map((c) => c.mb)).toEqual([5 * MB]);
   });
 
-  it("a card shares the email's 15 MB by declared size, exactly as the opened email does: big pictures get several MB wherever they are", async () => {
+  it("a card shares the email's 40 MB by declared size, exactly as the opened email does: big pictures get several MB wherever they are", async () => {
     const MB = 1024 * 1024;
     const { fullViewImageAllowances } = await import("@/server/view-source");
     const logo = `<img src="https://img.example.com/logo.png" width="150" height="40" alt="Brand">`;
@@ -250,10 +259,26 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     expect(byName.get("hero-2.gif")).toBeGreaterThan(3 * MB);
     for (let i = 0; i < 12; i++) expect(byName.get(`icon-${i}.png`)).toBeGreaterThanOrEqual(100 * 1024);
     const total = claims.reduce((s, c) => s + c.mb, 0);
-    expect(total).toBeLessThanOrEqual(15 * MB);
+    expect(total).toBeLessThanOrEqual(BUDGET);
     expect(r.imageBytesMinted).toBe(total);
     const full = await tokens(html, "img");
     expect(full.claims.map((c) => [c.url, c.mb])).toEqual(claims.map((c) => [c.url, c.mb]));
+  });
+
+  it("a big animated GIF among a dozen pictures gets its full 5 MB (Canva's 3.9 MB GIF was 'Picture unavailable' at 15 MB)", async () => {
+    // The real email (2026-10-04): a logo, a 3.9 MB GIF, six 600 px PNGs of 20–270 KB and seven
+    // small icons, all declared by width. At 15 MB the GIF got 2.9 MB; Gmail showed it.
+    const logo = `<img src="https://img.example.com/logo.png" width="120" alt="Canva">`;
+    const gif = `<img src="https://img.example.com/shortcuts.gif" width="600" alt="Shortcuts">`;
+    const pngs = Array.from({ length: 6 }, (_, i) => `<img src="https://img.example.com/tile-${i}.png" width="600" alt="Tile ${i}">`).join("");
+    const icons = Array.from({ length: 7 }, (_, i) => `<img src="https://img.example.com/icon-${i}.png" width="24" height="24" alt="">`).join("");
+    for (const mode of ["card", "img"] as const) {
+      const { claims } = await tokens(`<html><body>${logo}${gif}${pngs}${icons}</body></html>`, mode);
+      const gifClaim = claims.find((c) => c.url.endsWith("shortcuts.gif"))!;
+      expect(gifClaim.mb, mode).toBe(5 * 1024 * 1024);
+      expect(gifClaim.mb).toBeGreaterThan(4_091_165);
+      expect(claims.reduce((s, c) => s + c.mb, 0)).toBeLessThanOrEqual(BUDGET);
+    }
   });
 
   it("a full view's shares count only the images it proxies (not trackers, pixels or expired links), so its hero gets the full 5 MB, in its card too", async () => {
@@ -283,7 +308,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     const shownImgs = Array.from({ length: 6 }, (_, i) => `<img src="https://img.example.com/s-${i}.png" alt="S${i}">`).join("");
     const { r, claims } = await tokens(`<html><body><template>${dropped}</template>${shownImgs}</body></html>`);
     expect(claims.map((c) => c.mb)).toEqual(fullViewImageAllowances(Array.from({ length: 6 }, () => ({}))));
-    expect(r.imageBytesMinted).toBe(6 * Math.floor((15 * 1024 * 1024) / 6)); // 2.5 MB each, not a 20-way share
+    expect(r.imageBytesMinted).toBe(6 * evenShare(6)); // 5 MB each (the cap), not a 20-way share
   });
 
   it("a full view past its 60-image cap shows the placeholder for the rest; a card past the same 60 paints nothing", async () => {
@@ -303,7 +328,6 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
   });
 
   it("random emails: within budget, one token per URL, and a card gives every image what the opened email gives it", async () => {
-    const MB = 1024 * 1024;
     const now = Math.floor(Date.now() / 1000);
     const expired = `https://media.licdn.com/dms/image/v2/D4D16AQ/p/0/1?e=${now - 86_400}&v=beta&t=abcdefg`;
     let seed = 12345;
@@ -330,7 +354,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
       const html = `<html><head><style>${css.join("")}</style></head><body>${parts.join("")}</body></html>`;
       const card = await tokens(html, "card");
       const full = await tokens(html, "img");
-      for (const [v, budget, cap] of [[card, 15 * MB, 60], [full, 15 * MB, 60]] as const) {
+      for (const [v, budget, cap] of [[card, BUDGET, 60], [full, BUDGET, 60]] as const) {
         const total = v.claims.reduce((s, c) => s + c.mb, 0);
         expect(total, html).toBeLessThanOrEqual(budget);
         expect(v.claims.length).toBeLessThanOrEqual(cap);
@@ -343,7 +367,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     }
   });
 
-  it("keeps the signed allowances within the 15 MB email budget when the image scan saw fewer images", async () => {
+  it("keeps the signed allowances within the 40 MB email budget when the image scan saw fewer images", async () => {
     // extractImageRefs reads only the first 2 MB of HTML, so it counts none of these 60 images and
     // would give each the full 5 MB (300 MB in total).
     const images = Array.from({ length: 60 }, (_, i) => `<img src="https://img${i}.example.com/p.png">`).join("");
@@ -356,7 +380,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: image tokens", () => {
     expect(claims).toHaveLength(60);
     expect(claims.map((c) => c.mb)).toEqual(fullViewImageAllowances(Array.from({ length: 60 }, () => ({}))));
     for (const c of claims) expect(c.mb).toBeGreaterThan(200 * 1024);
-    expect(total).toBeLessThanOrEqual(15 * 1024 * 1024);
+    expect(total).toBeLessThanOrEqual(BUDGET);
     expect(r.imageBytesMinted).toBe(total);
     for (const c of claims) expect(c.mb).toBeGreaterThan(0);
   });
@@ -442,7 +466,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: hidden copies and a card's missing im
           ...Array.from({ length: count }, () => ({ width: null, height: null, style: null })),
         ]),
       );
-      expect(claims.reduce((s, c) => s + c.mb, 0)).toBeLessThanOrEqual(15 * 1024 * 1024);
+      expect(claims.reduce((s, c) => s + c.mb, 0)).toBeLessThanOrEqual(BUDGET);
       expect(r.imageBytesMinted).toBe(claims.reduce((s, c) => s + c.mb, 0));
     },
   );
@@ -458,7 +482,7 @@ describe.skipIf(!HAS_DB)("buildViewSource: hidden copies and a card's missing im
     // Shares of 6 images (2.5 MB each), not a 20-way share.
     const six = fullViewImageAllowances(Array.from({ length: 6 }, () => ({})));
     expect(r.imageBytesMinted).toBe(six.reduce((s, a) => s + a, 0));
-    expect(r.imageBytesMinted).toBe(6 * Math.floor((15 * 1024 * 1024) / 6));
+    expect(r.imageBytesMinted).toBe(6 * evenShare(6));
   });
 
   it("an expired signed CDN URL (LinkedIn's `e`) is not proxied: it shows the static placeholder, no token, no card slot", async () => {

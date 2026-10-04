@@ -45,11 +45,18 @@ import { pipelineDeps } from "./pipeline-deps";
 import { isFixtureAccount, readFixtureRaw } from "./fixtures";
 
 /**
- * A full view's ("img") total image allowance and image cap: 60 distinct images sharing 15 MB
- * (fullViewImageAllowances), ≤ 5 MB each (IMAGE_TOKEN_MAX_BYTES). edf-view's per-budget ledger
- * (apps/view budget.ts) is the same 15 MB.
+ * A view's total image allowance and image cap (cards and full views alike): 60 distinct images
+ * sharing 40 MB (fullViewImageAllowances), ≤ 5 MB each (IMAGE_TOKEN_MAX_BYTES). edf-view's
+ * per-budget ledger (apps/view budget.ts) is the same 40 MB.
+ *
+ * 40 MB, not the 15 MB it was (2026-10-04): the share is made from declared sizes before anything
+ * is fetched, so in a real email (Canva's "Give us 90 secs") 15 MB went mostly to small PNGs that
+ * turned out to weigh 20–270 KB, and the 3.9 MB animated GIF got 2.9 MB — "Picture unavailable"
+ * in the gallery and the opened email, while Gmail showed it. At 40 MB a big picture beside a
+ * dozen others gets its full 5 MB. The allowance is a ceiling, not a cost: edf-view serves (and
+ * meters) only the bytes a picture really has, cached at the CDN for a day.
  */
-export const EMAIL_BUDGET_BYTES = 15 * 1024 * 1024;
+export const EMAIL_BUDGET_BYTES = 40 * 1024 * 1024;
 export const MAX_IMAGE_TOKENS = 60;
 /**
  * Since 2026-10-03 gallery cards show the whole email and proxy exactly what the full view does

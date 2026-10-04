@@ -1059,7 +1059,7 @@ batches) and Neon to ≈ 62 by month end (L2). Hence the 2-minute idle stop and 
 - quota bucket reservations;
 - Fast Origin Transfer (`vercel.fot_mb`), from two writers and never both for the same bytes:
   - **view HTML**: `/api/view-source` meters the HTML it returns, twice (to `edf-view`, then in `edf-view`'s `/v` page), in the same request; export pages likewise;
-  - **image-proxy bytes, exactly as served**: `edf-view` counts the bytes of every `/img` response its function sends (`img_bytes_served`; gallery-card images, whose tokens carry the budget id `<emailId>_<exp36>_c`, also apart as `img_card_bytes_served`, a diagnostic subset never added on top) and reports them to `/api/view-stats`, which adds them to `vercel.fot_mb` in the report's own transaction. The image tokens' signed allowances (≤ 6 MB per card, ≤ 5 MB per image, shared by displayed size; ≤ 15 MB per full view) only cap what `edf-view` may serve; they are **not metered** (as a meter they ran ~5× over the real bytes: ≈ 1.5 MB minted, under the earlier card cap, against ≈ 0.3 MB served per card). CDN cache hits never reach the function and are Fast Data Transfer, not Origin, so revisits cost nothing here;
+  - **image-proxy bytes, exactly as served**: `edf-view` counts the bytes of every `/img` response its function sends (`img_bytes_served`; gallery-card images, whose tokens carry the budget id `<emailId>_<exp36>_c`, also apart as `img_card_bytes_served`, a diagnostic subset never added on top) and reports them to `/api/view-stats`, which adds them to `vercel.fot_mb` in the report's own transaction. The image tokens' signed allowances (≤ 5 MB per image, shared by displayed size; ≤ 40 MB per view, cards and full views alike) only cap what `edf-view` may serve; they are **not metered** (as a meter they ran ~5× over the real bytes: ≈ 1.5 MB minted, under the earlier card cap, against ≈ 0.3 MB served per card). CDN cache hits never reach the function and are Fast Data Transfer, not Origin, so revisits cost nothing here;
   - **bounded loss**: the counts sit in `edf-view`'s memory until reported, so `edf-view` reports in the background (`waitUntil`) once 60 s have passed since its last report, or as soon as 4 MB of served image bytes are pending, never twice within 10 s per instance. Those reports ride on requests, and a few users often send none after a gallery burst, so while served image bytes are pending `edf-view` also schedules **one delayed report 12 s later** under that request's `waitUntil` (it stands down if a report goes out first; the instance stays alive ≈ 12 s after its last image, < 2% of the provisioned-memory allowance). Counts are lost only when a report fails and no later image request reaches the instance, or the instance dies mid-`waitUntil`; the default `vercel_fot` calibration factor of **1.25** covers that, and the week-1 check against the dashboard must confirm it (packages/budget/DECISIONS.md, "Fast Origin Transfer");
   - reconciled weekly with the dashboard's Fast Origin Transfer; `edf-view`'s other `/v` and `/img` counts arrive through the same reports (§9.2).
 
@@ -1273,14 +1273,17 @@ capped at the edge and by design:
      the day; that is the breaker's fail-closed trade-off (existing sessions keep working).
 3. **Image proxy is bounded and cached:**
    - image tokens are **Ed25519-signed** by `edf-app`; `edf-view` holds only public keys;
-   - each token carries a **signed byte allowance**: ≤ 5 MB per image, ≤ 15 MB per email
-     shared across that email's tokens by displayed size (`fullViewImageAllowances`, since
-     2026-10-01: up to 3 images get the whole 5 MB, n alike images 15 MB ÷ n, and no image less
-     than its gallery card gives it), and ≤ 60 tokens minted per email. `edf-view` enforces it
-     while streaming;
+   - each token carries a **signed byte allowance**: ≤ 5 MB per image, ≤ 40 MB per email
+     shared across that email's tokens by displayed size (`fullViewImageAllowances`: up to 8
+     images get the whole 5 MB, n alike images 40 MB ÷ n), and ≤ 60 tokens minted per email;
+     gallery cards mint exactly what the full view does (since 2026-10-03). `edf-view` enforces it
+     while streaming. **Why 40 MB (2026-10-04, was 15 MB):** the share is made from declared sizes
+     before anything is fetched; in Canva's "Give us 90 secs" the 15 MB went mostly to PNGs that
+     weigh 20–270 KB and the 3.9 MB animated GIF got 2.9 MB, "Picture unavailable" where Gmail
+     showed it. The allowance is a ceiling, not a cost: only the bytes really served are metered;
    - each token's `max_bytes` is ≤ 5 MB (`IMAGE_TOKEN_MAX_BYTES`, mirrored by `edf-view`, so
      `edf-view` is deployed first, as docs/SETUP.md step 9 already orders). An image over 5 MB, over
-     25 megapixels, or over its share of the email's 15 MB, gets the placeholder. The 5 MB
+     25 megapixels, or over its share of the email's 40 MB, gets the placeholder. The 5 MB
      per-response cap (`MAX_IMAGE_RESPONSE_BYTES`) equals the v1.1 §11.7 fetcher's own 5 MB limit,
      lowered on this path to the token's `max_bytes`. **Why 5 MB (2026-09-30, was 2 MB):** a visual
      audit of 625 real emails found one-picture mailers (one sender, 14 emails) whose only image, a
@@ -1295,8 +1298,9 @@ capped at the edge and by design:
      production: it must show, and a second open must answer `x-vercel-cache: HIT`. If it is a
      500 `FUNCTION_RESPONSE_PAYLOAD_TOO_LARGE` instead, set `MAX_IMAGE_RESPONSE_BYTES` and
      `IMAGE_TOKEN_MAX_BYTES` back to 4 MB (images of 4–5 MB go back to the placeholder).
-     **Fast Origin Transfer:** the per-email 15 MB is unchanged, so the worst case per first view
-     of an email is too (15 MB; before, 8 images of ≥ 2 MB reached it, now 3 of ≥ 5 MB). Measured
+     **Fast Origin Transfer:** the worst case per first view of an email is the per-email
+     allowance (15 MB until 2026-10-04, now 40 MB — only an email with eight or more pictures of
+     ≥ 5 MB reaches it; the governor makes images click-to-load near the limit). Measured
      on the owner's 625 emails (91 days): the engine's full views load ≈ 0.155 MB of images per
      email on average; the 9 newly shown heroes (37.8 MB in all) add ≈ 0.06 MB per email, so
      ≈ 0.215 MB per opened email, still under the ≈ 0.4 MB (about 10 images) §7 plans with. A month
@@ -1402,7 +1406,7 @@ Banners inside an app nobody opens, or one Vercel has paused, aren't a control. 
 | Pub/Sub push, OIDC webhook, DLQ, watch renewal | **Polling** | Less public attack surface; latency is the only cost |
 | Renderer as a Vercel function project (Chromium `--no-sandbox`, network intercepted) | **Sandbox Firecracker microVM, `deny-all` egress (DNS too)**, no env vars or secrets, **one user per VM**, destroyed after the batch, with `persistent: false` and deny-all **asserted** after creation (or one multi-user nightly VM with a fresh BrowserContext per email if snapshot storage turns out to be cumulative, §5.1). Chromium's own sandbox is on if the spike passes. Results are validated as untrusted, and tiles are never decoded in `edf-app`. Images are pre-fetched by the SSRF-safe fetcher in `edf-app`. | **An improvement.** A Chromium exploit can reach neither the network, nor a secret, nor another user's mail. Hardening, JS off, request interception, caps and the 7-day patch rule are all kept. |
 | Viewer domain served by `web` (which held every secret) | **A separate project `edf-view` holding no secrets at all**: only the Ed25519 public keys for image tokens. `/api/view-source` needs **both** the HMAC view token **and** `edf-view`'s Vercel OIDC token (§9.3). | Same site isolation. A compromised `edf-view` can't mint image tokens or pull JSON, and a leaked view token alone can't pull JSON either. |
-| Image proxy decodes images with sharp | Magic bytes checked against PNG/JPEG/GIF/WebP; dimensions read from the header (reject > 25 megapixels); **5 MB per-response cap** (was 4 MB, under Vercel's 4.5 MB limit for functions that don't stream; edf-view's stream, §8.4 item 3) and the signed per-image (≤ 5 MB) and per-email (15 MB) byte allowances (§8.4); bytes passed through. **The server never decodes an image.** Tokens are Ed25519-signed. | Removes a server-side decoder from the attack surface. The browser decodes inside the script-free sandboxed frame. |
+| Image proxy decodes images with sharp | Magic bytes checked against PNG/JPEG/GIF/WebP; dimensions read from the header (reject > 25 megapixels); **5 MB per-response cap** (was 4 MB, under Vercel's 4.5 MB limit for functions that don't stream; edf-view's stream, §8.4 item 3) and the signed per-image (≤ 5 MB) and per-email (40 MB) byte allowances (§8.4); bytes passed through. **The server never decodes an image.** Tokens are Ed25519-signed. | Removes a server-side decoder from the attack surface. The browser decodes inside the script-free sandboxed frame. |
 | Screenshots in private Blob | **Not stored**; AI tiles live only in memory | Stores less |
 | Log Drain, security logs 1 year | `audit_log` (1 year) + `app_error` (30 days, codes and hashes only). Inngest traces 24 h; Vercel runtime logs 1 h. **Machine-to-machine authentication failures are recorded too:** rate-limited, content-free `audit_log` rows (endpoint, reason code, hashed IP, count per 10 min) for OIDC or HMAC failures on `/api/view-source`, a bad `CRON_SECRET`, bad Inngest signatures, and `edf-keys` unwraps and refusals (reported by `edf-keys` to `/api/keys-audit`; see the key row). Those endpoints answer anonymous requests, so a failure never wakes Neon (§8.4): its row waits in the instance's memory and is written only while the database is awake anyway, when an authenticated machine caller is about to use it, or by the daily cron (a row is lost if the instance is reaped first). `edf-view` counts `/v` and `/img` requests, signature failures and served image bytes (all, and gallery-card images apart: `img_card_bytes_served`, a diagnostic subset) in memory and POSTs them to `edf-app` `/api/view-stats` in the background (`waitUntil`) once a minute, or as soon as 4 MB of served image bytes are pending, never twice within 10 s per instance, plus one delayed report 12 s after image bytes that nothing else reports; `edf-app` meters the served image bytes as Fast Origin Transfer (§8.1). It authenticates with its Vercel OIDC token (the same checks as `/api/view-source`), since it holds no signing key. | Enough to reconstruct an incident for the Google report |
 | Sentry | Optional, with v1.1's restrictions (errors only, Replay off, scrubber) | One vendor fewer holding telemetry |

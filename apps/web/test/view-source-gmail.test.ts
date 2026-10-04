@@ -226,11 +226,11 @@ describe("card and full-view image allowances", () => {
   const KB = 1024;
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 
-  it("never signs more than 6 MB per card, 15 MB per full view or 5 MB per image; every image gets its floor, and a full view never less than its card", async () => {
+  it("never signs more than 6 MB per card (its old share, now only a floor), 40 MB per view or 5 MB per image; every image gets its floor, and a full view never less than its card", async () => {
     const { cardImageAllowances, fullViewImageAllowances, CARD_BUDGET_BYTES, EMAIL_BUDGET_BYTES, IMAGE_FLOOR_BYTES, CARD_MAX_IMAGES, MAX_IMAGE_TOKENS } =
       await import("@/server/view-source");
     expect(CARD_BUDGET_BYTES).toBe(6 * MB);
-    expect(EMAIL_BUDGET_BYTES).toBe(15 * MB);
+    expect(EMAIL_BUDGET_BYTES).toBe(40 * MB);
     expect(IMAGE_FLOOR_BYTES).toBe(128 * KB);
     expect(CARD_MAX_IMAGES).toBe(20);
     expect(MAX_IMAGE_TOKENS).toBe(60);
@@ -330,11 +330,11 @@ describe("card and full-view image allowances", () => {
     expect(sum(a)).toBeLessThanOrEqual(6 * MB);
   });
 
-  it("a full view gives up to three images 5 MB, n alike images 15 MB ÷ n, and a card's hero at least what its card gives", async () => {
+  it("a view gives up to eight images 5 MB, n alike images 40 MB ÷ n, and a hero at least what the old card share gave it", async () => {
     const { cardImageAllowances, fullViewImageAllowances } = await import("@/server/view-source");
     const alike = (n: number) => Array.from({ length: n }, () => ({}));
-    for (const n of [1, 2, 3]) expect(fullViewImageAllowances(alike(n))).toEqual(Array(n).fill(5 * MB));
-    for (const n of [4, 8, 20]) expect(fullViewImageAllowances(alike(n)), `${n}`).toEqual(Array(n).fill(Math.floor((15 * MB) / n)));
+    for (const n of [1, 2, 3, 8]) expect(fullViewImageAllowances(alike(n))).toEqual(Array(n).fill(5 * MB));
+    for (const n of [9, 20]) expect(fullViewImageAllowances(alike(n)), `${n}`).toEqual(Array(n).fill(Math.floor((40 * MB) / n)));
     // Canva's card (2026-10-01 audit): a 2 MB GIF hero beside a logo and a dozen small images.
     // The card gave it ≈ 4.6 MB; an even 15 MB ÷ 13 split gave it 1.18 MB, so it showed in the
     // card and "Picture unavailable" in the opened email.
@@ -346,10 +346,10 @@ describe("card and full-view image allowances", () => {
     expect(card[1]).toBeGreaterThan(4.4 * MB);
     expect(full[1]).toBe(5 * MB);
     for (const [i, x] of card.entries()) expect(full[i]).toBeGreaterThanOrEqual(x);
-    // Past the card's 20 images, alike images still get a usable share (≈ 223 KB at 60).
+    // Past 20 images, alike images still get a usable share (≈ 680 KB at 60).
     const sixty = fullViewImageAllowances(alike(60));
-    expect(sum(sixty)).toBeLessThanOrEqual(15 * MB);
-    for (const x of sixty.slice(20)) expect(x).toBeGreaterThan(200 * KB);
+    expect(sum(sixty)).toBeLessThanOrEqual(40 * MB);
+    for (const x of sixty.slice(20)) expect(x).toBeGreaterThan(600 * KB);
   });
 
   it("weighs an image by its declared display size", async () => {

@@ -390,6 +390,8 @@ describe("GET /img/:token", () => {
   });
 
   it("accepts edf-app's per-email budget id and shares that budget across the email's images", async () => {
+    // The same 40 MB edf-app shares among a view's image tokens (apps/web view-source.ts).
+    expect(EMAIL_BUDGET_BYTES).toBe(40 * 1024 * 1024);
     const t = makeApp({
       image: async (_u, o) => ({
         ok: true,
@@ -404,7 +406,7 @@ describe("GET /img/:token", () => {
     const b = `${EMAIL}_${x.toString(36)}`; // as apps/web/src/server/view-source.ts mints it
     const mb = 2 * 1024 * 1024;
     let served = 0;
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < EMAIL_BUDGET_BYTES / mb + 2; i++) {
       const res = await t.img(
         `/img/${imageToken({ x, b, mb, url: `https://cdn.shop.example/${i}.png` })}`,
       );
@@ -474,9 +476,10 @@ describe("GET /img/:token", () => {
         body: Buffer.alloc(o.maxBytes),
       }),
     });
-    const mb = 2 * 1024 * 1024;
+    // 3 MB images: the budget isn't a multiple of 3 MB, so one fetch gets only what is left.
+    const mb = 3 * 1024 * 1024;
     let served = 0;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < Math.ceil(EMAIL_BUDGET_BYTES / mb) + 1; i++) {
       const res = await t.img(
         `/img/${imageToken({ mb, url: `https://cdn.shop.example/${i}.png` })}`,
       );
@@ -510,7 +513,7 @@ describe("GET /img/:token", () => {
     const mb = 2 * 1024 * 1024;
     // edf-app used to derive `b` from the first 8 hex chars of a uuidv7 id plus the expiry day, so
     // emails inserted in the same ~65 s window (for any user) shared a `b`; such tokens live 48 h.
-    for (let i = 0; i < 8; i++)
+    for (let i = 0; i < Math.ceil(EMAIL_BUDGET_BYTES / mb); i++)
       await t.img(`/img/${imageToken({ mb, url: `https://cdn.shop.example/${i}.png` })}`);
     const again = await t.img(`/img/${imageToken({ mb, url: "https://cdn.shop.example/x.png" })}`);
     expect(again.headers.get("cache-control")).toBe("no-store");
@@ -613,31 +616,36 @@ describe("GET /img/:token", () => {
 
   it("answers a budget-limited fetch with the placeholder and no-store, so a later view can load it", async () => {
     const MB = 1024 * 1024;
+    const SIZE = 4.5 * MB;
+    const n = Math.floor(EMAIL_BUDGET_BYTES / SIZE);
+    const left = EMAIL_BUDGET_BYTES - n * SIZE;
     const t = makeApp({
       image: async (_u, o) =>
-        o.maxBytes >= 4 * MB
+        o.maxBytes >= SIZE
           ? {
               ok: true,
               format: "png",
               width: 1,
               height: 1,
               contentType: "image/png",
-              body: Buffer.alloc(4 * MB),
+              body: Buffer.alloc(SIZE),
             }
           : { ok: false, reason: "too_large" },
     });
     const b = "bud-limit";
-    // 3 × 4 MB of the email's 15 MB served; the 4th 4 MB image may only use the 3 MB left.
-    for (let i = 0; i < 3; i++) {
+    // n × 4.5 MB of the email's budget served; the next 4.5 MB image may only use what is left.
+    for (let i = 0; i < n; i++) {
       const res = await t.img(
         `/img/${imageToken({ b, mb: 5 * MB, url: `https://cdn.shop.example/${i}.png` })}`,
       );
       expect(res.headers.get("content-type")).toBe("image/png");
     }
     const limited = await t.img(
-      `/img/${imageToken({ b, mb: 5 * MB, url: "https://cdn.shop.example/3.png" })}`,
+      `/img/${imageToken({ b, mb: 5 * MB, url: "https://cdn.shop.example/last.png" })}`,
     );
-    expect(t.imageCalls.at(-1)?.maxBytes).toBe(3 * MB);
+    expect(left).toBeGreaterThan(0);
+    expect(left).toBeLessThan(SIZE);
+    expect(t.imageCalls.at(-1)?.maxBytes).toBe(left);
     expect(limited.headers.get("content-type")).toBe("image/svg+xml");
     expect(limited.headers.get("cache-control")).toBe("no-store");
     expect(Buffer.from(await limited.arrayBuffer()).equals(UNAVAILABLE_SVG)).toBe(true);
