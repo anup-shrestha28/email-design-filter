@@ -950,8 +950,9 @@ describe("galleryCategoryOf", () => {
     expect(galleryCategoryOf("lifecycle", null)).toBe("other");
     for (const s of [null, ...EMAIL_SUBTYPES.product_update])
       expect(galleryCategoryOf("product_update", s)).toBe("product_updates");
+    // Event and webinar invites are promotions in the gallery (Events merged, 2026-10-04).
     for (const s of [null, ...EMAIL_SUBTYPES.event])
-      expect(galleryCategoryOf("event", s)).toBe("events");
+      expect(galleryCategoryOf("event", s)).toBe("promotions");
     for (const s of [null, ...EMAIL_SUBTYPES.transactional])
       expect(galleryCategoryOf("transactional", s)).toBe("receipts");
     // App mail has chips of its own, so "Other" stays small.
@@ -1038,7 +1039,7 @@ describe("gallery URL params", () => {
     ).toEqual(want);
     expect(
       parseGalleryParams({
-        category: ["welcome", "events"],
+        category: ["welcome", "promotions"],
         design: "good",
         font: "Inter",
         q: " autumn sale ",
@@ -1058,9 +1059,9 @@ describe("gallery URL params", () => {
       design: "bad",
       sort: "worst",
     });
-    expect(parseGalleryParams({ design: "excellent", category: "events" })).toEqual({
+    expect(parseGalleryParams({ design: "excellent", category: "product_updates" })).toEqual({
       ...DEFAULT_GALLERY_PARAMS,
-      category: "events",
+      category: "product_updates",
     });
     expect(parseGalleryParams({ q: 42, font: "Lato" })).toEqual({
       ...DEFAULT_GALLERY_PARAMS,
@@ -1074,7 +1075,7 @@ describe("gallery URL params", () => {
       category: "welcome",
     });
     // A category the gallery no longer shows (it is for marketing design only) reads as All.
-    for (const hidden of ["receipts", "social", "newsletters", "notifications", "other"]) {
+    for (const hidden of ["receipts", "social", "newsletters", "notifications", "other", "events"]) {
       expect(parseGalleryParams({ category: hidden, design: "good" })).toEqual({
         ...DEFAULT_GALLERY_PARAMS,
         design: "good",

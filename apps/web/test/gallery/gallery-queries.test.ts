@@ -340,7 +340,7 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
     expect(await subjects({ font: "Arial", design: "bad" })).toEqual(["capped", "poor"]);
     expect(await subjects({ q: "capp" })).toEqual(["capped"]);
     expect(await subjects({ q: "bobs" })).toEqual([]);
-    expect(await subjects({ category: "events" })).toEqual([]);
+    expect(await subjects({ category: "product_updates", font: "Georgia" })).toEqual([]);
   });
 
   it("facet counts respect the other active filters", async () => {
@@ -354,7 +354,6 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
       welcome: 2,
       abandoned_cart: 1,
       product_updates: 2,
-      events: 0,
       receipts: 0,
       other: 0,
     });

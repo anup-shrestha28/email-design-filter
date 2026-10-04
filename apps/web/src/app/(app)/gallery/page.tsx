@@ -23,6 +23,8 @@ const CAT_ALIASES: Record<string, GalleryCategory> = {
   orders: "receipts",
   updates: "product_updates",
   cart: "abandoned_cart",
+  // Events merged into Promotions (2026-10-04): an old link still lands on them.
+  events: "promotions",
 };
 
 /** How many cards get their preview URL minted with the page (the first screen at 1440 px). */

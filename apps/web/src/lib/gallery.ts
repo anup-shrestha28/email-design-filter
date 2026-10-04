@@ -30,7 +30,6 @@ export const GALLERY_CATEGORIES = [
   { id: "notifications", label: "Notifications" },
   { id: "welcome", label: "Welcome" },
   { id: "product_updates", label: "Product updates" },
-  { id: "events", label: "Events" },
   { id: "abandoned_cart", label: "Abandoned cart" },
   { id: "receipts", label: "Orders & receipts" },
   { id: "other", label: "Other" },
@@ -58,7 +57,6 @@ export const GALLERY_SHOWN_CATEGORIES = [
   "promotions",
   "welcome",
   "product_updates",
-  "events",
   "abandoned_cart",
 ] as const satisfies readonly EmailGalleryCategory[];
 export type ShownGalleryCategory = (typeof GALLERY_SHOWN_CATEGORIES)[number];
@@ -96,8 +94,9 @@ export function galleryCategoryOf(
       return subtype !== null && WELCOME_SUBTYPES.has(subtype) ? "welcome" : "other";
     case "product_update":
       return "product_updates";
+    // Event and webinar invites are promotions here: one chip fewer, the owner's call (2026-10-04).
     case "event":
-      return "events";
+      return "promotions";
     case "transactional":
       return "receipts";
     // Network and group updates: "X commented", "People you may know", forum and group digests.

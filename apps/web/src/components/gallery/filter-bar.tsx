@@ -32,7 +32,6 @@ const CATEGORY_DOT: Record<Exclude<GalleryCategory, "all">, string> = {
   notifications: "var(--tg-notifications)",
   welcome: "var(--tg-updates)",
   product_updates: "var(--tg-updates)",
-  events: "var(--tg-events)",
   abandoned_cart: "var(--tg-security)",
   receipts: "var(--tg-orders)",
   other: "var(--tg-other)",

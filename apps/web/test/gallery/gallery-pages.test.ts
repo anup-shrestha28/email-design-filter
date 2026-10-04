@@ -76,8 +76,8 @@ describe("gallery URL params: pages and the Filters panel", () => {
     } as const;
     for (const [key, values] of Object.entries(bad)) {
       for (const v of values) {
-        const got = parseGalleryParams({ [key]: v, category: "events" });
-        expect(got, `${key}=${v}`).toEqual(p({ category: "events" }));
+        const got = parseGalleryParams({ [key]: v, category: "welcome" });
+        expect(got, `${key}=${v}`).toEqual(p({ category: "welcome" }));
       }
     }
     // Numbers from an object work; out-of-range ones don't.

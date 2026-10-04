@@ -37,7 +37,6 @@ const facets: GalleryFacets = {
     welcome: 2,
     abandoned_cart: 0,
     product_updates: 0,
-    events: 0,
     receipts: 0,
     other: 0,
   },
