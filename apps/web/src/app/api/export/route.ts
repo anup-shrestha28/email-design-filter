@@ -58,7 +58,7 @@ export function GET(request: Request) {
       }
       const headers = new Headers({
         "Content-Type": "application/gzip",
-        "Content-Disposition": `attachment; filename="email-design-filter-export-${cursor ? cursor.slice(0, 8) : "start"}.jsonl.gz"`,
+        "Content-Disposition": `attachment; filename="dearly-mail-export-${cursor ? cursor.slice(0, 8) : "start"}.jsonl.gz"`,
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
       });

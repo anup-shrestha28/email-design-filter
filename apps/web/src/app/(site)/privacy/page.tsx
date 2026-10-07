@@ -22,7 +22,7 @@ export default function PrivacyPage() {
     <ProsePage
       eyebrow="Privacy"
       title="Privacy policy"
-      summary="Email Design Filter is a private, invite-only app. This page explains, in plain words, what it reads, what it keeps, and what it never does."
+      summary="Dearly Mail is a private, invite-only app. This page explains, in plain words, what it reads, what it keeps, and what it never does."
       updated="27 September 2026"
       toc={TOC}
     >
@@ -49,7 +49,7 @@ export default function PrivacyPage() {
         Data Policy, including the Limited Use requirements.
       </blockquote>
       <blockquote>
-        Email Design Filter&apos;s use and transfer of information received from Google APIs will
+        Dearly Mail&apos;s use and transfer of information received from Google APIs will
         adhere to the Google API Services User Data Policy, including the Limited Use requirements.
       </blockquote>
       <p>

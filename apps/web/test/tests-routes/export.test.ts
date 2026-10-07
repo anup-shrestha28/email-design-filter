@@ -83,7 +83,7 @@ describe.skipIf(!HAS_DB)("/api/export", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/gzip");
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(res.headers.get("content-disposition")).toBe('attachment; filename="email-design-filter-export-start.jsonl.gz"');
+    expect(res.headers.get("content-disposition")).toBe('attachment; filename="dearly-mail-export-start.jsonl.gz"');
     expect(res.headers.get("x-export-next")).toBeNull();
     const page = await lines(res);
     const kinds = page.map((l) => l.kind);

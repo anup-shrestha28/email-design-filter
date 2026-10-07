@@ -8,7 +8,7 @@ import type { SyncStatus } from "@/server/queries/types";
 import { requireUser } from "@/server/session";
 
 export const metadata: Metadata = {
-  title: { default: "Email designs", template: "%s · Email Design Filter" },
+  title: { default: "Email designs", template: "%s · Dearly Mail" },
 };
 
 const NO_SYNC: SyncStatus = { mailboxes: [], syncing: false, lastSyncedAt: null, banner: null };

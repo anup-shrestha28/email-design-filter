@@ -27,7 +27,7 @@ import { PILLAR_LABELS, PILLAR_WEIGHTS } from "@/lib/labels";
 import type { PillarId } from "@edf/design/types";
 
 export const metadata: Metadata = {
-  title: { absolute: "Email Design Filter — your subscriptions, sorted and explained" },
+  title: { absolute: "Dearly Mail — your subscriptions, sorted and explained" },
 };
 
 const DEMO_PILLARS: Array<{ id: PillarId; points: number; max: number }> = [
@@ -364,7 +364,7 @@ export default function LandingPage() {
                 Google User Data Policy, including the Limited Use requirements.
               </p>
               <p>
-                Email Design Filter&apos;s use and transfer of information received from Google APIs
+                Dearly Mail&apos;s use and transfer of information received from Google APIs
                 will adhere to the Google API Services User Data Policy, including the Limited Use
                 requirements.
               </p>

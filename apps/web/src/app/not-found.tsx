@@ -5,7 +5,7 @@ import { Wordmark } from "@/components/shell/wordmark";
 export default function NotFound() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-      <Link href="/" className="rounded-md" aria-label="Email Design Filter home">
+      <Link href="/" className="rounded-md" aria-label="Dearly Mail home">
         <Wordmark />
       </Link>
       <p className="mt-12 font-mono text-sm font-medium text-accent">404</p>

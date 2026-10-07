@@ -14,7 +14,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/" className="rounded-md" aria-label="Email Design Filter home">
+        <Link href="/" className="rounded-md" aria-label="Dearly Mail home">
           <Wordmark />
         </Link>
         <nav aria-label="Site" className="ml-auto hidden items-center gap-1 md:flex">
@@ -43,7 +43,7 @@ export function SiteFooter() {
         <div>
           <Wordmark />
           <p className="mt-3 max-w-md text-xs leading-relaxed text-muted-foreground">
-            Email Design Filter&apos;s use and transfer of information received from Google APIs
+            Dearly Mail&apos;s use and transfer of information received from Google APIs
             will adhere to the Google API Services User Data Policy, including the Limited Use
             requirements.
           </p>

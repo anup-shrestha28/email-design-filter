@@ -17,7 +17,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(ellipse_60%_60%_at_50%_-10%,color-mix(in_oklch,var(--accent)_14%,transparent),transparent)]"
           />
           <header className="relative flex h-16 items-center px-5 sm:px-8">
-            <Link href="/" className="rounded-md" aria-label="Email Design Filter home">
+            <Link href="/" className="rounded-md" aria-label="Dearly Mail home">
               <Wordmark />
             </Link>
           </header>

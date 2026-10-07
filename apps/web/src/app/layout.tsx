@@ -10,10 +10,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Email Design Filter", template: "%s · Email Design Filter" },
+  title: { default: "Dearly Mail", template: "%s · Dearly Mail" },
   description:
     "Organises the newsletters, promotions and receipts you signed up for, and gives every designed email an explainable Design Score.",
-  applicationName: "Email Design Filter",
+  applicationName: "Dearly Mail",
   referrer: "strict-origin-when-cross-origin",
   robots: { index: false, follow: false },
   formatDetection: { email: false, address: false, telephone: false },

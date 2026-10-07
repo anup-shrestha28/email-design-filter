@@ -20,13 +20,13 @@ export function AppHeader({ user }: { user: ShellUser }) {
     <header className="z-30 flex h-14 shrink-0 items-center gap-4 border-b border-border bg-background/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6 lg:px-8">
       <Link
         href="/gallery"
-        aria-label="Email Design Filter — all designs"
+        aria-label="Dearly Mail — all designs"
         aria-current={onGallery ? "page" : undefined}
         className="flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <LogoMark className="size-7" />
         <span className="text-[0.9375rem] font-semibold tracking-[-0.02em] whitespace-nowrap text-foreground">
-          Email Design Filter
+          Dearly Mail
         </span>
       </Link>
       <div className="flex min-w-0 flex-1 justify-center">

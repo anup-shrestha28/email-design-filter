@@ -42,7 +42,7 @@ function createAuth() {
   const db = drizzleForAuthTables(rawPool());
 
   return betterAuth({
-    appName: "Email Design Filter",
+    appName: "Dearly Mail",
     baseURL: e.BETTER_AUTH_URL,
     secrets: parseSecrets(e.BETTER_AUTH_SECRETS),
     trustedOrigins: [e.APP_ORIGIN],

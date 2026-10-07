@@ -5,7 +5,7 @@ import { checkOutRequest } from "@/server/out";
 import { requireUser } from "@/server/session";
 import { GoBack } from "./go-back";
 
-export const metadata: Metadata = { title: "Leaving Email Design Filter", referrer: "no-referrer" };
+export const metadata: Metadata = { title: "Leaving Dearly Mail", referrer: "no-referrer" };
 
 /** Link interstitial (DESIGN.md §11.5): shows the real host, flags trackers, never redirects by itself. */
 export default async function OutPage({
@@ -39,7 +39,7 @@ export default async function OutPage({
     <div className="w-full max-w-lg">
       <div className="rounded-2xl border border-border bg-surface p-6 shadow-overlay sm:p-8">
         <p className="text-xs font-medium text-muted-foreground">
-          You&apos;re about to leave Email Design Filter
+          You&apos;re about to leave Dearly Mail
         </p>
         <h1 className="mt-4 flex items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-muted-foreground">

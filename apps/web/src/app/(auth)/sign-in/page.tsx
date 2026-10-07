@@ -32,7 +32,7 @@ export default async function SignInPage({
         </div>
         <h1 className="mt-5 text-xl font-semibold tracking-[-0.02em] text-foreground">Sign in</h1>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-          Email Design Filter is invite-only. Use the Google account your invite was sent to.
+          Dearly Mail is invite-only. Use the Google account your invite was sent to.
         </p>
 
         {reauth ? (

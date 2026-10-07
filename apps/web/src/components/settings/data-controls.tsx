@@ -35,7 +35,7 @@ async function downloadExport(
   const url = URL.createObjectURL(new Blob(parts, { type: "application/gzip" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = `email-design-filter-export-${new Date().toISOString().slice(0, 10)}.jsonl.gz`;
+  a.download = `dearly-mail-export-${new Date().toISOString().slice(0, 10)}.jsonl.gz`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   return "ok";

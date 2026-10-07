@@ -13,7 +13,7 @@ export default function TermsPage() {
     >
       <h2>The service</h2>
       <p>
-        Email Design Filter is a private, invite-only, non-commercial app. It connects to Gmail with
+        Dearly Mail is a private, invite-only, non-commercial app. It connects to Gmail with
         read-only access to organise automated mail and score email designs. There are no payments,
         ads or affiliate links.
       </p>

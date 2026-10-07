@@ -64,7 +64,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           You&apos;re invited
         </h1>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-          Email Design Filter sorts the newsletters, deals and receipts you signed up for, and
+          Dearly Mail sorts the newsletters, deals and receipts you signed up for, and
           scores how well each one is designed.
         </p>
         <div className="mt-5 flex items-center gap-3 rounded-lg border border-border bg-surface-muted/60 px-3 py-2.5">

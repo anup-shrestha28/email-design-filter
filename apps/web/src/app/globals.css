@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 
 /*
- * Email Design Filter — design tokens.
+ * Dearly Mail — design tokens.
  *
  * Semantic tokens live on :root and are re-declared for dark mode twice:
  *  - under prefers-color-scheme (guarded so a manual "light" choice wins), and
