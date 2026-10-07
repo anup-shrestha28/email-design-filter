@@ -27,7 +27,11 @@ export const IMAGE_TOKEN_MAX_LENGTH = 4096;
  * before edf-app mints to it.
  */
 export const IMAGE_TOKEN_MAX_BYTES = 15 * 1024 * 1024;
-const IMAGE_TOKEN_MAX_LIFETIME_SEC = 48 * 3600;
+/**
+ * Mirrors @edf/crypto IMAGE_TOKEN_MAX_LIFETIME_SEC: 14 days since 2026-10-07 (weekly expiry), 48 h
+ * before. A longer-lived token doesn't verify, so edf-view ships a raised ceiling first.
+ */
+export const IMAGE_TOKEN_MAX_LIFETIME_SEC = 14 * 86_400;
 const IMAGE_TOKEN_CLOCK_SKEW_SEC = 300;
 
 export type ViewMode = "img" | "noimg" | "card";

@@ -4,6 +4,7 @@ import {
   CryptoError,
   IMAGE_TOKEN_MAX_BYTES,
   IMAGE_TOKEN_MAX_LIFETIME_SEC,
+  IMAGE_TOKEN_PERIOD_SEC,
   imageTokenExpiry,
   parseEd25519SigningRing,
   parseEd25519VerifyRing,
@@ -90,19 +91,19 @@ describe("image tokens", () => {
     }
   });
 
-  it("enforces expiry and the 48 h (+5 min) ceiling", () => {
+  it("enforces expiry and the 14-day (+5 min) ceiling", () => {
     const t = signImageToken(signing, claims({ x: nowSec() + 10 }));
     expect(verifyImageToken(verifying, t, nowSec())).not.toBeNull();
     expect(verifyImageToken(verifying, t, nowSec() + 11)).toBeNull();
-    // Signed on a clock two hours fast: 49 h ahead of the verifier, past its ceiling.
+    // Signed on a clock two hours fast: 14 days + 1 h ahead of the verifier, past its ceiling.
     const real = nowSec();
     vi.useFakeTimers({ toFake: ["Date"], now: (real + 2 * 3600) * 1000 });
-    const far = signImageToken(signing, claims({ x: real + 49 * 3600 }));
+    const far = signImageToken(signing, claims({ x: real + IMAGE_TOKEN_MAX_LIFETIME_SEC + 3600 }));
     vi.useRealTimers();
     expect(verifyImageToken(verifying, far, real)).toBeNull();
   });
 
-  it("refuses to sign an expiry outside (now, now + 48 h]", () => {
+  it("refuses to sign an expiry outside (now, now + 14 days]", () => {
     vi.useFakeTimers({ toFake: ["Date"], now: 1_790_000_000_500 });
     const now = 1_790_000_000;
     for (const x of [1, now - 60, now, now + IMAGE_TOKEN_MAX_LIFETIME_SEC + 1, now * 1000]) {
@@ -112,8 +113,8 @@ describe("image tokens", () => {
     expect(() =>
       signImageToken(signing, claims({ x: now + IMAGE_TOKEN_MAX_LIFETIME_SEC })),
     ).not.toThrow();
-    // imageTokenExpiry's longest lifetime (exactly UTC midnight) is still signable.
-    vi.setSystemTime(Date.UTC(2026, 8, 27));
+    // imageTokenExpiry's longest lifetime (exactly at a period start) is still signable.
+    vi.setSystemTime(Date.UTC(2026, 9, 1)); // a Thursday 00:00 UTC: a period starts
     expect(() => signImageToken(signing, claims({ x: imageTokenExpiry(new Date()) }))).not.toThrow();
   });
 
@@ -147,16 +148,21 @@ describe("image tokens", () => {
 });
 
 describe("imageTokenExpiry", () => {
-  it("is the next UTC midnight + 24 h", () => {
-    expect(imageTokenExpiry(new Date("2026-09-27T13:45:00Z"))).toBe(
-      Date.parse("2026-09-29T00:00:00Z") / 1000,
-    );
-    expect(imageTokenExpiry(new Date("2026-09-27T00:00:00Z"))).toBe(
-      Date.parse("2026-09-29T00:00:00Z") / 1000,
-    );
-    expect(imageTokenExpiry(new Date("2026-09-27T23:59:59.999Z"))).toBe(
-      Date.parse("2026-09-29T00:00:00Z") / 1000,
-    );
+  it("is the end of the next 7-day period (periods start Thursdays 00:00 UTC)", () => {
+    expect(IMAGE_TOKEN_PERIOD_SEC).toBe(7 * 86_400);
+    expect(IMAGE_TOKEN_MAX_LIFETIME_SEC).toBe(2 * IMAGE_TOKEN_PERIOD_SEC);
+    // The period 2026-10-01 (Thu) – 2026-10-08: every token minted in it expires 2026-10-15.
+    for (const t of ["2026-10-01T00:00:00Z", "2026-10-04T13:45:00Z", "2026-10-07T23:59:59.999Z"]) {
+      expect(imageTokenExpiry(new Date(t))).toBe(Date.parse("2026-10-15T00:00:00Z") / 1000);
+    }
+    expect(imageTokenExpiry(new Date("2026-10-08T00:00:00Z"))).toBe(Date.parse("2026-10-22T00:00:00Z") / 1000);
+    // Lives 7–14 days.
+    for (let d = 0; d < 7 * 24; d += 5) {
+      const now = Date.parse("2026-10-01T00:00:00Z") + d * 3600_000;
+      const life = imageTokenExpiry(new Date(now)) - now / 1000;
+      expect(life).toBeGreaterThan(7 * 86_400);
+      expect(life).toBeLessThanOrEqual(14 * 86_400);
+    }
     expect(() => imageTokenExpiry(new Date(Number.NaN))).toThrow();
   });
 });

@@ -54,8 +54,16 @@ export const IMAGE_TOKEN_MAX_BYTES = 15 * 1024 * 1024;
 export const IMAGE_TOKEN_MAX_URL_LENGTH = 2048;
 /** Longest accepted token (the signed URL dominates). */
 export const IMAGE_TOKEN_MAX_LENGTH = 4096;
-/** Tokens live ≤ 48 h by construction; allow 5 min of clock skew between edf-app and edf-view. */
-export const IMAGE_TOKEN_MAX_LIFETIME_SEC = 48 * 3600;
+/**
+ * Image tokens expire together per period (imageTokenExpiry): 7 days since 2026-10-07 (a UTC day
+ * before). The same email's image URLs stay the same for the week, so the CDN and the browser keep
+ * a picture edf-view shrank (apps/view resize.ts) instead of it being fetched and shrunk again
+ * every day: at ~0.1 CPU-s per big picture on Vercel, daily re-shrinking would have spent much of
+ * the 4 h Active CPU allowance.
+ */
+export const IMAGE_TOKEN_PERIOD_SEC = 7 * 86_400;
+/** Tokens live ≤ two periods (14 days) by construction; allow 5 min of clock skew between edf-app and edf-view. */
+export const IMAGE_TOKEN_MAX_LIFETIME_SEC = 2 * IMAGE_TOKEN_PERIOD_SEC;
 export const IMAGE_TOKEN_CLOCK_SKEW_SEC = 300;
 
 const USER_ID_RE = /^[\x21-\x7e]{1,128}$/;
@@ -154,7 +162,7 @@ function canonicalImagePayload(c: ImageTokenClaims): string | null {
 
 /**
  * Token = `{kid}.{b64url(JSON ["img/v1", u, e, x, url, mb, b])}.{b64url(sig)}`; URL-safe, ≤ 4 KB.
- * Throws if the claims are invalid or `x` is not in (now, now + 48 h] (no skew on the signing side).
+ * Throws if the claims are invalid or `x` is not in (now, now + 14 days] (no skew on the signing side).
  */
 export function signImageToken(ring: Ed25519SigningRing, c: ImageTokenClaims): string {
   const payload = canonicalImagePayload(c);
@@ -217,9 +225,13 @@ export function verifyImageToken(
   }
 }
 
-/** Expiry rule for image tokens: next UTC midnight + 24 h (so tokens live ≤ 48 h and cache well). */
+/**
+ * Expiry rule for image tokens: the end of the next 7-day period (periods start at the Unix epoch,
+ * Thursdays 00:00 UTC), so every token minted in one period has the same expiry, tokens live 7–14
+ * days, and an email's image URLs stay the same all week (they cache well).
+ */
 export function imageTokenExpiry(now: Date): number {
   const ms = now instanceof Date ? now.getTime() : Number.NaN;
   if (!Number.isFinite(ms)) throw new CryptoError("bad_input");
-  return (Math.floor(ms / 86_400_000) + 2) * 86_400;
+  return (Math.floor(ms / (IMAGE_TOKEN_PERIOD_SEC * 1000)) + 2) * IMAGE_TOKEN_PERIOD_SEC;
 }

@@ -24,11 +24,16 @@ IDs are referenced from code comments.
   | View token  | `now ≤ exp ≤ now+300`    | none (both ends are edf-app)                |
   | Invite      | ≤ 30 days                | none                                        |
   | `/out` link | ≤ 30 days                | none                                        |
-  | Image token | `x ≤ now + 48 h + 5 min` | 5 min; the 48 h ceiling is our own addition |
+  | Image token | `x ≤ now + 14 days + 5 min` | 5 min; the 14-day ceiling is our own addition (48 h until 2026-10-07) |
 
   Other rules:
-  - Signing refuses out-of-range `exp` values. For image tokens that means `now < x ≤ now + 48 h`;
-    the 5 min skew is a verify-side allowance only.
+  - Signing refuses out-of-range `exp` values. For image tokens that means `now < x ≤ now + 14 days`;
+    the 5 min skew is a verify-side allowance only. `imageTokenExpiry` rounds up to the end of the
+    next 7-day period (tokens live 7–14 days), so an email's image URLs stay the same all week and
+    a picture edf-view shrank is kept by the CDN and the browser instead of being fetched and
+    shrunk again every day (it was a UTC day, 24–48 h, until 2026-10-07; daily re-shrinking would
+    have spent much of Vercel's 4 h Active CPU). A leaked token still only proxies that one image
+    for that user and email.
   - Invites: the MAC covers canonical JSON `["inv/v1", email, exp]`, and the email is trimmed and
     lower-cased.
   - Image tokens sign the exact canonical JSON bytes. On verify the signature is checked first,
@@ -209,8 +214,8 @@ IDs are referenced from code comments.
     return the placeholder with the 1-day cache.
   - Transient failures get `s-maxage=300`.
   - Bad or expired tokens and budget-limited results get `no-store`.
-  - The 15 MB per-email budget is kept in memory per instance, bounded by a 48 h TTL and 10k
-    entries.
+  - The per-email budget (40 MB) is kept in memory per instance, bounded by the tokens' 14-day
+    lifetime and 10k entries.
   - Per image: a token's `mb` is at most `IMAGE_TOKEN_MAX_BYTES` = 5 MB (2 MB until 2026-09-30,
     which left one-picture mailers' 3–5 MB heroes grey) on both sides, and edf-view's per-response
     backstop is the same 5 MB (was 4 MB, under Vercel's 4.5 MB limit for functions that don't

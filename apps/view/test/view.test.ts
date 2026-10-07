@@ -327,12 +327,14 @@ describe("GET /v/:token/:emailId", () => {
 
 describe("GET /img/:token", () => {
   it("serves a verified image with the §9.3 headers and the capped allowance", async () => {
-    const t = makeApp();
-    const res = await t.img(`/img/${imageToken({ mb: 2 * 1024 * 1024 })}`);
+    const clock = { t: Date.now() };
+    const t = makeApp({ clock });
+    const x = Math.floor(clock.t / 1000) + 9 * 86_400;
+    const res = await t.img(`/img/${imageToken({ mb: 2 * 1024 * 1024, x })}`);
     expect(res.status).toBe(200);
     expect(Object.fromEntries(res.headers)).toEqual({
-      // Tokens live ≥ 24 h (midnight + 24 h), so the browser keeps it for the CDN's day.
-      "cache-control": "public, max-age=86400, s-maxage=86400, immutable",
+      // The browser and the CDN keep it for the token's remaining life (7–14 days).
+      "cache-control": "public, max-age=777600, s-maxage=777600, immutable",
       "content-length": "8",
       "content-security-policy": "default-src 'none'; sandbox",
       "content-type": "image/png",
@@ -361,7 +363,7 @@ describe("GET /img/:token", () => {
       expect(res.headers.get("cache-control")).toBe("no-store");
       expect(res.headers.get("content-type")).toBe("image/svg+xml");
     }
-    const expired = makeApp({ clock: { t: Date.now() + 49 * 3600 * 1000 } });
+    const expired = makeApp({ clock: { t: Date.now() + 15 * 86_400 * 1000 } });
     expect((await expired.img(`/img/${valid}`)).status).toBe(403);
     expect(t.imageCalls).toHaveLength(0);
     expect(t.app.stats.snapshot().img_bad_signature).toBe(5);
@@ -436,13 +438,11 @@ describe("GET /img/:token", () => {
     const t = makeApp({ clock });
     const x = Math.floor(clock.t / 1000) + 600;
     const ok = await t.img(`/img/${imageToken({ x })}`);
-    expect(ok.headers.get("cache-control")).toBe("public, max-age=600, s-maxage=86400, immutable");
+    expect(ok.headers.get("cache-control")).toBe("public, max-age=600, s-maxage=600, immutable");
     const tracker = await t.img(
       `/img/${imageToken({ x, url: "https://us1.list-manage.com/track/open.php?u=1" })}`,
     );
-    expect(tracker.headers.get("cache-control")).toBe(
-      "public, max-age=600, s-maxage=86400, immutable",
-    );
+    expect(tracker.headers.get("cache-control")).toBe("public, max-age=600, s-maxage=600, immutable");
   });
 
   it("answers tracker hosts with a 1×1 transparent GIF", async () => {
@@ -456,19 +456,18 @@ describe("GET /img/:token", () => {
   });
 
   it("serves a neutral placeholder on fetch failures, caching only deterministic ones long", async () => {
+    const long = "public, max-age=86400, s-maxage=86400, immutable"; // the token's remaining day
     const cases: Array<[ImageFetchResult, string]> = [
-      [{ ok: false, reason: "not_image" }, "public, max-age=86400, s-maxage=86400, immutable"],
-      [{ ok: false, reason: "too_large" }, "public, max-age=86400, s-maxage=86400, immutable"],
-      [
-        { ok: false, reason: "blocked_address" },
-        "public, max-age=86400, s-maxage=86400, immutable",
-      ],
+      [{ ok: false, reason: "not_image" }, long],
+      [{ ok: false, reason: "too_large" }, long],
+      [{ ok: false, reason: "blocked_address" }, long],
       [{ ok: false, reason: "timeout" }, "public, s-maxage=300"],
       [{ ok: false, reason: "http", status: 503 }, "public, s-maxage=300"],
     ];
     for (const [result, cache] of cases) {
-      const t = makeApp({ image: async () => result });
-      const res = await t.img(`/img/${imageToken()}`);
+      const clock = { t: Date.now() };
+      const t = makeApp({ image: async () => result, clock });
+      const res = await t.img(`/img/${imageToken({ x: Math.floor(clock.t / 1000) + 86_400 })}`);
       expect(res.status).toBe(200);
       expect(res.headers.get("cache-control")).toBe(cache);
       expect(Buffer.from(await res.arrayBuffer()).equals(UNAVAILABLE_SVG)).toBe(true);
@@ -663,9 +662,7 @@ describe("GET /img/:token", () => {
     const big = makeApp({ image: async () => ({ ok: false, reason: "too_large" }) });
     const own = await big.img(`/img/${imageToken({ mb: 1 * MB })}`);
     expect(own.headers.get("content-type")).toBe("image/svg+xml");
-    expect(own.headers.get("cache-control")).toMatch(
-      /^public, max-age=\d+, s-maxage=86400, immutable$/,
-    );
+    expect(own.headers.get("cache-control")).toMatch(/^public, max-age=(\d+), s-maxage=\1, immutable$/);
   });
 });
 

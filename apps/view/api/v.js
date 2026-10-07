@@ -1,29 +1,5 @@
 import { createRequire as __edfCreateRequire } from 'node:module'; const require = __edfCreateRequire(import.meta.url);
 
-// src/budget.ts
-var EMAIL_BUDGET_BYTES = 40 * 1024 * 1024;
-var TTL_MS = 48 * 3600 * 1e3;
-var MAX_ENTRIES = 1e4;
-var EmailBudget = class {
-  #used = /* @__PURE__ */ new Map();
-  remaining(id, now) {
-    const e = this.#used.get(id);
-    if (e === void 0 || now - e.at > TTL_MS) return EMAIL_BUDGET_BYTES;
-    return Math.max(0, EMAIL_BUDGET_BYTES - e.bytes);
-  }
-  spend(id, bytes, now) {
-    const e = this.#used.get(id);
-    const fresh = e === void 0 || now - e.at > TTL_MS;
-    this.#used.delete(id);
-    this.#used.set(id, { bytes: (fresh ? 0 : e.bytes) + bytes, at: fresh ? now : e.at });
-    while (this.#used.size > MAX_ENTRIES) {
-      const oldest = this.#used.keys().next().value;
-      if (oldest === void 0) break;
-      this.#used.delete(oldest);
-    }
-  }
-};
-
 // src/tokens.ts
 import { createPublicKey, verify } from "node:crypto";
 var VIEW_TOKEN_RE = /^([A-Za-z0-9_-]{1,32})\.([1-9][0-9]{0,11})\.(img|noimg|card)\.([A-Za-z0-9_-]{43})$/;
@@ -35,7 +11,7 @@ var SHORT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 var B64URL_RE = /^[A-Za-z0-9_-]*$/;
 var IMAGE_TOKEN_MAX_LENGTH = 4096;
 var IMAGE_TOKEN_MAX_BYTES = 15 * 1024 * 1024;
-var IMAGE_TOKEN_MAX_LIFETIME_SEC = 48 * 3600;
+var IMAGE_TOKEN_MAX_LIFETIME_SEC = 14 * 86400;
 var IMAGE_TOKEN_CLOCK_SKEW_SEC = 300;
 function gateViewToken(token, nowSec) {
   if (typeof token !== "string" || token.length > 128) return { ok: false, reason: "format" };
@@ -134,6 +110,30 @@ function verifyImageToken(keys, token, nowSec) {
   }
 }
 
+// src/budget.ts
+var EMAIL_BUDGET_BYTES = 40 * 1024 * 1024;
+var TTL_MS = IMAGE_TOKEN_MAX_LIFETIME_SEC * 1e3;
+var MAX_ENTRIES = 1e4;
+var EmailBudget = class {
+  #used = /* @__PURE__ */ new Map();
+  remaining(id, now) {
+    const e = this.#used.get(id);
+    if (e === void 0 || now - e.at > TTL_MS) return EMAIL_BUDGET_BYTES;
+    return Math.max(0, EMAIL_BUDGET_BYTES - e.bytes);
+  }
+  spend(id, bytes, now) {
+    const e = this.#used.get(id);
+    const fresh = e === void 0 || now - e.at > TTL_MS;
+    this.#used.delete(id);
+    this.#used.set(id, { bytes: (fresh ? 0 : e.bytes) + bytes, at: fresh ? now : e.at });
+    while (this.#used.size > MAX_ENTRIES) {
+      const oldest = this.#used.keys().next().value;
+      if (oldest === void 0) break;
+      this.#used.delete(oldest);
+    }
+  }
+};
+
 // src/http.ts
 function viewCsp(o) {
   return `default-src 'none'; img-src ${o.viewOrigin}/img/ data:; style-src 'unsafe-inline'; font-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors ${o.appOrigin}; sandbox allow-popups allow-popups-to-escape-sandbox`;
@@ -155,10 +155,9 @@ function viewHeaders(o, cacheControl = VIEW_NO_STORE) {
 var IMAGE_CSP = "default-src 'none'; sandbox";
 var IMAGE_CACHE_LONG = "public, s-maxage=86400, immutable";
 function imageCacheLong(expSec, nowSec) {
-  const ttl = Math.min(expSec - nowSec, IMAGE_BROWSER_MAX_AGE_SEC);
-  return ttl > 0 ? `public, max-age=${ttl}, s-maxage=86400, immutable` : IMAGE_CACHE_LONG;
+  const ttl = Math.min(expSec - nowSec, IMAGE_TOKEN_MAX_LIFETIME_SEC);
+  return ttl > 0 ? `public, max-age=${ttl}, s-maxage=${ttl}, immutable` : IMAGE_CACHE_LONG;
 }
-var IMAGE_BROWSER_MAX_AGE_SEC = 86400;
 var STATIC_IMAGE_CACHE = "public, max-age=86400, s-maxage=86400, immutable";
 var IMAGE_CACHE_SHORT = "public, s-maxage=300";
 var NO_STORE = "no-store";

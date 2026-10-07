@@ -1,7 +1,7 @@
 /**
  * Response headers and static bodies for edf-view (FREE-TIER.md §9.3; DESIGN.md §11.5).
  */
-import { VIEW_TOKEN_MAX_TTL_SEC } from "./tokens";
+import { IMAGE_TOKEN_MAX_LIFETIME_SEC, VIEW_TOKEN_MAX_TTL_SEC } from "./tokens";
 
 export interface Origins {
   appOrigin: string;
@@ -50,18 +50,18 @@ export const IMAGE_CSP = "default-src 'none'; sandbox";
 /** Successful image responses are served from the CDN on repeat (§8.4). */
 export const IMAGE_CACHE_LONG = "public, s-maxage=86400, immutable";
 /**
- * IMAGE_CACHE_LONG plus a browser `max-age` bounded by the image token's remaining life (and the
- * CDN's day). Image tokens are deterministic for a UTC day (Ed25519 is deterministic and the
- * expiry is rounded to midnight + 24 h), so the same email's images keep the same URLs across view
- * token re-mints: revisits load them from the browser without reaching the edge at all, which is
- * also what keeps the gallery under edf-view's per-IP WAF rule (FREE-TIER.md §8.4). Without a
- * `max-age` browsers wouldn't reuse them (`s-maxage` is for shared caches only).
+ * Kept by the browser and the CDN for the image token's remaining life (≤ 14 days). Image tokens
+ * are deterministic for a week (Ed25519 is deterministic and the expiry is rounded to the end of
+ * the next 7-day period), so the same email's images keep the same URLs across view token
+ * re-mints: revisits load them from the browser without reaching the edge at all, which is also
+ * what keeps the gallery under edf-view's per-IP WAF rule (FREE-TIER.md §8.4), and a picture is
+ * fetched and shrunk (resize.ts) once a week, not every day. Without a `max-age` browsers wouldn't
+ * reuse them (`s-maxage` is for shared caches only).
  */
 export function imageCacheLong(expSec: number, nowSec: number): string {
-  const ttl = Math.min(expSec - nowSec, IMAGE_BROWSER_MAX_AGE_SEC);
-  return ttl > 0 ? `public, max-age=${ttl}, s-maxage=86400, immutable` : IMAGE_CACHE_LONG;
+  const ttl = Math.min(expSec - nowSec, IMAGE_TOKEN_MAX_LIFETIME_SEC);
+  return ttl > 0 ? `public, max-age=${ttl}, s-maxage=${ttl}, immutable` : IMAGE_CACHE_LONG;
 }
-const IMAGE_BROWSER_MAX_AGE_SEC = 86400;
 /** The static placeholder (`/img/unavailable`): the same bytes for every user, for a day. */
 export const STATIC_IMAGE_CACHE = "public, max-age=86400, s-maxage=86400, immutable";
 /** Transient upstream failures: cache briefly so retries don't hammer the function. */
