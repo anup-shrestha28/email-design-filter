@@ -4,11 +4,12 @@
  */
 import { fetchImage } from "@edf/fetch";
 import { contextWaitUntil } from "./app";
+import { shrinkImage } from "./resize";
 import { runtime, unavailable } from "./runtime";
 
 export default {
   fetch(request: Request): Promise<Response> {
-    const r = runtime(fetchImage);
+    const r = runtime(fetchImage, shrinkImage);
     return "app" in r ? r.app.img(request, contextWaitUntil()) : Promise.resolve(unavailable());
   },
 };

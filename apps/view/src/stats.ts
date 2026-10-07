@@ -46,6 +46,10 @@ export const STAT_KEYS = [
    * in `_c`): a diagnostic subset, never metered on top (FREE-TIER.md §8.1).
    */
   "img_card_bytes_served",
+  /** Images served shrunk to the width they are shown at (resize.ts). */
+  "img_resized",
+  /** CPU spent shrinking images (ms): edf-app meters it as Vercel Active CPU. */
+  "img_resize_cpu_ms",
 ] as const;
 export type StatKey = (typeof STAT_KEYS)[number];
 

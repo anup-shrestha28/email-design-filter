@@ -10,7 +10,7 @@ and why.
   a socket, so `fetchOnce` settles the `request()` promise itself when the signal aborts
   (`settleOnAbort`). A connection attempt that is still running is left to the Agent's 5 s
   connect timeout and any late response is discarded. That attempt keeps its per-host slot until
-  it ends, so the ≤ 4 per host limit counts abandoned attempts too (also across the http and
+  it ends, so the per-host limit (SAFE_FETCH_MAX_PER_HOST, 16) counts abandoned attempts too (also across the http and
   https origins of one host); later calls wait for a slot within their own deadline.
 
 ## DNS

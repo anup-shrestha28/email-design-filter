@@ -12,10 +12,11 @@
  *
  * `GET /img/:token` — verify the Ed25519 image token (public keys only) and expiry; tracker hosts
  *   get a 1×1 transparent GIF; enforce the per-email budget (best effort); fetch through the
- *   SSRF-safe fetcher with maxBytes = min(token.mb, 5 MB, budget left); serve the bytes with the
- *   sniffed Content-Type (never decoded), CDN-cached for a day and browser-cached for the token's
- *   remaining life (≤ 1 day). Failures → the "Picture unavailable" placeholder (http.ts
- *   UNAVAILABLE_SVG), cached as before: deterministic failures for the token's life, transient
+ *   SSRF-safe fetcher with maxBytes = min(token.mb, 15 MB, budget left); serve it shrunk to the
+ *   width it is shown at (resize.ts: a card's image at most CARD_MAX_WIDTH, the opened design's
+ *   FULL_MAX_WIDTH, as WebP when that is smaller) or else the bytes as fetched with the sniffed
+ *   Content-Type, CDN-cached for a day and browser-cached for the token's remaining life (≤ 1 day).
+ *   Failures → the "Picture unavailable" placeholder (http.ts UNAVAILABLE_SVG), cached as before: deterministic failures for the token's life, transient
  *   ones 5 min at the CDN, budget-limited ones not at all (a later view may load them).
  *   `GET /img/unavailable` (UNAVAILABLE_IMAGE_PATH) is that placeholder as a static image, for the
  *   <img> elements edf-app already knows can't be shown (it drops such a CSS background instead).
@@ -43,6 +44,7 @@ import {
   viewHeaders,
 } from "./http";
 import type { TokenSource } from "./oidc";
+import type { ShrinkImage } from "./resize";
 import { Stats } from "./stats";
 import { EMAIL_ID_RE, gateViewToken, verifyImageToken } from "./tokens";
 import { isTrackerUrl } from "./trackers";
@@ -57,6 +59,13 @@ import { isTrackerUrl } from "./trackers";
  * FUNCTION_RESPONSE_PAYLOAD_TOO_LARGE; if it doesn't, set this (and the token ceiling) back to 4 MB.
  */
 export const MAX_IMAGE_RESPONSE_BYTES = 15 * 1024 * 1024;
+/**
+ * Widest image served to a gallery card (px): a card is at most ~560 device px wide at 2×, and the
+ * phone's single column ~1,000 at 3× (a little soft there, crisp everywhere else). resize.ts.
+ */
+export const CARD_MAX_WIDTH = 800;
+/** Widest image served to the opened design (px): twice its 600–800 px layout. resize.ts. */
+export const FULL_MAX_WIDTH = 1600;
 /** Budget-id suffix edf-app gives gallery-card image tokens (apps/web server/view-source.ts). */
 export const CARD_BUDGET_SUFFIX = "_c";
 /** Vercel's response body limit bounds what edf-app can send us. */
@@ -118,6 +127,8 @@ export interface ViewDeps {
   token: TokenSource;
   fetchApp: typeof fetch;
   fetchImage: typeof FetchImage;
+  /** Shrinks a fetched image to the width it is shown at (resize.ts); only the image route has it. */
+  shrinkImage?: ShrinkImage;
   now: () => number;
   log: (e: Record<string, string | number>) => void;
   /** Timer for the delayed stats report (tests inject one); defaults to setTimeout. */
@@ -446,16 +457,34 @@ export function createViewApp(deps: ViewDeps): ViewApp {
       });
       return placeholder(cache);
     }
-    budget.spend(budgetKey, r.body.length, now);
-    stats.add("img_ok");
-    stats.add("img_bytes_served", r.body.length);
     // A gallery card's image (edf-app mints card budgets as `<emailId>_<exp36>_c`).
-    if (claims.b.endsWith(CARD_BUDGET_SUFFIX)) stats.add("img_card_bytes_served", r.body.length);
-    return imageResponse(
-      r.body,
-      r.contentType,
-      imageCacheLong(claims.x, Math.floor(deps.now() / 1000)),
-    );
+    const card = claims.b.endsWith(CARD_BUDGET_SUFFIX);
+    let body = r.body;
+    let contentType = r.contentType;
+    if (deps.shrinkImage !== undefined) {
+      const cpu = process.cpuUsage();
+      const small = await deps
+        .shrinkImage(
+          { body: r.body, format: r.format, width: r.width, height: r.height },
+          card ? CARD_MAX_WIDTH : FULL_MAX_WIDTH,
+        )
+        .catch(() => null);
+      const used = process.cpuUsage(cpu);
+      // Metered as Vercel Active CPU by edf-app (service-counts.ts); overlapping requests can only
+      // over-count it.
+      stats.add("img_resize_cpu_ms", Math.round((used.user + used.system) / 1000));
+      if (small !== null) {
+        body = small.body;
+        contentType = small.contentType;
+        stats.add("img_resized");
+      }
+    }
+    // The bytes served are what crosses Fast Origin Transfer and what the per-email budget holds.
+    budget.spend(budgetKey, body.length, now);
+    stats.add("img_ok");
+    stats.add("img_bytes_served", body.length);
+    if (card) stats.add("img_card_bytes_served", body.length);
+    return imageResponse(body, contentType, imageCacheLong(claims.x, Math.floor(deps.now() / 1000)));
   }
 
   const guard =

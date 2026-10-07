@@ -1,8 +1,9 @@
 /**
  * Counters POSTed by edf-view (/api/view-stats) and edf-keys (/api/keys-audit): codes and integers
  * only, written as one audit_log row per report plus usage-ledger totals (FREE-TIER.md §8.1, §9.2).
- * The `view.*` / `keys.*` rows are diagnostics; the one amount the governor acts on is edf-view's
- * served image bytes, metered as Fast Origin Transfer (below).
+ * The `view.*` / `keys.*` rows are diagnostics; the amounts the governor acts on are edf-view's
+ * served image bytes, metered as Fast Origin Transfer (below), and the CPU it spends shrinking
+ * images, metered as Vercel Active CPU.
  *
  * edf-view's counts are its Vercel functions' traffic, and the governor reads them (the FOT caps;
  * `view.view_requests` / `view.img_requests` in its external-load spike watch), so their ledger
@@ -54,6 +55,11 @@ export async function recordServiceCounts(actor: "edf-view" | "edf-keys", reques
       if (n > 0) await c.query("SELECT add_usage($1::date, $2, $3)", [day, `${prefix}.${code}`, n]);
     }
     const imageBytes = actor === "edf-view" ? viewImageOriginBytes(parsed.counts) : 0;
+    // edf-view's CPU spent shrinking images (apps/view resize.ts) is Vercel Active CPU like
+    // edf-app's own, in the same pool.
+    const resizeMs = actor === "edf-view" ? (parsed.counts.img_resize_cpu_ms ?? 0) : 0;
+    if (resizeMs > 0)
+      await c.query("SELECT add_usage($1::date, $2, $3::numeric / 1000)", [day, RESOURCES.vercelCpuS, resizeMs]);
     // Exact bytes → MB with 6 decimals (usage_ledger's scale), computed in numeric so none are lost.
     if (imageBytes > 0)
       await c.query("SELECT add_usage($1::date, $2, $3::numeric / 1000000)", [day, RESOURCES.vercelFotMb, imageBytes]);

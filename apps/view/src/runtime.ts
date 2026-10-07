@@ -1,16 +1,20 @@
 /**
  * Lazily built production runtime shared by the two function entry points (each bundle has its
- * own copy). `fetchImage` is injected by the entry point so that api/v.js doesn't bundle the
- * image fetcher (smaller cold start). Misconfiguration fails closed: every request gets a 503.
+ * own copy). `fetchImage` and `shrinkImage` are injected by the entry point so that api/v.js doesn't
+ * bundle the image fetcher or sharp (smaller cold start). Misconfiguration fails closed: every request gets a 503.
  */
 import type { fetchImage as FetchImage } from "@edf/fetch";
+import type { ShrinkImage } from "./resize";
 import { createViewApp, defaultLog, type ViewApp } from "./app";
 import { loadViewConfig } from "./config";
 import { vercelTokenSource } from "./oidc";
 
 let built: { app: ViewApp } | { code: string } | null = null;
 
-export function runtime(fetchImage: typeof FetchImage): { app: ViewApp } | { code: string } {
+export function runtime(
+  fetchImage: typeof FetchImage,
+  shrinkImage?: ShrinkImage,
+): { app: ViewApp } | { code: string } {
   if (built !== null) return built;
   const cfg = loadViewConfig(process.env);
   if (!cfg.ok) {
@@ -24,6 +28,7 @@ export function runtime(fetchImage: typeof FetchImage): { app: ViewApp } | { cod
       token: vercelTokenSource,
       fetchApp: fetch,
       fetchImage,
+      ...(shrinkImage === undefined ? {} : { shrinkImage }),
       now: Date.now,
       log: defaultLog,
     }),

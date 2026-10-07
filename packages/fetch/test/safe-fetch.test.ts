@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { gzip, gzipSync } from "node:zlib";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  SAFE_FETCH_MAX_PER_HOST,
   SAFE_FETCH_USER_AGENT,
   fetchImage,
   isAllowedAddress,
@@ -497,7 +498,7 @@ describe("safeFetch against local servers", () => {
     expect(Date.now() - t0).toBeLessThan(2000);
   });
 
-  it("limits concurrency to 4 per host", async () => {
+  it("limits concurrency per host (SAFE_FETCH_MAX_PER_HOST)", async () => {
     trusted();
     maxActive = 0;
     routes.set("/slow.png", (_q, s) => {
@@ -507,10 +508,12 @@ describe("safeFetch against local servers", () => {
       }, 100);
     });
     const results = await Promise.all(
-      Array.from({ length: 10 }, () => safeFetch(`${BASE()}/slow.png`, IMG)),
+      Array.from({ length: SAFE_FETCH_MAX_PER_HOST * 2 + 4 }, () => safeFetch(`${BASE()}/slow.png`, IMG)),
     );
     expect(results.every((r) => r.ok)).toBe(true);
-    expect(maxActive).toBeLessThanOrEqual(4);
+    expect(maxActive).toBeLessThanOrEqual(SAFE_FETCH_MAX_PER_HOST);
+    // The limit is used, not just respected: a gallery's burst runs that many at once.
+    expect(maxActive).toBe(SAFE_FETCH_MAX_PER_HOST);
   });
 
   it("ignores proxy environment variables", async () => {
@@ -585,11 +588,12 @@ describe("deadlines cover DNS, connect and TLS", () => {
     const before = held.length;
     const call = (scheme: string) =>
       safeFetch(`${scheme}://slots.test:${stallPort}/x.png`, { ...IMG, timeoutMs: 300 });
-    const timeouts = Array.from({ length: 4 }, () => ({ ok: false, error: "timeout" }));
-    expect(await Promise.all(Array.from({ length: 4 }, () => call("https")))).toEqual(timeouts);
-    // Same host, other origin: the four TLS attempts are still connecting, so no slot is free.
-    expect(await Promise.all(Array.from({ length: 4 }, () => call("http")))).toEqual(timeouts);
-    expect(held.length - before).toBe(4);
+    const n = SAFE_FETCH_MAX_PER_HOST;
+    const timeouts = Array.from({ length: n }, () => ({ ok: false, error: "timeout" }));
+    expect(await Promise.all(Array.from({ length: n }, () => call("https")))).toEqual(timeouts);
+    // Same host, other origin: the TLS attempts are still connecting, so no slot is free.
+    expect(await Promise.all(Array.from({ length: n }, () => call("http")))).toEqual(timeouts);
+    expect(held.length - before).toBe(n);
   });
 });
 

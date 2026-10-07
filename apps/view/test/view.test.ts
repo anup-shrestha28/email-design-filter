@@ -15,11 +15,19 @@ import {
   type ImageTokenClaims,
 } from "../../../packages/crypto/src/index";
 import { setTestOverrides } from "../../../packages/fetch/src/testing";
-import { createViewApp, MAX_IMAGE_RESPONSE_BYTES, type ViewApp } from "../src/app";
+import sharp from "sharp";
+import {
+  CARD_MAX_WIDTH,
+  FULL_MAX_WIDTH,
+  createViewApp,
+  MAX_IMAGE_RESPONSE_BYTES,
+  type ViewApp,
+} from "../src/app";
 import { EMAIL_BUDGET_BYTES } from "../src/budget";
 import { loadViewConfig } from "../src/config";
 import { TRANSPARENT_GIF, UNAVAILABLE_SVG, viewCsp } from "../src/http";
 import { devTokenSource } from "../src/oidc";
+import { MAX_ANIMATED_PIXELS, RECODE_MIN_BYTES, shrinkImage, type ShrinkImage } from "../src/resize";
 import {
   IMAGE_TOKEN_MAX_BYTES,
   gateViewToken,
@@ -62,6 +70,7 @@ function makeApp(
     image?: (url: string, o: { maxBytes: number }) => Promise<ImageFetchResult>;
     clock?: { t: number };
     statsResponse?: () => Promise<Response>;
+    shrink?: ShrinkImage;
   } = {},
 ) {
   const calls: Call[] = [];
@@ -96,6 +105,7 @@ function makeApp(
             body: Buffer.from("PNGBYTES"),
           };
     },
+    ...(opts.shrink === undefined ? {} : { shrinkImage: opts.shrink }),
     now: () => clock.t,
     log: () => undefined,
     sleep: (ms) => new Promise<void>((fire) => timers.push({ ms, fire })),
@@ -802,6 +812,146 @@ describe("stats", () => {
       .counts;
     expect(counts.img_bytes_served).toBe(16);
     expect(counts.img_card_bytes_served).toBe(8);
+  });
+});
+
+describe("images shrunk to the width they are shown at (resize.ts)", () => {
+  /** A photo-like PNG (noise compresses badly, like a real photo): big on the wire. */
+  const noisyPng = (width: number, height: number) =>
+    sharp({
+      create: { width, height, channels: 3, background: "#808080", noise: { type: "gaussian", mean: 128, sigma: 40 } },
+    })
+      .png()
+      .toBuffer();
+  const fetched = (body: Buffer, format: "png" | "jpeg" | "gif" | "webp", width: number, height: number) =>
+    async (): Promise<ImageFetchResult> => ({
+      ok: true,
+      format,
+      width,
+      height,
+      contentType: `image/${format}`,
+      body,
+    });
+  const cardToken = () => {
+    const x = nowSec() + 3600;
+    return imageToken({ x, b: `${EMAIL}_${x.toString(36)}_c` });
+  };
+  const fullToken = () => {
+    const x = nowSec() + 3600;
+    return imageToken({ x, b: `${EMAIL}_${x.toString(36)}` });
+  };
+  const served = async (res: Response) => {
+    const body = Buffer.from(await res.arrayBuffer());
+    return { body, meta: await sharp(body, { animated: true }).metadata() };
+  };
+
+  it("a card gets a big picture at most CARD_MAX_WIDTH wide, as WebP, and meters what it served", async () => {
+    const png = await noisyPng(2400, 1200);
+    const clock = { t: Date.now() };
+    const t = makeApp({ clock, image: fetched(png, "png", 2400, 1200), shrink: shrinkImage });
+    const res = await t.img(`/img/${cardToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/webp");
+    const { body, meta } = await served(res);
+    expect([meta.format, meta.width, meta.height]).toEqual(["webp", CARD_MAX_WIDTH, 400]);
+    expect(res.headers.get("content-length")).toBe(String(body.length));
+    expect(body.length).toBeLessThan(png.length / 4);
+    clock.t += 61_000;
+    await t.img(`/img/garbage`);
+    await Promise.all(t.pending);
+    const post = t.calls.find((c) => c.url === `${APP}/api/view-stats`)!;
+    const counts = (JSON.parse(post.init.body as string) as { counts: Record<string, number> }).counts;
+    // Fast Origin Transfer is what was served, not what was fetched.
+    expect(counts.img_bytes_served).toBe(body.length);
+    expect(counts.img_card_bytes_served).toBe(body.length);
+    expect(counts.img_resized).toBe(1);
+    expect(counts.img_resize_cpu_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it("the opened design gets up to FULL_MAX_WIDTH, never enlarged", async () => {
+    const png = await noisyPng(2400, 600);
+    const t = makeApp({ image: fetched(png, "png", 2400, 600), shrink: shrinkImage });
+    const { meta } = await served(await t.img(`/img/${fullToken()}`));
+    expect([meta.format, meta.width, meta.height]).toEqual(["webp", FULL_MAX_WIDTH, 400]);
+
+    // Narrower than the cap but heavy: re-encoded at its own width.
+    const mid = await noisyPng(700, 400);
+    expect(mid.length).toBeGreaterThan(RECODE_MIN_BYTES);
+    const t2 = makeApp({ image: fetched(mid, "png", 700, 400), shrink: shrinkImage });
+    const r2 = await served(await t2.img(`/img/${cardToken()}`));
+    expect([r2.meta.format, r2.meta.width, r2.meta.height]).toEqual(["webp", 700, 400]);
+  });
+
+  it("a small picture that already fits is served exactly as fetched", async () => {
+    const icon = await sharp({ create: { width: 40, height: 40, channels: 4, background: "#1877f2" } })
+      .png()
+      .toBuffer();
+    const t = makeApp({ image: fetched(icon, "png", 40, 40), shrink: shrinkImage });
+    const res = await t.img(`/img/${cardToken()}`);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await res.arrayBuffer()).equals(icon)).toBe(true);
+  });
+
+  it("an animated GIF stays animated (every frame, as animated WebP)", async () => {
+    const frame = (c: string) =>
+      sharp({
+        create: { width: 1200, height: 600, channels: 3, background: "#808080", noise: { type: "gaussian", mean: 128, sigma: 40 } },
+      })
+        .tint(c)
+        .png()
+        .toBuffer();
+    const frames = await Promise.all([frame("#f00"), frame("#0f0"), frame("#00f")]);
+    const gif = await sharp(frames, { join: { animated: true } }).gif({ loop: 0 }).toBuffer();
+    const t = makeApp({ image: fetched(gif, "gif", 1200, 600), shrink: shrinkImage });
+    const res = await t.img(`/img/${cardToken()}`);
+    expect(res.headers.get("content-type")).toBe("image/webp");
+    const { meta } = await served(res);
+    expect([meta.format, meta.pages, meta.width, meta.pageHeight]).toEqual(["webp", 3, CARD_MAX_WIDTH, 400]);
+  });
+
+  it("applies a JPEG's EXIF orientation before dropping its metadata", async () => {
+    const jpg = await sharp({
+      create: { width: 2000, height: 1000, channels: 3, background: "#808080", noise: { type: "gaussian", mean: 128, sigma: 40 } },
+    })
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer();
+    const t = makeApp({ image: fetched(jpg, "jpeg", 2000, 1000), shrink: shrinkImage });
+    const { meta } = await served(await t.img(`/img/${cardToken()}`));
+    // Shown upright (portrait), as a browser shows the original.
+    expect([meta.width, meta.height, meta.orientation]).toEqual([CARD_MAX_WIDTH, 1600, undefined]);
+  });
+
+  it("serves the original when it can't be read, or when an animation is too big to re-encode", async () => {
+    const junk = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), randomBytes(200_000)]);
+    const t = makeApp({ image: fetched(junk, "png", 3000, 2000), shrink: shrinkImage });
+    const res = await t.img(`/img/${cardToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await res.arrayBuffer()).equals(junk)).toBe(true);
+
+    const frames = await Promise.all(
+      ["#f00", "#0f0"].map((c) =>
+        sharp({ create: { width: 900, height: 300, channels: 3, background: c } }).png().toBuffer(),
+      ),
+    );
+    const gif = await sharp(frames, { join: { animated: true } }).gif().toBuffer();
+    // The sniffed first-frame size says each frame is huge: 2 frames past the cap.
+    const side = Math.ceil(Math.sqrt(MAX_ANIMATED_PIXELS / 2)) + 1;
+    expect(await shrinkImage({ body: gif, format: "gif", width: side, height: side }, CARD_MAX_WIDTH)).toBeNull();
+  });
+
+  it("a shrinker failure still serves the original", async () => {
+    const png = await noisyPng(1200, 600);
+    const t = makeApp({
+      image: fetched(png, "png", 1200, 600),
+      shrink: async () => {
+        throw new Error("boom");
+      },
+    });
+    const res = await t.img(`/img/${cardToken()}`);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await res.arrayBuffer()).equals(png)).toBe(true);
   });
 });
 

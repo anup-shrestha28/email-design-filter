@@ -1,5 +1,5 @@
 /**
- * In-memory per-host concurrency limit (DESIGN.md §11.7: ≤ 4 concurrent requests per host).
+ * In-memory per-host concurrency limit (SAFE_FETCH_MAX_PER_HOST concurrent requests per host).
  * Entries are deleted when idle, so the map cannot grow without bound.
  */
 

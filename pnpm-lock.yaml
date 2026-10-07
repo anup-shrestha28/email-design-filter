@@ -50,6 +50,9 @@ importers:
       '@edf/fetch':
         specifier: workspace:*
         version: link:../../packages/fetch
+      sharp:
+        specifier: 0.35.4
+        version: 0.35.4(@types/node@24.13.6)
     devDependencies:
       esbuild:
         specifier: 0.28.2

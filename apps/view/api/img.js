@@ -29684,10 +29684,10 @@ var HostSemaphore = class {
 };
 
 // ../../packages/fetch/src/safe-fetch.ts
-var SAFE_FETCH_MAX_BYTES = 5 * 1024 * 1024;
-var SAFE_FETCH_MAX_TIMEOUT_MS = 5e3;
+var SAFE_FETCH_MAX_BYTES = 15 * 1024 * 1024;
+var SAFE_FETCH_MAX_TIMEOUT_MS = 15e3;
 var SAFE_FETCH_MAX_REDIRECTS = 3;
-var SAFE_FETCH_MAX_PER_HOST = 4;
+var SAFE_FETCH_MAX_PER_HOST = 16;
 var SAFE_FETCH_USER_AGENT = "Mozilla/5.0 (compatible; EmailDesignFilter/1.0; +image-proxy)";
 var HEADER_TIMEOUT_MS = 3e3;
 var RETRYABLE_CONNECT_CODES = /* @__PURE__ */ new Set([
@@ -29746,7 +29746,7 @@ function hasErrorCode(err, codes) {
 function normalizeOptions(o) {
   if (typeof o !== "object" || o === null) throw new TypeError("safeFetch: options required");
   if (!Number.isSafeInteger(o.maxBytes) || o.maxBytes < 1 || o.maxBytes > SAFE_FETCH_MAX_BYTES) {
-    throw new RangeError("safeFetch: maxBytes must be an integer in [1, 5 MB]");
+    throw new RangeError("safeFetch: maxBytes must be an integer in [1, 15 MB]");
   }
   const timeoutMs = o.timeoutMs ?? SAFE_FETCH_MAX_TIMEOUT_MS;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
@@ -30156,7 +30156,7 @@ async function fetchImage(url, opts) {
 }
 
 // src/budget.ts
-var EMAIL_BUDGET_BYTES = 15 * 1024 * 1024;
+var EMAIL_BUDGET_BYTES = 40 * 1024 * 1024;
 var TTL_MS = 48 * 3600 * 1e3;
 var MAX_ENTRIES = 1e4;
 var EmailBudget = class {
@@ -30189,7 +30189,7 @@ var USER_ID_RE = /^[\x21-\x7e]{1,128}$/;
 var SHORT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 var B64URL_RE = /^[A-Za-z0-9_-]*$/;
 var IMAGE_TOKEN_MAX_LENGTH = 4096;
-var IMAGE_TOKEN_MAX_BYTES = 5 * 1024 * 1024;
+var IMAGE_TOKEN_MAX_BYTES = 15 * 1024 * 1024;
 var IMAGE_TOKEN_MAX_LIFETIME_SEC = 48 * 3600;
 var IMAGE_TOKEN_CLOCK_SKEW_SEC = 300;
 function gateViewToken(token, nowSec) {
@@ -30537,11 +30537,13 @@ function isTrackerUrl(url) {
 }
 
 // src/app.ts
-var MAX_IMAGE_RESPONSE_BYTES = 5 * 1024 * 1024;
+var MAX_IMAGE_RESPONSE_BYTES = 15 * 1024 * 1024;
+var CARD_MAX_WIDTH = 800;
+var FULL_MAX_WIDTH = 1600;
 var CARD_BUDGET_SUFFIX = "_c";
 var MAX_VIEW_SOURCE_BYTES = Math.floor(4.5 * 1024 * 1024);
 var VIEW_SOURCE_TIMEOUT_MS = 25e3;
-var IMAGE_FETCH_TIMEOUT_MS = 5e3;
+var IMAGE_FETCH_TIMEOUT_MS = 15e3;
 var CARD_RETRY_DELAYS_SEC = [2, 4, 8];
 var CARD_RETRY_PARAM = "r";
 var CARD_RETRY_MIN_TOKEN_SEC = 5;
@@ -30558,6 +30560,13 @@ function cardRetryAttempt(url) {
   if (r === null) return 0;
   const n = /^[1-9]$/.test(r) ? Number(r) : Infinity;
   return Math.min(n, CARD_RETRY_DELAYS_SEC.length);
+}
+function hostOf(url) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "?";
+  }
 }
 function defaultLog(e) {
   console.log(JSON.stringify({ svc: "edf-view", ...e }));
@@ -30779,19 +30788,36 @@ ${claims.b}`;
       deps.log({
         ev: "img_error",
         code: r.reason,
+        // Which image server, and the allowance: enough to tell a refusing host or an
+        // over-the-cap picture apart, never the image's address (it can carry tracking ids).
+        host: hostOf(claims.url),
+        mb: maxBytes,
         ...r.status === void 0 ? {} : { status: r.status }
       });
       return placeholder(cache);
     }
-    budget.spend(budgetKey, r.body.length, now);
+    const card = claims.b.endsWith(CARD_BUDGET_SUFFIX);
+    let body = r.body;
+    let contentType = r.contentType;
+    if (deps.shrinkImage !== void 0) {
+      const cpu = process.cpuUsage();
+      const small = await deps.shrinkImage(
+        { body: r.body, format: r.format, width: r.width, height: r.height },
+        card ? CARD_MAX_WIDTH : FULL_MAX_WIDTH
+      ).catch(() => null);
+      const used = process.cpuUsage(cpu);
+      stats.add("img_resize_cpu_ms", Math.round((used.user + used.system) / 1e3));
+      if (small !== null) {
+        body = small.body;
+        contentType = small.contentType;
+        stats.add("img_resized");
+      }
+    }
+    budget.spend(budgetKey, body.length, now);
     stats.add("img_ok");
-    stats.add("img_bytes_served", r.body.length);
-    if (claims.b.endsWith(CARD_BUDGET_SUFFIX)) stats.add("img_card_bytes_served", r.body.length);
-    return imageResponse(
-      r.body,
-      r.contentType,
-      imageCacheLong(claims.x, Math.floor(deps.now() / 1e3))
-    );
+    stats.add("img_bytes_served", body.length);
+    if (card) stats.add("img_card_bytes_served", body.length);
+    return imageResponse(body, contentType, imageCacheLong(claims.x, Math.floor(deps.now() / 1e3)));
   }
   const guard = (fn, fallback) => async (request2, waitUntil) => {
     let response;
@@ -30814,6 +30840,33 @@ function contextWaitUntil() {
   const fn = ctx?.get?.()?.waitUntil;
   return typeof fn === "function" ? fn : void 0;
 }
+
+// src/resize.ts
+import sharp from "sharp";
+var RECODE_MIN_BYTES = 100 * 1024;
+var MAX_ANIMATED_PIXELS = 8e7;
+var WEBP_QUALITY = 82;
+sharp.concurrency(1);
+sharp.cache(false);
+var shrinkImage = async (input, maxWidth) => {
+  const wide = input.width > maxWidth;
+  if (!wide && input.body.length < RECODE_MIN_BYTES) return null;
+  try {
+    const animatable = input.format === "gif" || input.format === "webp";
+    let pages = 1;
+    if (animatable) {
+      pages = (await sharp(input.body, { animated: true }).metadata()).pages ?? 1;
+      if (pages > 1 && pages * input.width * input.height > MAX_ANIMATED_PIXELS) return null;
+    }
+    const animated = pages > 1;
+    let p = sharp(input.body, { animated, limitInputPixels: MAX_ANIMATED_PIXELS });
+    if (input.format === "jpeg") p = p.rotate();
+    const out = await p.resize({ width: maxWidth, withoutEnlargement: true }).webp({ quality: WEBP_QUALITY, effort: animated ? 1 : 2 }).toBuffer();
+    return out.length < input.body.length ? { body: out, contentType: "image/webp" } : null;
+  } catch {
+    return null;
+  }
+};
 
 // src/config.ts
 function productionLike(env) {
@@ -30862,7 +30915,7 @@ var vercelTokenSource = async (request2) => {
 
 // src/runtime.ts
 var built = null;
-function runtime(fetchImage2) {
+function runtime(fetchImage2, shrinkImage2) {
   if (built !== null) return built;
   const cfg = loadViewConfig(process.env);
   if (!cfg.ok) {
@@ -30876,6 +30929,7 @@ function runtime(fetchImage2) {
       token: vercelTokenSource,
       fetchApp: fetch,
       fetchImage: fetchImage2,
+      ...shrinkImage2 === void 0 ? {} : { shrinkImage: shrinkImage2 },
       now: Date.now,
       log: defaultLog
     })
@@ -30897,7 +30951,7 @@ function unavailable() {
 // src/img.ts
 var img_default = {
   fetch(request2) {
-    const r = runtime(fetchImage);
+    const r = runtime(fetchImage, shrinkImage);
     return "app" in r ? r.app.img(request2, contextWaitUntil()) : Promise.resolve(unavailable());
   }
 };

@@ -10,7 +10,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@edf/fetch": "workspace:*"
+    "@edf/fetch": "workspace:*",
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "esbuild": "0.28.2"

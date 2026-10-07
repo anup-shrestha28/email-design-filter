@@ -158,6 +158,16 @@ describe.skipIf(!HAS_DB)("edf-app metering (view-source FOT, UI flushes)", () =>
     expect((await ledger())[R.vercelFotMb]).toBeCloseTo((900_000 + 123_457 + 2 * html) / 1e6, 6);
   });
 
+  it("edf-view's image-shrinking CPU is metered as Vercel Active CPU (seconds)", async () => {
+    await viewStats({ img_ok: 3, img_resized: 2, img_resize_cpu_ms: 1_250, img_bytes_served: 50_000 });
+    const l = await ledger();
+    expect(l[R.vercelCpuS]).toBeCloseTo(1.25, 6);
+    expect(l["view.img_resize_cpu_ms"]).toBe(1_250);
+    expect(l["view.img_resized"]).toBe(2);
+    await viewStats({ img_ok: 1 });
+    expect((await ledger())[R.vercelCpuS]).toBeCloseTo(1.25, 6);
+  });
+
   it("a report with no served image bytes meters no FOT; a malformed one writes nothing", async () => {
     await viewStats({ view_requests: 7, img_bad_signature: 2 });
     const { POST } = await import("@/app/api/view-stats/route");

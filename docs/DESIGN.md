@@ -1318,7 +1318,7 @@ Referrer-Policy: no-referrer · X-Content-Type-Options: nosniff · Cache-Control
   - separate header and body timeouts (≤ 5s total);
   - content-type allowlist;
   - no cookies or auth, and a fixed user agent;
-  - ≤ 4 concurrent requests per host, and ≤ 60 images or 15 MB per email.
+  - ≤ 16 concurrent requests per host (4 until 2026-10-07: a gallery page's images queued), and ≤ 60 images or 15 MB per email.
 - **Sanitizer second layer:** strip `<link rel=dns-prefetch|preconnect|preload>`.
 
 ### 11.8 Abuse limits & budgets (beta values; admin-adjustable)

@@ -10,7 +10,7 @@
  * - One deadline for the whole call (≤ 5 s) plus a separate header deadline, both covering DNS,
  *   connect and TLS; undici's own header/body inactivity timers as a backstop.
  * - Body streamed with a hard cap on DECODED bytes (gzip/deflate/br), aborting as soon as it is
- *   exceeded, plus a cap on raw bytes; content-type allowlist; ≤ 4 concurrent requests per host.
+ *   exceeded, plus a cap on raw bytes; content-type allowlist; ≤ 16 concurrent requests per host.
  */
 import { Transform, type TransformCallback } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -64,7 +64,13 @@ export type SafeFetchResult =
 export const SAFE_FETCH_MAX_BYTES = 15 * 1024 * 1024;
 export const SAFE_FETCH_MAX_TIMEOUT_MS = 15_000;
 export const SAFE_FETCH_MAX_REDIRECTS = 3;
-export const SAFE_FETCH_MAX_PER_HOST = 4;
+/**
+ * Concurrent requests per host (per instance). 16 since 2026-10-07 (was 4): a gallery page asks
+ * edf-view for ~360 images from a handful of image CDNs at once, and at 4 per host they queued
+ * (median 11 s per image, measured). Sixteen is still far below what an image CDN serves one
+ * browser over HTTP/2.
+ */
+export const SAFE_FETCH_MAX_PER_HOST = 16;
 export const SAFE_FETCH_USER_AGENT =
   "Mozilla/5.0 (compatible; EmailDesignFilter/1.0; +image-proxy)";
 
