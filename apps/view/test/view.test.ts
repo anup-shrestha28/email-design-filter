@@ -865,7 +865,6 @@ describe("images shrunk to the width they are shown at (resize.ts)", () => {
     expect(counts.img_bytes_served).toBe(body.length);
     expect(counts.img_card_bytes_served).toBe(body.length);
     expect(counts.img_resized).toBe(1);
-    expect(counts.img_resize_cpu_ms).toBeGreaterThanOrEqual(0);
   });
 
   it("the opened design gets up to FULL_MAX_WIDTH, never enlarged", async () => {
@@ -1276,6 +1275,44 @@ describe("stats value cap", () => {
     expect(bodies.map((b) => b.counts.img_bytes_served)).toEqual([
       10_000_000, 10_000_000, 5_000_000,
     ]);
+  });
+});
+
+describe("stats CPU time (cpu_ms)", () => {
+  it("reports the instance's CPU once, in whole ms, carrying the fraction; a failed report re-queues it", async () => {
+    const { Stats } = await import("../src/stats");
+    const clock = { t: 0 };
+    let cpu = 1_000.4; // CPU spent before the app was built: never reported
+    let fail = false;
+    const bodies: Array<{ counts: Record<string, number> }> = [];
+    const deps = {
+      statsUrl: `${APP}/api/view-stats`,
+      token: async () => EDF_VIEW_TOKEN,
+      fetchImpl: (async (_u: string, init: RequestInit) => {
+        if (fail) return new Response(null, { status: 503 });
+        bodies.push(JSON.parse(init.body as string));
+        return new Response(null, { status: 204 });
+      }) as unknown as typeof fetch,
+      now: () => clock.t,
+      log: () => undefined,
+    };
+    const s = new Stats(0, () => cpu);
+    s.add("img_ok");
+    cpu += 250.7;
+    clock.t = 61_000;
+    await s.maybeFlush(deps, new Request(VIEW));
+    expect(bodies[0]!.counts).toEqual({ img_ok: 1, cpu_ms: 250 });
+    // Two requests ran at once: the process's CPU is counted once, not once per request.
+    s.add("img_ok", 2);
+    cpu += 99.5; // 0.7 carried + 99.5 = 100.2
+    clock.t = 122_000;
+    fail = true;
+    await s.maybeFlush(deps, new Request(VIEW));
+    fail = false;
+    clock.t = 183_000;
+    await s.maybeFlush(deps, new Request(VIEW));
+    expect(bodies[1]!.counts).toEqual({ img_ok: 2, cpu_ms: 100 });
+    expect(bodies).toHaveLength(2);
   });
 });
 

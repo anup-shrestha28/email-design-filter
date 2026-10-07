@@ -48,8 +48,12 @@ export const STAT_KEYS = [
   "img_card_bytes_served",
   /** Images served shrunk to the width they are shown at (resize.ts). */
   "img_resized",
-  /** CPU spent shrinking images (ms): edf-app meters it as Vercel Active CPU. */
-  "img_resize_cpu_ms",
+  /**
+   * This instance's CPU time since its last report (ms; process.cpuUsage, so the work of requests
+   * running at once is counted once): edf-app meters it as Vercel Active CPU. Mostly shrinking
+   * images (resize.ts).
+   */
+  "cpu_ms",
 ] as const;
 export type StatKey = (typeof STAT_KEYS)[number];
 
@@ -91,10 +95,16 @@ export class Stats {
   /** Bumped by every report sent, so a delayed report scheduled before it stands down. */
   #epoch = 0;
   #trailing: Promise<void> | null = null;
+  /** The process's CPU time so far (ms), when reported (`cpu_ms`). */
+  readonly #cpuMs: (() => number) | undefined;
+  /** CPU time already reported (ms). */
+  #cpuBase = 0;
 
-  constructor(now: number) {
+  constructor(now: number, cpuMs?: () => number) {
     this.#since = now;
     this.#last = now;
+    this.#cpuMs = cpuMs;
+    this.#cpuBase = cpuMs?.() ?? 0;
   }
 
   add(key: StatKey, n = 1): void {
@@ -156,6 +166,14 @@ export class Stats {
   }
 
   #send(deps: StatsDeps, request: Request, now: number): Promise<void> {
+    if (this.#cpuMs !== undefined) {
+      // Whole milliseconds; the fraction left over goes in the next report.
+      const ms = Math.floor(this.#cpuMs() - this.#cpuBase);
+      if (ms > 0) {
+        this.#cpuBase += ms;
+        this.add("cpu_ms", ms);
+      }
+    }
     const sent: Counts = {};
     const carry: Counts = {};
     for (const [k, v] of Object.entries(this.#counts) as Array<[StatKey, number]>) {

@@ -129,6 +129,8 @@ export interface ViewDeps {
   fetchImage: typeof FetchImage;
   /** Shrinks a fetched image to the width it is shown at (resize.ts); only the image route has it. */
   shrinkImage?: ShrinkImage;
+  /** The process's CPU time so far (ms), reported as `cpu_ms` (stats.ts); production only. */
+  cpuMs?: () => number;
   now: () => number;
   log: (e: Record<string, string | number>) => void;
   /** Timer for the delayed stats report (tests inject one); defaults to setTimeout. */
@@ -251,7 +253,7 @@ function upstreamStatus(status: number): number {
 
 export function createViewApp(deps: ViewDeps): ViewApp {
   const { config } = deps;
-  const stats = new Stats(deps.now());
+  const stats = new Stats(deps.now(), deps.cpuMs);
   const budget = new EmailBudget();
   const statsDeps = {
     statsUrl: `${config.appOrigin}/api/view-stats`,
@@ -462,17 +464,13 @@ export function createViewApp(deps: ViewDeps): ViewApp {
     let body = r.body;
     let contentType = r.contentType;
     if (deps.shrinkImage !== undefined) {
-      const cpu = process.cpuUsage();
+      // Its CPU reaches edf-app's meter in the instance's `cpu_ms` (stats.ts).
       const small = await deps
         .shrinkImage(
           { body: r.body, format: r.format, width: r.width, height: r.height },
           card ? CARD_MAX_WIDTH : FULL_MAX_WIDTH,
         )
         .catch(() => null);
-      const used = process.cpuUsage(cpu);
-      // Metered as Vercel Active CPU by edf-app (service-counts.ts); overlapping requests can only
-      // over-count it.
-      stats.add("img_resize_cpu_ms", Math.round((used.user + used.system) / 1000));
       if (small !== null) {
         body = small.body;
         contentType = small.contentType;

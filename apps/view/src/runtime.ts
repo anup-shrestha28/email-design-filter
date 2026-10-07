@@ -29,6 +29,10 @@ export function runtime(
       fetchApp: fetch,
       fetchImage,
       ...(shrinkImage === undefined ? {} : { shrinkImage }),
+      cpuMs: () => {
+        const u = process.cpuUsage();
+        return (u.user + u.system) / 1000;
+      },
       now: Date.now,
       log: defaultLog,
     }),

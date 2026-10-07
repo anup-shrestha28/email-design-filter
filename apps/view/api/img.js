@@ -30390,9 +30390,15 @@ var Stats = class {
   /** Bumped by every report sent, so a delayed report scheduled before it stands down. */
   #epoch = 0;
   #trailing = null;
-  constructor(now) {
+  /** The process's CPU time so far (ms), when reported (`cpu_ms`). */
+  #cpuMs;
+  /** CPU time already reported (ms). */
+  #cpuBase = 0;
+  constructor(now, cpuMs) {
     this.#since = now;
     this.#last = now;
+    this.#cpuMs = cpuMs;
+    this.#cpuBase = cpuMs?.() ?? 0;
   }
   add(key, n = 1) {
     this.#counts[key] = (this.#counts[key] ?? 0) + n;
@@ -30443,6 +30449,13 @@ var Stats = class {
     return p;
   }
   #send(deps, request2, now) {
+    if (this.#cpuMs !== void 0) {
+      const ms = Math.floor(this.#cpuMs() - this.#cpuBase);
+      if (ms > 0) {
+        this.#cpuBase += ms;
+        this.add("cpu_ms", ms);
+      }
+    }
     const sent = {};
     const carry = {};
     for (const [k, v] of Object.entries(this.#counts)) {
@@ -30633,7 +30646,7 @@ function upstreamStatus(status) {
 }
 function createViewApp(deps) {
   const { config } = deps;
-  const stats = new Stats(deps.now());
+  const stats = new Stats(deps.now(), deps.cpuMs);
   const budget = new EmailBudget();
   const statsDeps = {
     statsUrl: `${config.appOrigin}/api/view-stats`,
@@ -30800,13 +30813,10 @@ ${claims.b}`;
     let body = r.body;
     let contentType = r.contentType;
     if (deps.shrinkImage !== void 0) {
-      const cpu = process.cpuUsage();
       const small = await deps.shrinkImage(
         { body: r.body, format: r.format, width: r.width, height: r.height },
         card ? CARD_MAX_WIDTH : FULL_MAX_WIDTH
       ).catch(() => null);
-      const used = process.cpuUsage(cpu);
-      stats.add("img_resize_cpu_ms", Math.round((used.user + used.system) / 1e3));
       if (small !== null) {
         body = small.body;
         contentType = small.contentType;
@@ -30930,6 +30940,10 @@ function runtime(fetchImage2, shrinkImage2) {
       fetchApp: fetch,
       fetchImage: fetchImage2,
       ...shrinkImage2 === void 0 ? {} : { shrinkImage: shrinkImage2 },
+      cpuMs: () => {
+        const u = process.cpuUsage();
+        return (u.user + u.system) / 1e3;
+      },
       now: Date.now,
       log: defaultLog
     })
