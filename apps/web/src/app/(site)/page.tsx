@@ -27,7 +27,7 @@ import { PILLAR_LABELS, PILLAR_WEIGHTS } from "@/lib/labels";
 import type { PillarId } from "@edf/design/types";
 
 export const metadata: Metadata = {
-  title: { absolute: "Dearly Mail — your subscriptions, sorted and explained" },
+  title: { absolute: "Dearly Mail" },
 };
 
 const DEMO_PILLARS: Array<{ id: PillarId; points: number; max: number }> = [
