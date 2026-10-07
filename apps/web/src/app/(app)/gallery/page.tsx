@@ -16,7 +16,7 @@ import { galleryFacets, listGallery } from "@/server/queries/gallery";
 import type { GalleryPage as Page } from "@/server/queries/types";
 import { requireUser } from "@/server/session";
 
-export const metadata: Metadata = { title: "Email designs" };
+export const metadata: Metadata = { title: { absolute: "Dearly Mail" } };
 
 /** Short names a shared link may use for `?cat=` (the gallery's own key is `?category=`). */
 const CAT_ALIASES: Record<string, GalleryCategory> = {
