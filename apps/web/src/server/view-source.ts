@@ -8,6 +8,7 @@
  * Origin Transfer (packages/budget/DECISIONS.md, "Fast Origin Transfer"; FREE-TIER.md §8.1).
  */
 import "server-only";
+import { createHash } from "node:crypto";
 import { parseMime } from "@edf/core";
 import { extractImageRefs, imageFetchDecision, imagesAllowedFor, isExpiredSignedUrl } from "@edf/core/policy";
 import {
@@ -460,6 +461,51 @@ function fetchErrorCode(err: unknown): string {
   return "fetch_failed";
 }
 
+/**
+ * Saved gallery cards (migration 0019, 2026-10-08). Rebuilding a card (Gmail fetch, MIME parse,
+ * sanitize, sign) on every gallery visit was edf-app's biggest Active CPU cost. A finished card is
+ * kept and reused while its key matches. The key covers everything the card's HTML depends on:
+ * the deployed code (so a new release never serves an old card), the image tokens' week (a card
+ * carries image URLs signed for that week; packages/crypto imageTokenExpiry), the viewer and app
+ * origins, and the email's own inputs (type, security flags, the user's addresses that the privacy
+ * policy checks, the analysed height). Only "card" views: the opened design is built fresh, and a
+ * "noimg" card (the governor's image switch) is never saved. Off without a deployment id (local
+ * development and tests opt in by setting one), so edited code is never hidden behind a saved card.
+ */
+const CARD_CACHE_MAX_HTML_CHARS = 1_000_000;
+const CARD_CACHE_PRUNE = "8 days";
+
+function cardCacheVersion(): string | null {
+  const v = process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_DEPLOYMENT_ID;
+  return v && v.length > 0 ? v : null;
+}
+
+export function cardCacheKey(input: {
+  version: string;
+  imageExp: number;
+  viewOrigin: string;
+  appOrigin: string;
+  primaryType: string;
+  suspicious: boolean;
+  securitySensitive: boolean;
+  addresses: readonly string[];
+  desktopHeight: number | null;
+}): string {
+  const canonical = JSON.stringify([
+    "card/v1",
+    input.version,
+    input.imageExp,
+    input.viewOrigin,
+    input.appOrigin,
+    input.primaryType,
+    input.suspicious,
+    input.securitySensitive,
+    [...input.addresses].map((a) => a.toLowerCase()).sort(),
+    input.desktopHeight,
+  ]);
+  return `c1.${createHash("sha256").update(canonical).digest("base64url")}`;
+}
+
 export async function buildViewSource(token: string, emailId: string): Promise<ViewSourceResult> {
   const parsedToken = parseViewToken(token);
   if (!parsedToken || !EMAIL_ID_RE.test(emailId)) return { ok: false, status: 401, error: "bad_token" };
@@ -500,6 +546,41 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
   });
   if (!row) return { ok: false, status: 404, error: "not_found" };
   if (row.mailbox_status !== "active") return { ok: false, status: 503, error: "mailbox_unavailable" };
+
+  // A saved card for exactly these inputs: no Gmail fetch, no parse, no sanitize.
+  const cacheVersion = verified.mode === "card" ? cardCacheVersion() : null;
+  const cacheKey =
+    cacheVersion === null
+      ? null
+      : cardCacheKey({
+          version: cacheVersion,
+          imageExp: imageTokenExpiry(new Date()),
+          viewOrigin: env().VIEW_ORIGIN.replace(/\/$/, ""),
+          appOrigin: env().APP_ORIGIN.replace(/\/$/, ""),
+          primaryType: row.primary_type,
+          suspicious: row.suspicious,
+          securitySensitive: row.security_sensitive,
+          addresses: row.addresses,
+          desktopHeight: row.desktop_height,
+        });
+  if (cacheKey !== null) {
+    const saved = await withUser(pool, userId, async (_db, c) => {
+      const r = await c.query<{ html: string; height: number; image_bytes_minted: string | number }>(
+        "SELECT html, height, image_bytes_minted FROM card_view_cache WHERE email_id = $1 AND cache_key = $2",
+        [emailId, cacheKey],
+      );
+      return r.rows[0] ?? null;
+    }).catch(() => null); // a cache problem never fails the view: it is built as before
+    if (saved) {
+      return {
+        ok: true,
+        html: saved.html,
+        height: saved.height,
+        imageBytesMinted: Number(saved.image_bytes_minted),
+        unsignableUrls: 0, // counted when the card was built
+      };
+    }
+  }
 
   let raw: Uint8Array;
   if (isFixtureAccount(row.provider_account_id)) {
@@ -645,7 +726,7 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
   // design that shows its alt text instead of pictures can be traced to the rule that dropped them.
   const noSrc = new Map<string, Set<string>>();
   const noteNoSrc = (reason: string, url: string) => {
-    let host = "";
+    let host: string;
     try {
       host = new URL(url).hostname;
     } catch {
@@ -838,6 +919,23 @@ export async function buildViewSource(token: string, emailId: string): Promise<V
       imgsWithoutSrc,
       reasons: Object.fromEntries([...noSrc].map(([k, v]) => [k, v.size])),
     });
+  }
+  if (cacheKey !== null && out.length <= CARD_CACHE_MAX_HTML_CHARS) {
+    await withUser(pool, userId, async (_db, c) => {
+      await c.query(
+        `INSERT INTO card_view_cache (email_id, user_id, cache_key, html, height, image_bytes_minted)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (email_id, user_id) DO UPDATE
+           SET cache_key = EXCLUDED.cache_key, html = EXCLUDED.html, height = EXCLUDED.height,
+               image_bytes_minted = EXCLUDED.image_bytes_minted, created_at = now()`,
+        [emailId, userId, cacheKey, out, height, mintedBytes],
+      );
+      // This user's cards from past weeks can never match again.
+      await c.query(
+        `DELETE FROM card_view_cache WHERE user_id = $1 AND created_at < now() - interval '${CARD_CACHE_PRUNE}'`,
+        [userId],
+      );
+    }).catch(() => undefined); // saving is best effort: the view is already built
   }
   return {
     ok: true,

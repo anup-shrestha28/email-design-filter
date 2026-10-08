@@ -21,7 +21,9 @@ export type AlertCode =
   | "EXTERNAL_LOAD_SPIKE"
   | "GOOGLE_ACCOUNTS_70"
   | "GLOBAL_OAUTH_INCIDENT"
-  | "EXECUTION_TRIPWIRE";
+  | "EXECUTION_TRIPWIRE"
+  /** The daily picture check (apps/web picture-health.ts) found gallery cards without pictures. */
+  | "PICTURES_BROKEN";
 
 export interface AlertConfig {
   token: string | undefined;

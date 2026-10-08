@@ -1,6 +1,8 @@
 /**
  * GET /api/cron/daily — the one daily Vercel cron (FREE-TIER.md §4.9): privacy work, maintenance,
  * governor, and the watchdog that keeps mail flowing if Inngest is paused (Plan B). 270 s budget.
+ * Then the daily picture check (server/picture-health.ts) and the prune of saved gallery cards past
+ * their week (migration 0019); neither can fail the cron.
  */
 import { timingSafeEqual, createHash } from "node:crypto";
 import { runWithRouteClass } from "@edf/db";
@@ -40,7 +42,28 @@ export function GET(request: Request) {
           },
         }),
       );
-      return Response.json({ ok: true, watchdog: summary.watchdog }, { headers: { "Cache-Control": "no-store" } });
+      const pictures = await meter
+        .withMeter("route", async () => {
+          const { withSystem } = await import("@edf/db");
+          await withSystem(deps.pool, async (_db, c) => {
+            await c.query("SELECT prune_card_view_cache()");
+          });
+          const { checkPictureHealth } = await import("@/server/picture-health");
+          const health = await checkPictureHealth();
+          if (!health.ok) {
+            await pipeline.raiseAlert(deps.pool, deps.alerts ?? { token: undefined, repo: undefined }, "PICTURES_BROKEN", {
+              checked: health.checked,
+              problems: health.problems.length,
+              first: `${health.problems[0]?.role ?? "none"}:${health.problems[0]?.code ?? "none"}`,
+            });
+          }
+          return health.ok;
+        })
+        .catch((err: unknown) => {
+          console.error("[edf] picture_health.failed", { error: err instanceof Error ? err.name : "unknown" });
+          return null;
+        });
+      return Response.json({ ok: true, watchdog: summary.watchdog, pictures }, { headers: { "Cache-Control": "no-store" } });
     } finally {
       await flushM2mFailures(); // failures buffered while the database was asleep (m2m.ts)
       await meter.flush().catch(() => {});

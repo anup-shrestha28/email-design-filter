@@ -80,10 +80,15 @@ describe.skipIf(!HAS_DB)("/api/cron/daily", () => {
     const res = await call(`Bearer ${secret}`);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ ok: true, watchdog: { stale: [], ranPoll: false, drained: 0 } });
+    const body = (await res.json()) as { ok: boolean; watchdog: unknown; pictures: boolean | null };
+    expect(body).toMatchObject({ ok: true, watchdog: { stale: [], ranPoll: false, drained: 0 } });
+    // The daily picture check ran (server/picture-health.ts): true, false, or null if it couldn't.
+    expect([true, false, null]).toContain(body.pictures);
     const s = await owner.query<{ fresh: boolean }>("SELECT last_cron_at > now() - interval '1 minute' AS fresh FROM system_state");
     expect(s.rows[0]!.fresh).toBe(true);
-    expect(fake.calls.map((c) => new URL(c.url).origin)).toEqual([]);
+    // No outside calls but the picture check's own visits to edf-view (cards and their pictures).
+    const viewOrigin = new URL(env().VIEW_ORIGIN).origin;
+    expect(fake.calls.map((c) => new URL(c.url).origin).filter((o) => o !== viewOrigin)).toEqual([]);
 
     // The run, which uses the database anyway, wrote the refused request's buffered audit row.
     const rows = await failureRows();

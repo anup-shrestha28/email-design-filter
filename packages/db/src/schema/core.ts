@@ -344,6 +344,21 @@ export const boardItem = pgTable(
   (t) => [primaryKey({ columns: [t.boardId, t.emailId] })],
 );
 
+/** A finished gallery card, reused while its key matches (0019; apps/web server/view-source.ts). */
+export const cardViewCache = pgTable(
+  "card_view_cache",
+  {
+    emailId: uuid("email_id").notNull(),
+    userId: text("user_id").notNull(),
+    cacheKey: text("cache_key").notNull(),
+    html: text("html").notNull(),
+    height: integer("height").notNull(),
+    imageBytesMinted: bigint("image_bytes_minted", { mode: "number" }).notNull().default(0),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.emailId, t.userId] })],
+);
+
 export const userFeedback = pgTable("user_feedback", {
   id: id(),
   userId: text("user_id").notNull(),

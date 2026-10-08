@@ -7,6 +7,7 @@ import type { EmailType, TypeGroup } from "@edf/core/types";
 import { typeGroupOf } from "@/lib/types-display";
 import { env } from "@/env";
 import { getPool } from "../db";
+import { imagesClickToLoad } from "../image-switch";
 import type { SessionUser } from "../session";
 import { INBOX_COLUMNS, toInboxItem, type InboxRow } from "./inbox";
 import type { MailboxInfo, SettingsData, SyncStatus, TodayData } from "./types";
@@ -76,7 +77,21 @@ export interface SystemBannerState {
   ingestKilled: boolean;
   role: "owner" | "friend" | null;
   tickEvery: 30 | 60;
+  /** The governor's image switch is on for this user (server/image-switch.ts): cards come without pictures. */
+  picturesPaused: boolean;
+  /** The daily picture check's last result (`app_setting.picture_health`, server/picture-health.ts). */
+  pictureCheck: { ok: boolean; checkedAt: string | null; problems: Array<{ role: string; code: string }> } | null;
 }
+
+/** Plain words for the daily picture check's problem codes (server/picture-health.ts). */
+const PICTURE_PROBLEM_WORDS: Record<string, string> = {
+  paused: "pictures are paused to stay within the free limits",
+  no_picture_links: "cards are being built without their pictures",
+  card_failed: "gallery cards didn't load",
+  pictures_not_served: "the picture service isn't sending pictures",
+};
+/** A failed check is shown until the next one, but never for longer than this. */
+const PICTURE_CHECK_SHOWN_MS = 36 * 3600 * 1000;
 
 type Banner = NonNullable<SyncStatus["banner"]>;
 
@@ -91,6 +106,31 @@ function systemBanners(s: SystemBannerState): { frozen: Banner | null; warnings:
         }
       : null;
   const warnings: Banner[] = [];
+  if (s.picturesPaused) {
+    warnings.push({
+      id: "pictures:paused",
+      level: "warning",
+      text: "Pictures are paused to stay within the free limits, so designs show without them for now. Open a design and press Load images to see its pictures. They come back on their own when usage drops.",
+    });
+  }
+  const check = s.pictureCheck;
+  const realProblems = (check?.problems ?? []).filter((p) => p.code !== "paused" || !s.picturesPaused);
+  if (
+    s.role === "owner" &&
+    check &&
+    !check.ok &&
+    check.checkedAt !== null &&
+    Date.now() - Date.parse(check.checkedAt) < PICTURE_CHECK_SHOWN_MS &&
+    realProblems.length > 0
+  ) {
+    const p = realProblems[0]!;
+    const who = p.role === "owner" ? "your gallery" : "a friend's gallery";
+    warnings.push({
+      id: `pictures:check:${check.checkedAt}`,
+      level: "warning",
+      text: `Today's picture check found a problem in ${who}: ${PICTURE_PROBLEM_WORDS[p.code] ?? "pictures didn't load"}. Your designs are safe; ask Claude to look at it.`,
+    });
+  }
   if (s.ingestKilled) {
     warnings.push({ id: "kill:ingest", level: "warning", text: "New mail is paused for now. It resumes when the app's owner turns it back on." });
   }
@@ -149,13 +189,15 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
   const pool = await getPool();
   const { mailboxes, pollingOff, system } = await withUser(pool, userId, async (db) => {
     const st = await raw(db).execute<{
-      governor: { level?: number; actions?: { syncStatusPollingOff?: boolean } } | null;
+      governor: { level?: number; actions?: { syncStatusPollingOff?: boolean; imagesClickToLoad?: boolean; friendsImagesClickToLoad?: boolean } } | null;
+      picture_health: SystemBannerState["pictureCheck"];
       ai_paused: { paused?: boolean } | null;
       kill_ingest: unknown;
       inngest_paused: boolean | null;
       role: "owner" | "friend" | null;
     }>(sql`
       SELECT (SELECT value FROM app_setting WHERE key = 'governor') AS governor,
+             (SELECT value FROM app_setting WHERE key = 'picture_health') AS picture_health,
              (SELECT value FROM app_setting WHERE key = 'ai.paused') AS ai_paused,
              (SELECT value FROM app_setting WHERE key = 'kill.ingest') AS kill_ingest,
              (SELECT inngest_paused FROM system_state) AS inngest_paused,
@@ -170,6 +212,8 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
       ingestKilled: r?.kill_ingest === true,
       role: r?.role ?? null,
       tickEvery: env().TICK_EVERY === "60" ? 60 : 30,
+      picturesPaused: imagesClickToLoad(v ?? null, r?.role === "owner" ? "owner" : "friend"),
+      pictureCheck: r?.picture_health ?? null,
     };
     // L1 and up (FREE-TIER.md §8.2): the page stops re-checking sync status on a timer.
     return {
