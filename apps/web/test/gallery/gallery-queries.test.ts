@@ -907,8 +907,12 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
         await setGovernor({ level: 0, actions: { friendsImagesClickToLoad: true } });
         expect(await modes(alice, id.good85!)).toEqual(["card", "img", "img"]);
         expect(await modes(bob, id.bobs!)).toEqual(["noimg", "noimg", "img"]);
-        // Self-cap / L2: everyone's.
+        // CPU/Neon pressure (L2) alone leaves pictures on: only FOT or the L3 freeze turns them off.
         await setGovernor({ level: 2, actions: {} });
+        expect(await modes(alice, id.good85!)).toEqual(["card", "img", "img"]);
+        expect(await modes(bob, id.bobs!)).toEqual(["card", "img", "img"]);
+        // FOT self-cap: everyone's.
+        await setGovernor({ level: 2, actions: { imagesClickToLoad: true, friendsImagesClickToLoad: true } });
         expect(await modes(alice, id.good85!)).toEqual(["noimg", "noimg", "img"]);
         // "Load images" is for one opened design, never a batch of cards.
         state.session = sessionFor(alice);

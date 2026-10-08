@@ -1098,9 +1098,12 @@ batches) and Neon to ≈ 62 by month end (L2). Hence the 2-minute idle stop and 
 | Level | Trigger | Behaviour |
 |---|---|---|
 | **L0 Normal** | everything < 80% of its self-cap | as described above |
-| **L1 Saver** | any shared resource ≥ 80% of its self-cap (actual or projected), or Neon compute ≥ 50 CU-h | poll intervals × 2 · alert: "set `TICK_EVERY=60` and redeploy" · fill renders off (fresh batches too) · new backfills queued · friends' images click-to-load · UI sync-status polling off (the live gallery's checks and the background sync too, §4.4) · classification through Batch only |
-| **L2 Essentials** | any shared resource ≥ its self-cap (Neon compute: 60 CU-h, actual) | background polling every 6 h · sync-on-open for you always, friends at most every 2 h · planned renders off (your on-demand only) · automatic AI off · images click-to-load for everyone |
+| **L1 Saver** | any shared resource ≥ 80% of its self-cap (actual or projected), or Neon compute ≥ 50 CU-h | poll intervals × 2 · alert: "set `TICK_EVERY=60` and redeploy" · fill renders off (fresh batches too) · new backfills queued · UI sync-status polling off (the live gallery's checks and the background sync too, §4.4) · classification through Batch only |
+| **L2 Essentials** | any shared resource ≥ its self-cap (Neon compute: 60 CU-h, actual) | background polling every 6 h · sync-on-open for you always, friends at most every 2 h · planned renders off (your on-demand only) · automatic AI off |
 | **L3 Frozen** | **actual** usage of: Vercel CPU, invocations, memory or Fast Origin Transfer ≥ 70% of the hard limit (rolling 30 d), **or** Neon CU-h month-to-date ≥ 80, **or** Inngest month-to-date ≥ 40k (should never happen) | all background work and on-demand features off. Stored data stays readable; export, delete and disconnect still work. Banner plus alert. |
+
+Pictures are never switched off by L1/L2 alone (2026-10-08): only Fast Origin Transfer (§8.3 below) or the L3 freeze makes them click-to-load. A CPU L2 had turned the whole gallery into alt text while FOT stood at 15%; pictures are shrunk once a week and cost little CPU. The CPU calibration was set to 1.25 from the dashboard (2h 11m Fluid Active CPU against 6,475–6,650 metered CPU-s, ratio ≈ 1.2).
+
 
 **Sandbox, Anthropic and Neon storage never trigger global levels.** They only have their own actions (§8.3). So Sandbox filling to its cap by design doesn't freeze the app.
 

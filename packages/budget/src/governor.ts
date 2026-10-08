@@ -80,9 +80,9 @@ export interface GovernorActions {
   rendersNightlyOnly: boolean;
   /** Sandbox soft: a friend's batch needs ≥ 10 emails (the 48 h rule is suspended). */
   friendsBatchRequireTen: boolean;
-  /** L1 or FOT soft: friends' images are click-to-load. */
+  /** FOT soft (or L3): friends' images are click-to-load. */
   friendsImagesClickToLoad: boolean;
-  /** L2 or FOT at its self-cap: everyone's images are click-to-load. */
+  /** FOT at its self-cap (or L3): everyone's images are click-to-load. */
   imagesClickToLoad: boolean;
   /** L1: classification through Batch only. */
   classificationBatchOnly: boolean;
@@ -439,8 +439,13 @@ function actionsFor(
     rendersOff: r.sandboxStaticOnly || L3,
     rendersNightlyOnly: r.inngestSoft,
     friendsBatchRequireTen: r.sandboxSoft,
-    friendsImagesClickToLoad: L1 || r.fotSoft,
-    imagesClickToLoad: L2 || r.fotCap,
+    // Pictures are the gallery itself, and they cost Fast Origin Transfer, not much else (edf-view
+    // shrinks each once a week; the CDN and browsers keep it). So only FOT (or the L3 freeze)
+    // turns them off; CPU or Neon pressure (L1/L2) cuts background work instead. Until 2026-10-08
+    // any L1 turned friends' pictures off and any L2 everyone's: a CPU L2 left the whole gallery
+    // as alt text while FOT stood at 15%.
+    friendsImagesClickToLoad: r.fotSoft || L3,
+    imagesClickToLoad: r.fotCap || L3,
     classificationBatchOnly: L1,
     autoAiOff: r.aiSoft || L2,
     aiOff: r.aiCap || L3,

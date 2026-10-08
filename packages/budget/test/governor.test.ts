@@ -333,7 +333,9 @@ describe("per-resource actions (FREE-TIER §8.3)", () => {
       recommendTick60: true,
       fillRendersOff: true,
       newBackfillsQueued: true,
-      friendsImagesClickToLoad: true,
+      // Pictures stay on under CPU/Neon pressure; only FOT (or L3) turns them off.
+      friendsImagesClickToLoad: false,
+      imagesClickToLoad: false,
       syncStatusPollingOff: true,
       classificationBatchOnly: true,
       backgroundPollHours: null,
@@ -346,7 +348,8 @@ describe("per-resource actions (FREE-TIER §8.3)", () => {
       plannedRendersOff: true,
       samplesOff: true,
       autoAiOff: true,
-      imagesClickToLoad: true,
+      imagesClickToLoad: false,
+      friendsImagesClickToLoad: false,
       pollMultiplier: 2,
       aiOff: false,
       backgroundWorkOff: false,
@@ -360,6 +363,8 @@ describe("per-resource actions (FREE-TIER §8.3)", () => {
       aiOff: true,
       noBackfills: true,
       continuationKicksOff: true,
+      imagesClickToLoad: true,
+      friendsImagesClickToLoad: true,
     });
   });
 });

@@ -39,7 +39,7 @@ describe.skipIf(!HAS_DB)("governor switches in the page data", () => {
     await (await appPoolOf?.())?.end();
   });
 
-  it("images click-to-load: friends at FOT soft / L1, everyone at FOT self-cap / L2", async () => {
+  it("images click-to-load: friends at FOT soft, everyone at FOT self-cap or L3 (never for CPU L1/L2)", async () => {
     const { getEmailDetail } = await import("@/server/queries/email");
     const me = await createUser(pool, { role: "owner" });
     const friend = await createUser(pool, { role: "friend" });
@@ -55,13 +55,15 @@ describe.skipIf(!HAS_DB)("governor switches in the page data", () => {
     await setGovernor({ level: 0, actions: { friendsImagesClickToLoad: true } });
     expect(await both()).toEqual([false, true]);
     await setGovernor({ level: 1, actions: {} });
-    expect(await both()).toEqual([false, true]);
+    expect(await both()).toEqual([false, false]);
     await setGovernor({
       level: 0,
       actions: { imagesClickToLoad: true, friendsImagesClickToLoad: true },
     });
     expect(await both()).toEqual([true, true]);
     await setGovernor({ level: 2, actions: {} });
+    expect(await both()).toEqual([false, false]);
+    await setGovernor({ level: 3, actions: {} });
     expect(await both()).toEqual([true, true]);
   });
 
