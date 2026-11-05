@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calendarMonthStart,
   computeGovernor,
+  newestChecksAllowed,
   FREE_TIER_PROFILE,
   governorAlerts,
   parseGovernorState,
@@ -236,6 +237,32 @@ describe("projection only raises L1 (FREE-TIER §8.1)", () => {
     expect(
       computeGovernor(input({ aiCapUsd: 10, mtd: { [R.anthropicUsd]: 8.9 } })).actions.aiOff,
     ).toBe(false);
+  });
+});
+
+describe("the nightly check of each user's newest emails (newestChecksOff)", () => {
+  const off = (i: GovernorInput) => computeGovernor(i).actions.newestChecksOff;
+  it("stays on through L1 and L2, where the other planned renders stop", () => {
+    expect(off(input({}))).toBe(false);
+    const l1 = computeGovernor(input({ neon: 50 }));
+    expect([l1.level, l1.actions.fillRendersOff, l1.actions.newestChecksOff]).toEqual([1, true, false]);
+    const l2 = computeGovernor(input({ neon: 60 }));
+    expect([l2.level, l2.actions.plannedRendersOff, l2.actions.newestChecksOff]).toEqual([2, true, false]);
+  });
+  it("is off at L3, once the Sandbox's own allowance gets tight, or near a Vercel hard limit", () => {
+    expect(off(input({ neon: 80 }))).toBe(true);
+    expect(off(input({ r30: { [R.sandboxCpuS]: 9_899 } }))).toBe(false);
+    expect(off(input({ r30: { [R.sandboxCpuS]: 9_900 } }))).toBe(true); // 55% of hard
+    expect(off(input({ r30: { [R.sandboxCreations]: 2_400 } }))).toBe(true); // soft cap
+    expect(off(input({ r30: { [R.sandboxMemGbh]: 378 } }))).toBe(true); // static-only
+    expect(off(input({ r30: { [R.vercelInvocations]: 900_000 } }))).toBe(true); // 90% of hard
+  });
+  it("the render gates read it (a missing switch, as stored before it existed, is off)", () => {
+    expect(newestChecksAllowed({ level: 2, actions: { plannedRendersOff: true, newestChecksOff: false } })).toBe(true);
+    expect(newestChecksAllowed({ level: 1, actions: {} })).toBe(true);
+    expect(newestChecksAllowed({ level: 1, actions: { newestChecksOff: true } })).toBe(false);
+    expect(newestChecksAllowed({ level: 3, actions: { newestChecksOff: false } })).toBe(false);
+    expect(newestChecksAllowed({ level: 0, actions: { rendersOff: true } })).toBe(false);
   });
 });
 

@@ -31,6 +31,12 @@
  * (@edf/pipeline render-policy.ts RECHECK_CANDIDATE_SQL), at any age — `scheduled` while it is
  * among the batch's ~20, `queued` past that or for a friend, `failed` after a failed re-check
  * (tried again a week later, or now with "Analyze this email").
+ *
+ * The nightly check of each user's newest emails (render-policy.ts NEWEST_PER_NIGHT, 2026-11-06)
+ * also runs while the governor has the other planned renders off (L1, L2), for friends too: a
+ * candidate (`newestAhead`: its place among the user's newest unchecked gallery emails) within the
+ * night's number is `scheduled`; past it, `later` ("newer emails are checked first") unless another
+ * render takes it sooner. Not at L3 or with the Sandbox's own allowance tight (`newestChecksOff`).
  */
 
 export type WaitingState =
@@ -45,7 +51,8 @@ export type WaitingState =
   | "failed"
   | "stored"
   | "unscorable"
-  | "mailbox";
+  | "mailbox"
+  | "later";
 
 export interface Waiting {
   state: WaitingState;
@@ -71,6 +78,8 @@ export const RENDER_SCHEDULE = {
   freshBatchMaxCpuS: 500,
   /** render-policy.ts FRESH_CPU_RESOURCE (the usage_ledger row the allowance is read from) */
   freshCpuResource: "render.fresh_cpu_s",
+  /** render-policy.ts NEWEST_PER_NIGHT (each user's newest emails checked a night) */
+  newestPerNight: 10,
 } as const;
 
 /** The first nightly render run strictly after `ms` (render-policy.ts nextNightlyAfter). */
@@ -90,6 +99,8 @@ export interface RenderSwitches {
     fillRendersOff?: boolean;
     samplesOff?: boolean;
     rendersNightlyOnly?: boolean;
+    /** The nightly check of each user's newest emails is off (missing = on, as every switch). */
+    newestChecksOff?: boolean;
   };
 }
 
@@ -138,6 +149,11 @@ export interface WaitingInput {
     fillAhead: number | null;
     /** Scored, but without a design checklist of the current version: a re-check (file comment). */
     recheck?: boolean;
+    /**
+     * A newest-check candidate (render-policy.ts NEWEST_CANDIDATE_SQL): how many of the user's
+     * candidates are newer. null / absent = not a candidate.
+     */
+    newestAhead?: number | null;
   };
 }
 
@@ -156,7 +172,6 @@ export function waitingFor(input: WaitingInput): Waiting {
 
   const owner = role === "owner";
   const planned = a.plannedRendersOff !== true;
-  const nightlyOnly = a.rendersNightlyOnly === true;
   const cap = RENDER_SCHEDULE.batchCapacity;
   const nightlyAt = nextNightlyRun(now);
   const nightly: Waiting = {
@@ -168,6 +183,36 @@ export function waitingFor(input: WaitingInput): Waiting {
   if (req?.state === "running") return { state: "scoring" };
   // Fill only takes analysed mail: one stored without its analysis is scored on demand only.
   if (item.designStatus === "pending" && req?.state !== "queued") return { state: "stored" };
+
+  const other = waitingOtherwise(input, nightly, nightlyAt);
+  // The nightly check of the user's newest emails, right after the batch's queued requests (a
+  // candidate's own queued request can only be a deferred fill, which comes along with it). A
+  // render that comes sooner (a running one, the next fresh batch) is said first.
+  const newest =
+    a.newestChecksOff !== true && typeof item.newestAhead === "number" ? item.newestAhead : null;
+  if (newest === null || other.state === "scoring" || other.state === "soon") return other;
+  const queuedFirst = !planned
+    ? owner
+      ? user.queued.onDemand
+      : 0
+    : user.queued.onDemand +
+      (a.samplesOff === true ? 0 : user.queued.exemplar) +
+      (a.fillRendersOff === true ? 0 : user.queued.fill);
+  if (newest < RENDER_SCHEDULE.newestPerNight && queuedFirst + newest < cap) return nightly;
+  // Past the night's number: it waits its turn behind newer mail, unless the nightly fill takes it.
+  if (other.state === "scheduled" || other.state === "retry") return other;
+  return { state: "later" };
+}
+
+/** waitingFor without the newest check: the queued request, the recheck, fill and fresh rules. */
+function waitingOtherwise(input: WaitingInput, nightly: Waiting, nightlyAt: number): Waiting {
+  const { now, role, user, item } = input;
+  const a = input.governor?.actions ?? {};
+  const owner = role === "owner";
+  const planned = a.plannedRendersOff !== true;
+  const nightlyOnly = a.rendersNightlyOnly === true;
+  const cap = RENDER_SCHEDULE.batchCapacity;
+  const req = item.request;
   if (req?.state === "queued") {
     if (req.kind === "on_demand") {
       // At L2 / the Sandbox self-cap only the owner's on-demand renders run; nightly-only waits for 04:30.

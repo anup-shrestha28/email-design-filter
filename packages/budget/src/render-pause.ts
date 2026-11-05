@@ -10,7 +10,14 @@ import type { GovernorActions } from "./governor";
 export type RenderGovernorActions = Partial<
   Pick<
     GovernorActions,
-    "fillRendersOff" | "plannedRendersOff" | "samplesOff" | "rendersOff" | "friendsBatchRequireTen" | "autoAiOff" | "aiOff"
+    | "fillRendersOff"
+    | "plannedRendersOff"
+    | "samplesOff"
+    | "rendersOff"
+    | "newestChecksOff"
+    | "friendsBatchRequireTen"
+    | "autoAiOff"
+    | "aiOff"
   >
 >;
 
@@ -27,6 +34,14 @@ export function renderGovernorOf(value: { level?: number; actions?: RenderGovern
 /** No render VM at all: L3, or the Sandbox static-only stage. */
 export function rendersStopped(gov: RenderGovernor): boolean {
   return gov.level >= 3 || gov.actions.rendersOff === true;
+}
+
+/**
+ * The nightly check of each user's newest unchecked gallery emails may run (`newestChecksOff`;
+ * like every switch, a missing one is off): through L1–L2, never once renders stop.
+ */
+export function newestChecksAllowed(gov: RenderGovernor): boolean {
+  return !rendersStopped(gov) && gov.actions.newestChecksOff !== true;
 }
 
 /**

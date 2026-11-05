@@ -11,13 +11,18 @@
  *    trigger plans nothing, and queued on-demand requests wait for the nightly run;
  *  - the on-demand trigger (render/requested: a click, or the tick) also plans fresh batches: the
  *    owner's new mail without a score, rendered soon after it arrives under the fill switches, a
- *    rate limit, a daily cap and their own monthly Sandbox allowance (render-policy.ts).
+ *    rate limit, a daily cap and their own monthly Sandbox allowance (render-policy.ts);
+ *  - the nightly run also checks each user's newest unchecked gallery emails (NEWEST_PER_NIGHT),
+ *    friends included whatever their batching rule says, and through L1–L2 too (a friend's batch at
+ *    L2 takes only that, none of their queued requests); never at L3 or with the Sandbox's own
+ *    allowance tight (@edf/budget `newestChecksAllowed`).
  * `gateRenderOptions` re-applies the same switches when a VM is about to start (the plan can be
  * minutes old by then).
  */
 import {
   calibrationFactor,
   FREE_TIER_PROFILE,
+  newestChecksAllowed,
   onDemandPausedReason,
   renderGovernorOf,
   rendersStopped,
@@ -33,6 +38,7 @@ import type { RenderOptions } from "./render";
 import {
   FRESH_ACTIVE_MINUTES,
   FRESH_CANDIDATE_SQL,
+  NEWEST_PER_NIGHT,
   FRESH_CPU_RESOURCE,
   freshDue,
   freshRendersAllowed,
@@ -85,8 +91,15 @@ export function gateRenderOptions(gov: RenderGovernor, role: Role | null, opts: 
   // A fresh batch is a daytime render: none while renders are nightly-only (Inngest soft cap).
   if (opts.fresh && (a as { rendersNightlyOnly?: boolean }).rendersNightlyOnly === true) return null;
   let o: RenderOptions = { ...opts };
+  // The nightly check of the user's newest emails: only while the governor allows it.
+  if (!newestChecksAllowed(gov)) o.newestLimit = 0;
+  const newest = (o.newestLimit ?? 0) > 0;
   if (a.plannedRendersOff) {
-    if (role !== "owner") return null;
+    if (role !== "owner") {
+      // A friend's planned renders and on-demand requests wait; only their newest emails' check runs.
+      if (!newest) return null;
+      return { ...o, onDemandOnly: true, newestOnly: true, fillAllowed: false, samplesAllowed: false, aiSamplesAllowed: false };
+    }
     o = { ...o, onDemandOnly: true, fillAllowed: false, samplesAllowed: false, aiSamplesAllowed: false };
   }
   if (a.fillRendersOff) o.fillAllowed = false;
@@ -149,12 +162,20 @@ export function planFrom(input: {
     return plan;
   }
 
+  // The nightly check of each user's newest emails (render-policy.ts NEWEST_PER_NIGHT): through
+  // L1–L2 as well, for friends too, whatever their batching rule says.
+  const newestLimit = newestChecksAllowed(gov) ? NEWEST_PER_NIGHT : 0;
   const full: RenderOptions = {
     fillAllowed: planned && !actions.fillRendersOff,
     samplesAllowed: planned && !actions.samplesOff,
     aiSamplesAllowed,
     aiRealtimeAllowed,
+    ...(newestLimit > 0 ? { newestLimit } : {}),
   };
+  /** A batch for the user's queued on-demand requests and their newest emails' check. */
+  const onDemandAndNewest: RenderOptions = { ...onDemandOnly, newestLimit };
+  /** A friend's while planned renders are off: their newest emails' check only, nothing queued. */
+  const newestOnly: RenderOptions = { ...onDemandOnly, newestOnly: true, newestLimit };
   const dueBy = new Map(due.map((d) => [d.user_id, d]));
   // The owner first (reserved share), then friends that meet the batching rule.
   const ordered = [...users].sort((a, b) => (a.role === "owner" ? -1 : b.role === "owner" ? 1 : 0));
@@ -165,14 +186,18 @@ export function planFrom(input: {
     const onDemand = Number(d?.on_demand_count ?? 0);
     const oldestHours = d ? (input.now - new Date(d.oldest_at).getTime()) / 3_600_000 : 0;
     if (!planned) {
-      if (u.role === "owner" && onDemand > 0) plan.push({ userId: u.user_id, options: onDemandOnly });
+      if (u.role === "owner") {
+        if (newestLimit > 0) plan.push({ userId: u.user_id, options: onDemandAndNewest });
+        else if (onDemand > 0) plan.push({ userId: u.user_id, options: onDemandOnly });
+      } else if (newestLimit > 0) plan.push({ userId: u.user_id, options: newestOnly });
       continue;
     }
     if (u.role === "owner") {
-      if (queued > 0 || full.fillAllowed) plan.push({ userId: u.user_id, options: full });
+      if (queued > 0 || full.fillAllowed || newestLimit > 0) plan.push({ userId: u.user_id, options: full });
     } else {
       const meetsRule = actions.friendsBatchRequireTen ? queued >= 10 : queued >= 10 || (queued > 0 && oldestHours >= 48);
       if (meetsRule) plan.push({ userId: u.user_id, options: full });
+      else if (newestLimit > 0) plan.push({ userId: u.user_id, options: onDemandAndNewest });
       else if (onDemand > 0) plan.push({ userId: u.user_id, options: onDemandOnly });
     }
   }

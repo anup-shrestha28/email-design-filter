@@ -101,6 +101,32 @@ export const RECHECK_CANDIDATE_SQL = `e.design_status = 'done' AND e.design_scor
   AND NOT EXISTS (SELECT 1 FROM render_request r WHERE r.email_id = e.id AND r.state IN ('queued', 'running', 'failed'))`;
 
 /**
+ * The nightly check of each user's newest emails (2026-11-06): at most this many of a user's newest
+ * unchecked gallery emails (NEWEST_CANDIDATE_SQL) per night, in their own batch, ahead of the
+ * nightly fill — and, unlike fill, also while the governor has the other planned renders off (L1,
+ * L2; @edf/budget `newestChecksAllowed`), so new mail is checked within a night or so whatever the
+ * app's CPU or Neon pressure; never at L3 or once the Sandbox's own allowance gets tight. Friends
+ * included, without their batching rule. About 10 renders a VM, so ≈ 20 a night for two people.
+ */
+export const NEWEST_PER_NIGHT = 10;
+
+/**
+ * A newest-check candidate (`email e` of the user in the transaction): gallery mail without a
+ * design checklist of the current version, analysed, in an active mailbox, that a render can check
+ * — not one its own render already found nothing to measure in (rendered, no score) — with no
+ * render running, none failed in the last 7 days, and no queued request but a fill one (a deferred
+ * fill comes along as it is; an on-demand or sample request keeps its own way). Newest first.
+ */
+export const NEWEST_CANDIDATE_SQL = `e.design_status = 'done' AND ${GALLERY_TYPE_SQL}
+  AND NOT e.security_sensitive AND NOT e.is_hidden
+  AND NOT (e.design_source = 'render' AND e.design_score IS NULL)
+  AND EXISTS (SELECT 1 FROM mailbox m WHERE m.id = e.mailbox_id AND m.status = 'active')
+  AND NOT EXISTS (SELECT 1 FROM email_analysis a WHERE a.email_id = e.id
+    AND a.score_summary #>> '{checklist,v}' = '${CHECKLIST_VERSION}')
+  AND NOT EXISTS (SELECT 1 FROM render_request r WHERE r.email_id = e.id
+    AND (r.state IN ('running', 'failed') OR (r.state = 'queued' AND r.kind <> 'fill')))`;
+
+/**
  * Emails one render step reliably finishes: it picks ≤ 25 (render.ts MAX_EMAILS_PER_BATCH) and
  * prepares one per ~9 s while 30 s of its 230 s budget remain (≈ 22). The UI's "when will it be
  * scored" forecast uses this.

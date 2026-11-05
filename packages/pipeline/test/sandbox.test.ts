@@ -75,6 +75,32 @@ describe.skipIf(!HAS_DB)("sandbox sweep metering", () => {
     expect((await usage("2031-06-01"))["sandbox.creations"]).toBe(3);
   });
 
+  it("the API's own run time wins; a VM it gives no run time for is logged, never silently 0", async () => {
+    const t = (hhmmss: string) => new Date(`2031-07-01T${hhmmss}Z`);
+    const logs: Array<[string, unknown]> = [];
+    const deps = {
+      pool,
+      tickEvery: 30,
+      governorLevel: async () => 0,
+      tokens: null,
+      now: () => t("12:00:00"),
+      log: (event: string, data: unknown) => logs.push([event, data]),
+      sweepSandboxes: async () => ({
+        stopped: [],
+        stopFailed: [],
+        finished: [
+          // Timestamps say nothing (a stop doesn't move them), the API's total says 95 s.
+          { name: "vm-wall", createdAt: t("10:00:00"), stoppedAt: t("10:00:00"), vcpus: 2, wallMs: 95_000 },
+          // No total and no time between the timestamps: can't be measured.
+          { name: "vm-blind", createdAt: t("11:00:00"), stoppedAt: t("11:00:00"), vcpus: 2, wallMs: null },
+        ],
+      }),
+    } as unknown as PipelineDeps;
+    expect(await sweepAndMeterSandboxes(deps)).toEqual({ stopped: 0, stopFailed: 0, metered: 2, vcpuSeconds: 190 });
+    expect((await usage("2031-07-01"))["sandbox.cpu_s"]).toBeCloseTo(190, 3);
+    expect(logs.filter(([e]) => e === "sandbox.unmetered")).toEqual([["sandbox.unmetered", { vms: 1 }]]);
+  });
+
   it("is a no-op without the Sandbox renderer", async () => {
     const deps = { pool, tickEvery: 30, governorLevel: async () => 0, tokens: null } as unknown as PipelineDeps;
     expect(await sweepAndMeterSandboxes(deps)).toEqual({ skipped: "no_sandbox" });

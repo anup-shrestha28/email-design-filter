@@ -318,6 +318,41 @@ describe("waitingFor", () => {
     expect(state(recheck({ item: { request: { kind: "fill", state: "running" } } }))).toBe("scoring");
   });
 
+  it("the nightly check of the newest emails: tonight within its number, through L1–L2, friends too", () => {
+    const old = new Date(NOW - 30 * 24 * H).toISOString();
+    const cand = (ahead: number, over: Parameters<typeof input>[0] = {}) =>
+      input({ ...over, item: { receivedAt: old, everRequested: true, newestAhead: ahead, ...over.item } });
+    const n = RENDER_SCHEDULE.newestPerNight;
+    // Without the check this one is "open it" (past the 14-day fill); with it, tonight.
+    expect(state(input({ item: { receivedAt: old, everRequested: true } }))).toBe("manual");
+    expect(waitingFor(cand(0))).toEqual({ state: "scheduled", at: tonight });
+    expect(state(cand(n - 1))).toBe("scheduled");
+    // Past the night's number: it waits its turn ("newer emails are checked first").
+    expect(state(cand(n))).toBe("later");
+    // The batch's queued requests come first.
+    expect(state(cand(5, { user: { queued: { onDemand: 15, exemplar: 0, fill: 0 } } }))).toBe("later");
+    // Friends too, whatever their batching rule; and at L1 (fill off) and L2 (planned renders off).
+    expect(state(cand(0, { role: "friend" }))).toBe("scheduled");
+    const l1 = { level: 1, actions: { fillRendersOff: true } };
+    const l2 = { level: 2, actions: { fillRendersOff: true, plannedRendersOff: true, samplesOff: true } };
+    expect(state(cand(0, { governor: l1 }))).toBe("scheduled");
+    expect(state(cand(0, { governor: l2, role: "friend" }))).toBe("scheduled");
+    // At L2 a friend's queued requests aren't taken, so they don't come first either.
+    expect(
+      state(cand(5, { governor: l2, role: "friend", user: { queued: { onDemand: 30, exemplar: 0, fill: 0 } } })),
+    ).toBe("scheduled");
+    // Off: L3, or the governor's own switch (the Sandbox's allowance tight).
+    expect(state(cand(0, { governor: { level: 3, actions: {} } }))).toBe("paused");
+    // (then this 30-day-old one is back to "open it": "Analyze this email" still works at L1)
+    expect(state(cand(0, { governor: { level: 1, actions: { fillRendersOff: true, newestChecksOff: true } } }))).toBe(
+      "manual",
+    );
+    // A sooner render is said first: the owner's fresh mail goes in the next fresh batch.
+    expect(state(input({ item: { newestAhead: 0 } }))).toBe("soon");
+    // Running already.
+    expect(state(cand(0, { item: { request: { kind: "fill", state: "running" } } }))).toBe("scoring");
+  });
+
   it("no renderer set up: nothing is promised", () => {
     expect(state({ ...input(), rendererOff: true })).toBe("off");
   });
@@ -378,6 +413,7 @@ describe("waitingCopy: plain words, the viewer's own clock", () => {
         "stored",
         "unscorable",
         "mailbox",
+        "later",
       ] as const
     ).map((s) => waitingCopy({ state: s }, c));
     expect(all.map((x) => x.badge)).toEqual([
@@ -391,6 +427,7 @@ describe("waitingCopy: plain words, the viewer's own clock", () => {
       "Not checked yet",
       "Can't be checked",
       "Not checked yet",
+      "Not checked yet",
     ]);
     expect(all.map((x) => x.line)).toEqual([
       "Ready in a few minutes",
@@ -403,6 +440,7 @@ describe("waitingCopy: plain words, the viewer's own clock", () => {
       "Open it to check it",
       "Not enough to measure",
       "Reconnect Gmail to check it",
+      "Newer emails are checked first",
     ]);
     for (const x of all) {
       expect(x.line.length).toBeLessThanOrEqual(45);
@@ -456,6 +494,7 @@ describe("the numbers match the render planner's", () => {
     expect(RENDER_SCHEDULE.freshCpuSPer30Days).toBe(pipeline.FRESH_CPU_S_PER_30_DAYS);
     expect(RENDER_SCHEDULE.freshBatchMaxCpuS).toBe(pipeline.FRESH_BATCH_MAX_CPU_S);
     expect(RENDER_SCHEDULE.freshCpuResource).toBe(pipeline.FRESH_CPU_RESOURCE);
+    expect(RENDER_SCHEDULE.newestPerNight).toBe(pipeline.NEWEST_PER_NIGHT);
     for (const iso of [
       "2026-09-30T04:29:59Z",
       "2026-09-30T04:30:00Z",

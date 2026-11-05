@@ -632,8 +632,11 @@ Inngest retry and pay for the whole render again:
 If week-1 measurements show VM boot costs more than 15 CPU-s, switch to **multi-user batches with a fresh BrowserContext per email**. That is the same isolation as v1.1's shared renderer, recorded as a decision.
 
 **Metering:**
-- Sandbox time is read from the **Sandbox API** (created and stopped timestamps per sandbox),
-  not the orchestrator's clock. So a VM left behind by a failed step is still counted.
+- Sandbox time is read from the **Sandbox API** (its own wall-clock total per sandbox, else the
+  created and status-change timestamps), not the orchestrator's clock. So a VM left behind by a
+  failed step is still counted. Until 2026-11-06 the stop was read from `updatedAt`, which a stop
+  doesn't move: every VM metered 0 s and no Sandbox CPU was ever recorded (only creations). A
+  finished VM with no measurable run time is now logged (`sandbox.unmetered`).
 - Every tick lists running sandboxes and stops any **older than 250 s**. A render VM's own timeout is ≤ 245 s, so a live render is never killed.
 - Until calibrated, count `vCPUs × wall-clock seconds`, a conservative upper bound.
 - Then apply the weekly factor reconciled against the Sandbox Active CPU shown on the dashboard.
@@ -709,6 +712,16 @@ If a render measures more than 12 CPU-s per email, "fill" renders switch to a li
        month (conservative) or ≈ 60–300 (expected); an early VM a day each would add ≈ 30 boots a month
        per friend (≈ 450 CPU-s at 15 CPU-s a boot), ≈ 8,500 CPU-s at 20 users — two thirds of the budget.
 
+   - **Newest** (2026-11-06, `NEWEST_PER_NIGHT` = 10, `NEWEST_CANDIDATE_SQL`): the nightly run checks
+     each user's 10 newest unchecked gallery emails, right after their queued requests and ahead of
+     the fill — friends included whatever their batching rule says, and **also at L1 and L2**, where
+     fill and the other planned renders are off (a friend's batch at L2 takes only these, none of
+     their queued requests). Off at L3, once the Sandbox's own allowance gets tight (its soft cap or
+     55% of its hard limit) or near a Vercel hard limit (the governor's `newestChecksOff`). Rendered
+     emails with nothing to measure, failed tries (for 7 days) and emails with a queued on-demand or
+     sample request are left to their own way; a deferred fill comes along. Cost: at most one VM of
+     ≤ 10 renders per user a night; a render also checks its template's other emails. Cards past the
+     night's 10 say "Newer emails are checked first".
    - **Re-check** (2026-11-05, `RECHECK_CANDIDATE_SQL`): gallery mail (promotions, events, product
      updates, welcome mail) that has a score but no design checklist of the current version —
      rendered before the checklist existed and since compacted — so the gallery says "Not checked
@@ -1107,8 +1120,8 @@ batches) and Neon to ≈ 62 by month end (L2). Hence the 2-minute idle stop and 
 | Level | Trigger | Behaviour |
 |---|---|---|
 | **L0 Normal** | everything < 80% of its self-cap | as described above |
-| **L1 Saver** | any shared resource ≥ 80% of its self-cap (actual or projected), or Neon compute ≥ 50 CU-h | poll intervals × 2 · alert: "set `TICK_EVERY=60` and redeploy" · fill renders off (fresh batches too) · new backfills queued · UI sync-status polling off (the live gallery's checks and the background sync too, §4.4) · classification through Batch only |
-| **L2 Essentials** | any shared resource ≥ its self-cap (Neon compute: 60 CU-h, actual) | background polling every 6 h · sync-on-open for you always, friends at most every 2 h · planned renders off (your on-demand only) · automatic AI off |
+| **L1 Saver** | any shared resource ≥ 80% of its self-cap (actual or projected), or Neon compute ≥ 50 CU-h | poll intervals × 2 · alert: "set `TICK_EVERY=60` and redeploy" · fill renders off (fresh batches too; the nightly check of each user's 10 newest emails still runs, §5.3 "Newest") · new backfills queued · UI sync-status polling off (the live gallery's checks and the background sync too, §4.4) · classification through Batch only |
+| **L2 Essentials** | any shared resource ≥ its self-cap (Neon compute: 60 CU-h, actual) | background polling every 6 h · sync-on-open for you always, friends at most every 2 h · planned renders off (still on: your on-demand renders and everyone's nightly check of their 10 newest emails, §5.3 "Newest") · automatic AI off |
 | **L3 Frozen** | **actual** usage of: Vercel CPU, invocations, memory or Fast Origin Transfer ≥ 70% of the hard limit (rolling 30 d), **or** Neon CU-h month-to-date ≥ 80, **or** Inngest month-to-date ≥ 40k (should never happen) | all background work and on-demand features off. Stored data stays readable; export, delete and disconnect still work. Banner plus alert. |
 
 Pictures are never switched off by a level alone (L1/L2 since 2026-10-08, L3 since 2026-11-05): only Fast Origin Transfer (§8.3 below), or a shared Vercel resource at ≥ 90% of its hard limit (a pause would take the whole app down), makes them click-to-load. The idle app's own wake-ups had held it at L3 from Oct 10 to Nov 5 with the gallery as alt text. A CPU L2 had turned the whole gallery into alt text while FOT stood at 15%; pictures are shrunk once a week and cost little CPU. The CPU calibration was set to 1.25 from the dashboard (2h 11m Fluid Active CPU against 6,475–6,650 metered CPU-s, ratio ≈ 1.2).

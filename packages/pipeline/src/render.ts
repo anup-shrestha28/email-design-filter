@@ -46,6 +46,7 @@ import { errorCode } from "./poll";
 import { currentRenderOptions, freshCpuUsed } from "./render-plan";
 import {
   FILL_WINDOW_DAYS,
+  NEWEST_CANDIDATE_SQL,
   RECHECK_CANDIDATE_SQL,
   FRESH_CANDIDATE_SQL,
   FRESH_CPU_RESOURCE,
@@ -115,6 +116,17 @@ export interface RenderOptions {
    * template samples (they wait for the nightly run, as before).
    */
   fresh?: boolean;
+  /**
+   * The nightly check of the user's newest emails (render-policy.ts NEWEST_PER_NIGHT): at most this
+   * many newest unchecked gallery emails, right after the queued requests, ahead of the fill.
+   * Absent / 0 = none (and never in a fresh batch).
+   */
+  newestLimit?: number;
+  /**
+   * Only the newest check: no queued request of any kind is taken (a friend's batch while the
+   * governor has planned renders off, when their on-demand requests wait too).
+   */
+  newestOnly?: boolean;
   /** AI batches for samples allowed (seen ≥ 2, budget, not paused). */
   aiSamplesAllowed: boolean;
   /** On-demand "Run AI review" allowed (governor aiOff / AI paused → false). */
@@ -199,6 +211,7 @@ export function designColumnsFor(
  * record, render-policy.ts).
  */
 export function workKinds(opts: RenderOptions): Kind[] {
+  if (opts.newestOnly) return [];
   const kinds: Kind[] = ["on_demand"];
   if (!opts.onDemandOnly && !opts.fresh && opts.samplesAllowed) kinds.push("exemplar");
   if (!opts.onDemandOnly && !opts.fresh && opts.fillAllowed) kinds.push("fill");
@@ -250,6 +263,44 @@ async function pickWork(
       wantAi: r.want_ai,
       attempts: r.attempts,
     }));
+    // The nightly check of the user's newest emails (NEWEST_CANDIDATE_SQL), ahead of the fill: a
+    // deferred fill of one comes along as it is; the others get a fill request of their own.
+    const newestRoom = opts.fresh ? 0 : Math.min(opts.newestLimit ?? 0, MAX_EMAILS_PER_BATCH - items.length);
+    if (newestRoom > 0) {
+      const newest = await c.query<{ id: string }>(
+        `SELECT e.id FROM email e
+         WHERE e.user_id = $1 AND ${NEWEST_CANDIDATE_SQL} AND NOT (e.id = ANY($2::uuid[]))
+         ORDER BY e.received_at DESC, e.id DESC LIMIT $3`,
+        [userId, items.map((i) => i.emailId), newestRoom],
+      );
+      const ids = newest.rows.map((r) => r.id);
+      if (ids.length) {
+        const deferred = await c.query<{ id: string; email_id: string; want_ai: boolean; attempts: number }>(
+          `SELECT id, email_id, want_ai, attempts FROM render_request
+           WHERE user_id = $1 AND state = 'queued' AND kind = 'fill' AND email_id = ANY($2::uuid[])
+           FOR UPDATE SKIP LOCKED`,
+          [userId, ids],
+        );
+        const have = new Set(deferred.rows.map((r) => r.email_id));
+        const added = await c.query<{ id: string; email_id: string }>(
+          `INSERT INTO render_request (user_id, email_id, kind)
+           SELECT $1, x, 'fill' FROM unnest($2::uuid[]) x
+           ON CONFLICT (email_id) WHERE state IN ('queued', 'running') DO NOTHING
+           RETURNING id, email_id`,
+          [userId, ids.filter((id) => !have.has(id))],
+        );
+        items = items.concat(
+          deferred.rows.map((r) => ({
+            requestId: r.id,
+            emailId: r.email_id,
+            kind: "fill" as const,
+            wantAi: r.want_ai,
+            attempts: r.attempts,
+          })),
+          added.rows.map((r) => ({ requestId: r.id, emailId: r.email_id, kind: "fill" as const, wantAi: false, attempts: 0 })),
+        );
+      }
+    }
     if (opts.fillAllowed && !opts.onDemandOnly && items.length < MAX_EMAILS_PER_BATCH) {
       // Nightly: recent designable mail without its own render (static or template coverage), in an
       // active mailbox (loadEmail refuses the others). Fresh: only new mail with no score at all.

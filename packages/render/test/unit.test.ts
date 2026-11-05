@@ -390,11 +390,28 @@ describe("orphan sweep and API metering (FREE-TIER.md §5.1 Metering)", () => {
     ]);
     const r = await sweepSandboxes(o, { now, since: ago(3_600_000) });
     expect(r.finished).toEqual([
-      { name: "done", createdAt: created, stoppedAt: ago(110_000), vcpus: 4 },
-      { name: "failed-untagged", createdAt: created, stoppedAt: created, vcpus: 2 },
-      { name: "aborted", createdAt: created, stoppedAt: created, vcpus: 2 },
+      { name: "done", createdAt: created, stoppedAt: ago(110_000), vcpus: 4, wallMs: null },
+      { name: "failed-untagged", createdAt: created, stoppedAt: created, vcpus: 2, wallMs: null },
+      { name: "aborted", createdAt: created, stoppedAt: created, vcpus: 2, wallMs: null },
     ]);
     expect(sandboxUsage(r.finished[0]!)).toEqual({ wallSeconds: 90, vcpuSeconds: 360 });
+  });
+  it("a stop is read from the status change and the API's own run time, not from updatedAt", async () => {
+    // A stop leaves updatedAt at creation (2026-11-06: every VM metered 0 s).
+    const created = ago(200_000);
+    const o = ops([
+      vm({ name: "status", status: "stopped", createdAt: created, updatedAt: created, statusUpdatedAt: ago(120_000) }),
+      vm({ name: "total", status: "stopped", createdAt: created, updatedAt: created, totalDurationMs: 95_000 }),
+      vm({ name: "bad-total", status: "stopped", createdAt: created, updatedAt: created, totalDurationMs: -5 }),
+    ]);
+    const r = await sweepSandboxes(o, { now, since: ago(3_600_000) });
+    expect(r.finished.map((f) => [f.name, f.stoppedAt, f.wallMs])).toEqual([
+      ["status", ago(120_000), null],
+      ["total", created, 95_000],
+      ["bad-total", created, null],
+    ]);
+    expect(sandboxUsage(r.finished[0]!)).toEqual({ wallSeconds: 80, vcpuSeconds: 160 });
+    expect(sandboxUsage(r.finished[1]!)).toEqual({ wallSeconds: 95, vcpuSeconds: 190 });
   });
   it("keeps sweeping when one stop fails", async () => {
     const o = ops(

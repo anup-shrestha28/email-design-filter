@@ -29,6 +29,8 @@ export interface SandboxUsage {
   /** null while the VM is still running. */
   stoppedAt: Date | null;
   vcpus: number;
+  /** The API's own wall-clock total (ms), when it gives one: it wins over the timestamps. */
+  wallMs?: number | null;
 }
 
 /**
@@ -41,7 +43,10 @@ export function sandboxUsage(
   now: Date = new Date(),
 ): { wallSeconds: number; vcpuSeconds: number } {
   const end = u.stoppedAt ?? now;
-  const wallSeconds = Math.max(0, (end.getTime() - u.createdAt.getTime()) / 1000);
+  const wallSeconds =
+    typeof u.wallMs === "number" && Number.isFinite(u.wallMs) && u.wallMs >= 0
+      ? u.wallMs / 1000
+      : Math.max(0, (end.getTime() - u.createdAt.getTime()) / 1000);
   return { wallSeconds, vcpuSeconds: wallSeconds * u.vcpus };
 }
 
@@ -212,6 +217,14 @@ export interface SandboxListing {
   status: SandboxStatus;
   createdAt: Date;
   updatedAt: Date;
+  /**
+   * When the status last changed (the stop, for a finished VM). `updatedAt` isn't moved by a stop,
+   * so a VM metered from it read 0 s (2026-11-06: no Sandbox CPU was ever recorded); null when the
+   * API doesn't say.
+   */
+  statusUpdatedAt?: Date | null;
+  /** The API's own wall-clock total across the VM's sessions (ms); null when it doesn't say. */
+  totalDurationMs?: number | null;
   vcpus: number | null;
   tags: Record<string, string>;
 }
@@ -236,6 +249,8 @@ export const vercelSandboxOps: SandboxOps = {
         status: s.status,
         createdAt,
         updatedAt: new Date(s.updatedAt),
+        statusUpdatedAt: typeof s.statusUpdatedAt === "number" ? new Date(s.statusUpdatedAt) : null,
+        totalDurationMs: typeof s.totalDurationMs === "number" ? s.totalDurationMs : null,
         vcpus: typeof s.vcpus === "number" ? s.vcpus : null,
         tags: s.tags ?? {},
       });
@@ -255,8 +270,11 @@ export interface SweepResult {
   /** Tagged edf=render, status pending|running, older than `olderThanMs`. */
   stopped: string[];
   stopFailed: string[];
-  /** Every VM (tagged or not) in status stopped|failed|aborted, for exactly-once metering. */
-  finished: Array<{ name: string; createdAt: Date; stoppedAt: Date; vcpus: number }>;
+  /**
+   * Every VM (tagged or not) in status stopped|failed|aborted, for exactly-once metering.
+   * `wallMs`: the API's own wall-clock total when it gives one (else null: stoppedAt − createdAt).
+   */
+  finished: Array<{ name: string; createdAt: Date; stoppedAt: Date; vcpus: number; wallMs: number | null }>;
 }
 
 /**
@@ -273,12 +291,19 @@ export async function sweepSandboxes(
   const result: SweepResult = { stopped: [], stopFailed: [], finished: [] };
   for (const s of listing) {
     if (s.status === "stopped" || s.status === "failed" || s.status === "aborted") {
-      const stoppedAt = s.updatedAt.getTime() < s.createdAt.getTime() ? s.createdAt : s.updatedAt;
+      // The stop time: when the status last changed, else the last update; never before creation.
+      const end = s.statusUpdatedAt ?? s.updatedAt;
+      const stoppedAt = end.getTime() < s.createdAt.getTime() ? s.createdAt : end;
+      const wallMs =
+        typeof s.totalDurationMs === "number" && Number.isFinite(s.totalDurationMs) && s.totalDurationMs >= 0
+          ? s.totalDurationMs
+          : null;
       result.finished.push({
         name: s.name,
         createdAt: s.createdAt,
         stoppedAt,
         vcpus: s.vcpus ?? SANDBOX_VCPUS,
+        wallMs,
       });
       continue;
     }

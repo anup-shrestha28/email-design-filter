@@ -133,6 +133,13 @@ export function waitingCopy(w: Waiting | null | undefined, c: DateContext): Wait
         detail:
           "It can't be checked while its Gmail account is disconnected. You can reconnect it in Settings.",
       };
+    case "later":
+      return {
+        badge: "Not checked yet",
+        line: "Newer emails are checked first",
+        detail:
+          "Each night your 10 newest unchecked designs are checked first, so this one waits its turn.",
+      };
     default:
       return { badge: "Not checked yet", line: "", detail: UNSCORED_LINE };
   }

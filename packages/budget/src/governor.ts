@@ -76,6 +76,13 @@ export interface GovernorActions {
   samplesOff: boolean;
   /** Sandbox near its hard limit (or L3): static-only, no render VM is created at all. */
   rendersOff: boolean;
+  /**
+   * The nightly check of each user's newest unchecked gallery emails (@edf/pipeline render-policy.ts
+   * NEWEST_PER_NIGHT) is off: L3, any render stop, the Sandbox at its soft cap or ≥ 55% of its hard
+   * limit (its own allowance is what renders spend), or a shared Vercel resource near its hard limit.
+   * On through L1–L2, where CPU or Neon pressure cuts the other planned renders (2026-11-06).
+   */
+  newestChecksOff: boolean;
   /** Inngest soft: renders only in the nightly run. */
   rendersNightlyOnly: boolean;
   /** Sandbox soft: a friend's batch needs ≥ 10 emails (the 48 h rule is suspended). */
@@ -442,6 +449,8 @@ function actionsFor(
     plannedRendersOff: L2 || r.sandboxCap,
     samplesOff: r.sandboxCap || L2,
     rendersOff: r.sandboxStaticOnly || L3,
+    newestChecksOff:
+      L3 || r.sandboxStaticOnly || r.sandboxSoft || r.sandboxFillLimit || r.vercelNearHard,
     rendersNightlyOnly: r.inngestSoft,
     friendsBatchRequireTen: r.sandboxSoft,
     // Pictures are the gallery itself, and they cost Fast Origin Transfer, not much else (saved

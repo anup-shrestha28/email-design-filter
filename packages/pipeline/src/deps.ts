@@ -24,7 +24,8 @@ export interface RendererLike {
 export interface SandboxSweepLike {
   stopped: string[];
   stopFailed: string[];
-  finished: Array<{ name: string; createdAt: Date; stoppedAt: Date; vcpus: number }>;
+  /** `wallMs`: the API's own wall-clock total when it gives one (else stoppedAt − createdAt). */
+  finished: Array<{ name: string; createdAt: Date; stoppedAt: Date; vcpus: number; wallMs?: number | null }>;
 }
 
 /** Development only: raw messages for fixture mailboxes instead of Gmail. */

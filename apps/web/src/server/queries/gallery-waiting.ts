@@ -5,9 +5,9 @@
  * Runs inside the gallery query's transaction (RLS-scoped to the user), one query for the user
  * and one for the page's unchecked emails; nothing when every design on the page is checked.
  *
- * The candidate conditions mirror @edf/pipeline (render-policy.ts FRESH_CANDIDATE_SQL and
- * RECHECK_CANDIDATE_SQL, render.ts pickWork's nightly fill); the tests check both count the same
- * emails.
+ * The candidate conditions mirror @edf/pipeline (render-policy.ts FRESH_CANDIDATE_SQL,
+ * RECHECK_CANDIDATE_SQL and NEWEST_CANDIDATE_SQL, render.ts pickWork's nightly fill); the tests
+ * check both count the same emails.
  */
 import "server-only";
 import { calibrationFactor, FREE_TIER_PROFILE, RESOURCES, resourceSpec } from "@edf/budget";
@@ -61,6 +61,19 @@ export function recheckCandidate(alias: string): SQL {
     AND NOT EXISTS (SELECT 1 FROM render_request r WHERE r.email_id = ${e}.id AND r.state IN ('queued', 'running', 'failed'))`;
 }
 
+/** A newest-check candidate (render-policy.ts NEWEST_CANDIDATE_SQL; the tests check both agree). */
+export function newestCandidate(alias: string): SQL {
+  const e = sql.raw(alias);
+  return sql`${e}.design_status = 'done' AND ${galleryType(alias)}
+    AND NOT ${e}.security_sensitive AND NOT ${e}.is_hidden
+    AND NOT (${e}.design_source = 'render' AND ${e}.design_score IS NULL)
+    AND EXISTS (SELECT 1 FROM mailbox m WHERE m.id = ${e}.mailbox_id AND m.status = 'active')
+    AND NOT EXISTS (SELECT 1 FROM email_analysis na WHERE na.email_id = ${e}.id
+      AND na.score_summary #>> '{checklist,v}' = ${CHECKLIST_VERSION}::text)
+    AND NOT EXISTS (SELECT 1 FROM render_request r WHERE r.email_id = ${e}.id
+      AND (r.state IN ('running', 'failed') OR (r.state = 'queued' AND r.kind <> 'fill')))`;
+}
+
 /** render.ts pickWork's order for queued requests: on-demand, then samples, then fill; oldest first. */
 const KIND_RANK = (alias: string) =>
   sql.raw(`(CASE ${alias}.kind WHEN 'on_demand' THEN 0 WHEN 'exemplar' THEN 1 ELSE 2 END)`);
@@ -92,6 +105,8 @@ interface ItemRow {
   fill_ahead: number | null;
   /** Re-checks only: every regular nightly fill candidate plus the newer re-check candidates. */
   recheck_ahead: number | null;
+  /** Newest-check candidates only: the user's candidates newer than it (pickWork's order). */
+  newest_ahead: number | null;
 }
 
 /** `items` with `waiting` set on the unchecked ones (the others are returned as they are). */
@@ -146,7 +161,12 @@ export async function withWaiting(
                (SELECT count(*)::int FROM email f WHERE f.user_id = ${userId} AND ${nightlyFillCandidate("f")})
                + (SELECT count(*)::int FROM email f
                   WHERE f.user_id = ${userId} AND ${recheckCandidate("f")} AND f.received_at > e.received_at)
-             ) END AS recheck_ahead
+             ) END AS recheck_ahead,
+             CASE WHEN ${newestCandidate("e")} THEN (
+               SELECT count(*)::int FROM email f
+               WHERE f.user_id = ${userId} AND ${newestCandidate("f")}
+                 AND (f.received_at, f.id) > (e.received_at, e.id)
+             ) END AS newest_ahead
       FROM email e
       LEFT JOIN render_request r ON r.email_id = e.id AND r.user_id = e.user_id AND r.state IN ('queued', 'running')
       WHERE e.user_id = ${userId} AND e.id = ANY(${idList})`)
@@ -195,6 +215,7 @@ export async function withWaiting(
         freshAhead: r.fresh_ahead,
         fillAhead: recheck ? r.recheck_ahead : r.fill_ahead,
         recheck,
+        newestAhead: r.newest_ahead,
       },
     });
     return { ...item, waiting };

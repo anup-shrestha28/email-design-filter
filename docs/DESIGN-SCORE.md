@@ -580,7 +580,8 @@ Calibrated on the owner's and a friend's 137 fully measured gallery emails (2026
 Okay 55, Bad 76 — letter-style emails with text links and no button miss 7–8 rules. Rows analysed
 before v1.8 got their checklist from their stored checks (`apps/web/scripts/backfill-checklist.ts`);
 gallery mail whose checks were already compacted is re-rendered by the nightly fill, after its
-regular candidates (FREE-TIER.md §5.3 "Re-check").
+regular candidates (FREE-TIER.md §5.3 "Re-check"), and every night each user's 10 newest unchecked
+gallery emails are checked first, also while the free-tier governor is saving (§5.3 "Newest").
 
 ## 4. Hard caps (show-stoppers)
 

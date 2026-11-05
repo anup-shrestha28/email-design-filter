@@ -399,12 +399,13 @@ describe.skipIf(!HAS_DB)(
         tried: "retry", // its fill render failed: the nightly run tries again
         measured: "unscorable",
         older: "scheduled",
-        old: "manual",
+        old: "scheduled", // past the 14-day fill, but among the newest unchecked: checked tonight
         disconnected: "mailbox",
         scored: "scored",
         prechecklist: "scheduled",
       });
-      expect(await states(friend.id)).toEqual({ friends: "queued" });
+      // A friend's newest emails are checked at night whatever their batching rule says.
+      expect(await states(friend.id)).toEqual({ friends: "scheduled" });
       const page = await gallery.listGallery(me.id, params({ size: 96 }));
       const tonight = page.items.find((i) => i.subject === "older")!.waiting!;
       expect(Date.parse(tonight.at!) - Date.now()).toBeGreaterThan(0);
@@ -419,15 +420,32 @@ describe.skipIf(!HAS_DB)(
         await owner.query(
           `UPDATE app_setting SET value = '{"level":1,"actions":{"fillRendersOff":true}}' WHERE key = 'governor'`,
         );
-        // Fill off (L1): nothing is rendered on its own, but "Analyze this email" still works.
+        // Fill off (L1): no fill or fresh batch, but the nightly check of the newest emails runs,
+        // for friends too.
+        expect(await states(me.id)).toMatchObject({
+          fresh: "scheduled",
+          running: "scoring",
+          older: "scheduled",
+          old: "scheduled",
+          tried: "paused", // its last render failed (kept 7 days): not a newest candidate; fill is off
+        });
+        expect(await states(friend.id)).toEqual({ friends: "scheduled" });
+        // …unless the governor turns that check off too (the Sandbox's own allowance tight).
+        await owner.query(
+          `UPDATE app_setting SET value = '{"level":1,"actions":{"fillRendersOff":true,"newestChecksOff":true}}' WHERE key = 'governor'`,
+        );
         expect(await states(me.id)).toMatchObject({
           fresh: "paused",
           running: "scoring",
           older: "paused",
           old: "manual",
         });
-        // Friends' mail too: fill is off for everyone.
         expect(await states(friend.id)).toEqual({ friends: "paused" });
+        // Planned renders off (L2): a friend's newest emails are still checked at night.
+        await owner.query(
+          `UPDATE app_setting SET value = '{"level":2,"actions":{"fillRendersOff":true,"plannedRendersOff":true,"samplesOff":true}}' WHERE key = 'governor'`,
+        );
+        expect(await states(friend.id)).toEqual({ friends: "scheduled" });
         await owner.query(
           `UPDATE app_setting SET value = '{"level":0,"actions":{"rendersNightlyOnly":true}}' WHERE key = 'governor'`,
         );
@@ -484,6 +502,26 @@ describe.skipIf(!HAS_DB)(
       const web = await count(waiting.recheckCandidate("e"));
       expect(web).toBe(1); // "prechecklist" only: "scored" has its checklist, the rest no score
       expect(await count(sql.raw(RECHECK_CANDIDATE_SQL))).toBe(web);
+    });
+
+    it("the web's newest-check rule counts the same emails as the pipeline's", async () => {
+      const { NEWEST_CANDIDATE_SQL } = await import("@edf/pipeline");
+      for (const userId of [me.id, friend.id]) {
+        const count = (cond: ReturnType<typeof sql>) =>
+          withUser(app, userId, async (db) =>
+            Number(
+              (
+                await raw(db).execute<{ n: number }>(
+                  sql`SELECT count(*)::int AS n FROM email e WHERE e.user_id = ${userId} AND ${cond}`,
+                )
+              ).rows[0]!.n,
+            ),
+          );
+        const web = await count(waiting.newestCandidate("e"));
+        expect(await count(sql.raw(NEWEST_CANDIDATE_SQL))).toBe(web);
+        // Mine: fresh, older, old, prechecklist (not running, tried, measured, disconnected or scored).
+        if (userId === me.id) expect(web).toBe(4);
+      }
     });
 
     it("nothing extra is read when every design on the page is scored", async () => {

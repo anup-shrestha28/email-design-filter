@@ -2,9 +2,12 @@
  * Sandbox orphan sweep + metering (FREE-TIER.md §5.1 "Metering"), run by every tick when the
  * renderer is the Vercel Sandbox:
  *  - stops render VMs older than 250 s (a live render's own timeout is ≤ 245 s, so none is killed);
- *  - meters every finished VM on the account exactly once, from the Sandbox API's created/stopped
- *    timestamps, so a VM left behind by a failed step is still counted. The dedupe row
- *    (`sandbox_metered`) and its `usage_ledger` amounts commit in one transaction.
+ *  - meters every finished VM on the account exactly once, from the Sandbox API's own wall-clock
+ *    total (or its created and status-change times), so a VM left behind by a failed step is still
+ *    counted. The dedupe row (`sandbox_metered`) and its `usage_ledger` amounts commit in one
+ *    transaction. A finished VM whose run time the API doesn't give is logged
+ *    (`sandbox.unmetered`), never silently counted as 0 s: until 2026-11-06 the stop time was read
+ *    from `updatedAt`, which a stop doesn't move, and no Sandbox CPU was ever recorded.
  * Until calibrated, usage is `vCPUs × wall seconds` (a conservative upper bound).
  */
 import { withSystem } from "@edf/db";
@@ -31,6 +34,7 @@ export async function sweepAndMeterSandboxes(deps: PipelineDeps): Promise<Sandbo
   );
   let metered = 0;
   let vcpuSeconds = 0;
+  let unmetered = 0;
   if (finished.length > 0) {
     await withSystem(deps.pool, async (_db, c) => {
       const fresh = await c.query<{ name: string }>(
@@ -47,7 +51,11 @@ export async function sweepAndMeterSandboxes(deps: PipelineDeps): Promise<Sandbo
       };
       for (const f of finished) {
         if (!isFresh.has(f.name)) continue;
-        const secs = Math.max(0, (f.stoppedAt.getTime() - f.createdAt.getTime()) / 1000);
+        const secs =
+          typeof f.wallMs === "number" && Number.isFinite(f.wallMs) && f.wallMs >= 0
+            ? f.wallMs / 1000
+            : Math.max(0, (f.stoppedAt.getTime() - f.createdAt.getTime()) / 1000);
+        if (secs === 0) unmetered++;
         const vcpus = Number.isInteger(f.vcpus) && f.vcpus >= 1 && f.vcpus <= 64 ? f.vcpus : 2;
         add(RESOURCES.sandboxCpuS, vcpus * secs, f.stoppedAt);
         add(RESOURCES.sandboxMemGbh, (vcpus * FREE_TIER_PROFILE.sandboxMemoryGbPerVcpu * secs) / 3600, f.stoppedAt);
@@ -64,5 +72,7 @@ export async function sweepAndMeterSandboxes(deps: PipelineDeps): Promise<Sandbo
 
   const out: SandboxMeterResult = { stopped: sweep.stopped.length, stopFailed: sweep.stopFailed.length, metered, vcpuSeconds: Math.round(vcpuSeconds) };
   if (out.stopped > 0 || out.stopFailed > 0 || out.metered > 0) logOf(deps)("sandbox.sweep", { ...out });
+  // A VM that ran yet reads 0 s means the API gave no run time: the meter is blind to it.
+  if (unmetered > 0) logOf(deps)("sandbox.unmetered", { vms: unmetered });
   return out;
 }
