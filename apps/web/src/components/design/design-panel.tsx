@@ -9,6 +9,7 @@ import {
   ShieldQuestion,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { ChecklistNotes, ChecklistRows } from "@/components/gallery/checklist-rows";
 import { VerdictBadge } from "@/components/gallery/verdict-badge";
 import { BandPill } from "@/components/ui/band-pill";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import { ScoreRing } from "@/components/ui/score-ring";
 import { Time } from "@/components/ui/time";
 import { cn } from "@/lib/cn";
 import { compatibleStrengthItems } from "@/lib/gallery";
+import { checklistEvidence } from "@/lib/gallery-evidence";
 import { formatPoints } from "@/lib/format";
 import type { Verdict } from "@/lib/gallery";
 import { STATIC_CHIP_FALLBACK } from "@/lib/labels";
@@ -118,6 +120,25 @@ function Section({
   );
 }
 
+/**
+ * The design checklist that decides the Good / Okay / Bad word (lib/gallery.ts VERDICT POLICY): the
+ * same saved checklist and words as the gallery's "How we judged this". Nothing for a design that
+ * isn't checked yet.
+ */
+function DesignRules({ checklist }: { checklist: unknown }) {
+  const ev = checklistEvidence(checklist);
+  if (!ev) return null;
+  return (
+    <Section title="Design rules (they decide Good, Okay or Bad)">
+      <div className="space-y-3">
+        <p className="text-sm leading-6 text-foreground">{ev.sentence}</p>
+        <ChecklistRows rows={ev.rows} />
+        <ChecklistNotes notes={ev.notes} />
+      </div>
+    </Section>
+  );
+}
+
 function Header({ design, sampleDate }: { design: Design; sampleDate: string | null }) {
   const coverage = design.result?.coverage ?? design.summary?.coverage ?? null;
   return (
@@ -191,7 +212,7 @@ function Headline({
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
         <div className="flex flex-wrap items-center gap-2">
           {verdict ? (
-            <VerdictBadge verdict={verdict} score={score} size="lg" />
+            <VerdictBadge verdict={verdict} size="lg" />
           ) : (
             <BandPill band={band} provisional={provisional} />
           )}
@@ -386,6 +407,7 @@ function FullResult({
         {...(design.verdict ? { verdict: design.verdict } : {})}
         note={result.provisional ? <ProvisionalNote result={result} /> : null}
       />
+      <DesignRules checklist={design.summary?.checklist ?? null} />
       <Section title="Where the points come from">
         <PillarBars pillars={result.pillars} raw={result.raw} />
       </Section>
@@ -442,6 +464,7 @@ function SummaryResult({
           </p>
         }
       />
+      <DesignRules checklist={summary.checklist ?? null} />
       <Section title="Where the points come from">
         <PillarBars pillars={summary.pillars} raw={summary.raw} />
       </Section>

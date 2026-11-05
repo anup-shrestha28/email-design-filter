@@ -2,7 +2,6 @@
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import {
   ArrowRight,
-  Check,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -22,7 +21,6 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Time } from "@/components/ui/time";
 import { cn } from "@/lib/cn";
 import { GALLERY_CATEGORY_LABELS, galleryHref } from "@/lib/gallery";
-import { withoutRestatedLines } from "@/lib/gallery-evidence";
 import {
   fullFrame,
   PHONE_WIDTH,
@@ -38,7 +36,6 @@ import { gaveUp, isFresh, usePreviewUrl, useRequestWhile, viewModeOf } from "./p
 import { useGalleryParams } from "./use-gallery-params";
 import { VerdictBadge } from "./verdict-badge";
 import {
-  shownEvidence,
   useChecksOpen,
   useVerdictEvidence,
   VerdictEvidence,
@@ -292,49 +289,13 @@ export function phoneCaption(fit: { scale: number }): string {
   return `Far too wide for phones: shown shrunk to ${pct}%, as phone mail apps do, so it's hard to read`;
 }
 
-function Findings({
-  title,
-  items,
-  kind,
-}: {
-  title: string;
-  items: string[];
-  kind: "problem" | "strength";
-}) {
-  if (items.length === 0) return null;
-  const Icon = kind === "strength" ? Check : X;
-  return (
-    <section className="space-y-2">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      <ul className="space-y-1.5">
-        {items.map((t) => (
-          <li key={t} className="flex items-start gap-2 text-sm leading-6 text-foreground">
-            <Icon
-              aria-hidden
-              strokeWidth={2.75}
-              className={cn(
-                "mt-1.5 size-3.5 shrink-0",
-                kind === "strength" ? "text-band-excellent" : "text-band-poor",
-              )}
-            />
-            <span>
-              <span className="sr-only">{kind === "strength" ? "Strength: " : "Problem: "}</span>
-              {t}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 /** The verdict and its one-line reason: above the email on phones, so the design comes first. */
 function VerdictSummary({ item }: { item: GalleryItem }) {
   if (item.verdict === "unscored") return <WaitingSummary item={item} />;
   const text = item.reason?.text;
   return (
     <div className="flex items-start gap-2.5">
-      <VerdictBadge verdict={item.verdict} score={item.score} />
+      <VerdictBadge verdict={item.verdict} />
       {text ? <p className="min-w-0 pt-0.5 text-sm leading-5 text-foreground">{text}</p> : null}
     </div>
   );
@@ -409,7 +370,7 @@ function SimilarList({
                   variant="full"
                   className="min-w-0 flex-1 truncate tabular"
                 />
-                <VerdictBadge verdict={it.verdict} score={it.score} />
+                <VerdictBadge verdict={it.verdict} />
               </button>
             </li>
           );
@@ -431,15 +392,10 @@ export function VerdictPanel({
   similar: GalleryItem[];
   onOpenSimilar: (id: string) => void;
 }) {
-  // "How we judged this" states the deciding rule and each failed check with its value and limit,
-  // so the problem list (made plain and specific on the server, deduplicated by root cause, ≤ 3
-  // each) doesn't say them again — only what is in view: while the checks are folded, just the
-  // sentence's own statement is left out.
+  // "How we judged this" lists every design rule with what was measured: the whole reason for the
+  // verdict, so there are no separate problem / strength lists for a checked design.
   const evidence = useVerdictEvidence(item);
   const [checksOpen, setChecksOpen] = useChecksOpen(item);
-  const problems = withoutRestatedLines(item.problems, shownEvidence(item, evidence), checksOpen);
-  const strengths = item.strengths;
-  const good = item.verdict === "good";
   const { params } = useGalleryParams();
   // The full analysis page's "← All designs" returns to this gallery view, filters and all.
   const analysisHref = `/email/${item.id}?back=${encodeURIComponent(galleryHref(params))}`;
@@ -450,7 +406,7 @@ export function VerdictPanel({
           {item.verdict === "unscored" ? (
             <WaitingBadge waiting={item.waiting} size="lg" />
           ) : (
-            <VerdictBadge verdict={item.verdict} score={item.score} size="lg" />
+            <VerdictBadge verdict={item.verdict} size="lg" />
           )}
         </div>
       ) : null}
@@ -463,23 +419,7 @@ export function VerdictPanel({
           onOpenChange={setChecksOpen}
         />
       )}
-      {item.verdict === "unscored" ? (
-        <WaitingDetail item={item} />
-      ) : good ? (
-        <>
-          <Findings title="Why it's good" items={strengths} kind="strength" />
-          <Findings title="Could be better" items={problems} kind="problem" />
-        </>
-      ) : (
-        <>
-          <Findings
-            title={item.verdict === "bad" ? "What's wrong" : "What could be better"}
-            items={problems}
-            kind="problem"
-          />
-          <Findings title="What works" items={strengths} kind="strength" />
-        </>
-      )}
+      {item.verdict === "unscored" ? <WaitingDetail item={item} /> : null}
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-t border-border pt-4 text-sm">
         <dt className="text-muted-foreground">Category</dt>
         <dd className="text-foreground">{GALLERY_CATEGORY_LABELS[item.category]}</dd>

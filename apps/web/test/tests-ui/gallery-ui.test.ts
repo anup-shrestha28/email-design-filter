@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { backLinkOf, DEFAULT_BACK } from "@/lib/back-link";
-import { groupSimilar, shownScore } from "@/lib/gallery-display";
+import { groupSimilar } from "@/lib/gallery-display";
 import {
   cardCrop,
   cardLayout,
@@ -335,24 +335,6 @@ describe("card crop", () => {
     const long = cardLayout(cardCrop({ x: 100, width: 600, contentBottom: 5000 }), 324, 390);
     expect(long.drift).toBe(390);
     expect(long.frameHeight * long.scale).toBeGreaterThanOrEqual(390 + 390);
-  });
-});
-
-describe("verdict + score", () => {
-  it("shows the number only when it agrees with the word", () => {
-    expect(shownScore("good", 92)).toBe(92);
-    expect(shownScore("ok", 71)).toBe(71);
-    expect(shownScore("ok", 98)).toBeNull(); // never "Okay · 98"
-    expect(shownScore("ok", 85)).toBeNull();
-    // Bad: never on cards (a capped "Bad · 69" could read as better than an "Okay · 55"); the
-    // detail's large badge shows it below 70.
-    expect(shownScore("bad", 41)).toBeNull();
-    expect(shownScore("bad", 41, { detail: true })).toBe(41);
-    expect(shownScore("bad", 59, { detail: true })).toBe(59);
-    expect(shownScore("bad", 80, { detail: true })).toBeNull();
-    expect(shownScore("unscored", 50)).toBeNull();
-    expect(shownScore("good", null)).toBeNull();
-    expect(shownScore("good", 91.6)).toBe(92);
   });
 });
 

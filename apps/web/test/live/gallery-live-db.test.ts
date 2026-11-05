@@ -21,6 +21,7 @@ import type * as GalleryQueries from "@/server/queries/gallery";
 import type * as Waiting from "@/server/queries/gallery-waiting";
 import { DEFAULT_GALLERY_PARAMS, type GalleryParams } from "@/lib/gallery";
 import { HAS_DB } from "../support/env";
+import { checklistOf } from "../support/checklist";
 import {
   appPool,
   createMailbox,
@@ -44,6 +45,30 @@ const params = (over: Partial<GalleryParams> = {}): GalleryParams => ({
   ...over,
 });
 const RESET_GOVERNOR = `UPDATE app_setting SET value = '{"level":0,"since":null,"triggers":[],"belowSince":null}' WHERE key = 'governor'`;
+
+/** A scored design with a saved design checklist (every rule passed): a checked card. */
+const checkedRecord = (score: number): Partial<EmailRecord> =>
+  ({
+    ...scoredRecord(score),
+    analysis: {
+      scoringVersion: "test",
+      rendererVersion: null,
+      features: null,
+      checks: [],
+      pillarScores: [],
+      rawScore: score,
+      caps: [],
+      confidence: 0.9,
+      trust: {},
+      scoreSummary: { needsImprovement: [], good: [], checklist: checklistOf() },
+      aiReview: null,
+      aiModel: null,
+      renderRefEmailId: null,
+      rendererHost: null,
+      chromiumVersion: null,
+      renderMs: null,
+    },
+  }) as Partial<EmailRecord>;
 
 const scoredRecord = (score: number): Partial<EmailRecord> => ({
   designStatus: "done",
@@ -145,7 +170,7 @@ describe.skipIf(!HAS_DB)("the live gallery against the database", () => {
     await seedEmail(app, alice.id, aliceMb, {
       receivedAt: at(0.1),
       subject: "new promo",
-      ...scoredRecord(91),
+      ...checkedRecord(91),
     });
     await seedEmail(app, alice.id, aliceMb, {
       receivedAt: at(0.1),
@@ -159,7 +184,7 @@ describe.skipIf(!HAS_DB)("the live gallery against the database", () => {
       total: s1.total,
       added: 2,
     });
-    // Neither is a product update, nor good-looking enough for Good (the unscored one).
+    // Neither is a product update; only the checked one is Good.
     expect(
       await live.galleryViewChange(alice.id, params({ category: "product_updates" }), s0),
     ).toMatchObject({ total: 1, added: 0 });
@@ -336,7 +361,9 @@ describe.skipIf(!HAS_DB)(
       await seed("older", 60);
       await seed("old", 20 * 24);
       await seed("disconnected", 1, {}, paused);
-      await seed("scored", 1, scoredRecord(90));
+      await seed("scored", 1, checkedRecord(90));
+      // Scored before the design checklist (no checklist saved): the nightly run re-checks it.
+      await seed("prechecklist", 40 * 24, { ...scoredRecord(80), primaryType: "promotional" });
       await seed("friends", 1, {}, friendMb, friend.id);
       await withUser(app, me.id, async (_db, c) => {
         await c.query(
@@ -361,7 +388,7 @@ describe.skipIf(!HAS_DB)(
       Object.fromEntries(
         (await gallery.listGallery(userId, params({ size: 96 }))).items.map((i) => [
           i.subject,
-          i.waiting?.state ?? (i.score === null ? "?" : "scored"),
+          i.waiting?.state ?? (i.verdict === "unscored" ? "?" : "scored"),
         ]),
       );
 
@@ -375,6 +402,7 @@ describe.skipIf(!HAS_DB)(
         old: "manual",
         disconnected: "mailbox",
         scored: "scored",
+        prechecklist: "scheduled",
       });
       expect(await states(friend.id)).toEqual({ friends: "queued" });
       const page = await gallery.listGallery(me.id, params({ size: 96 }));
@@ -441,9 +469,26 @@ describe.skipIf(!HAS_DB)(
       expect(web).toBe(row!.candidates);
     });
 
+    it("the web's re-check rule counts the same emails as the pipeline's", async () => {
+      const { RECHECK_CANDIDATE_SQL } = await import("@edf/pipeline");
+      const count = (cond: ReturnType<typeof sql>) =>
+        withUser(app, me.id, async (db) =>
+          Number(
+            (
+              await raw(db).execute<{ n: number }>(
+                sql`SELECT count(*)::int AS n FROM email e WHERE e.user_id = ${me.id} AND ${cond}`,
+              )
+            ).rows[0]!.n,
+          ),
+        );
+      const web = await count(waiting.recheckCandidate("e"));
+      expect(web).toBe(1); // "prechecklist" only: "scored" has its checklist, the rest no score
+      expect(await count(sql.raw(RECHECK_CANDIDATE_SQL))).toBe(web);
+    });
+
     it("nothing extra is read when every design on the page is scored", async () => {
       const items = (await gallery.listGallery(me.id, params())).items.filter(
-        (i) => i.score !== null,
+        (i) => i.verdict !== "unscored",
       );
       const out = await withUser(app, me.id, (db) => waiting.withWaiting(db, me.id, items));
       expect(out).toBe(items);

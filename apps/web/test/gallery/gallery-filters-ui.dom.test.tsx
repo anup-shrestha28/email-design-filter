@@ -47,14 +47,22 @@ const facets: GalleryFacets = {
     { id: B, name: "Shop", domain: "shop.example", address: "hi@shop.example", count: 4 },
   ],
   problems: {
-    image_only: 1,
-    contrast: 2,
+    message: 0,
+    button: 3,
+    hero: 0,
+    hierarchy: 0,
+    scan: 0,
+    width: 0,
     mobile: 0,
-    clipped: 0,
-    broken_images: 0,
-    no_unsubscribe: 3,
-    merge_tag: 0,
-    low_score: 0,
+    fonts: 0,
+    colors: 0,
+    body: 0,
+    cta: 0,
+    contrast: 2,
+    images: 0,
+    whitespace: 0,
+    clutter: 0,
+    no_decoration: 1,
   },
   mailboxes: [
     { id: A, address: "me@gmail.com", count: 7 },
@@ -143,10 +151,10 @@ describe("FiltersPanel", () => {
     const panel = document.querySelector('[role="dialog"]')!;
     expect(panel.textContent).toContain("Design score");
     expect(panel.textContent).toContain("Mailbox"); // two mailboxes
-    expect(panel.textContent).toContain("Hard-to-read text");
+    expect(panel.textContent).toContain("Good contrast");
     // Tick a problem and a date, then apply.
     const contrast = [...panel.querySelectorAll("label")].find((l) =>
-      l.textContent?.includes("Hard-to-read text"),
+      l.textContent?.includes("Good contrast"),
     )!;
     await click(contrast.querySelector('[role="checkbox"]'));
     const last30 = [...panel.querySelectorAll<HTMLInputElement>('input[type="radio"]')].find(
@@ -203,7 +211,7 @@ describe("FiltersPanel counts follow the draft", () => {
     const loadFacets = vi.fn(async (draft: GalleryParams) => ({
       ...facets,
       categories: { ...facets.categories, all: draft.problem.includes("contrast") ? 2 : 10 },
-      problems: { ...facets.problems, no_unsubscribe: 1 },
+      problems: { ...facets.problems, button: 1 },
       senders: facets.senders.map((s) => ({ ...s, count: s.id === A ? 1 : 0 })),
     }));
     await render(
@@ -221,21 +229,21 @@ describe("FiltersPanel counts follow the draft", () => {
       [...panel.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Show "))!;
     // The applied view: the page's own counts, no request.
     expect(button().textContent).toBe("Show 10 designs");
-    expect(rowOf(panel, "No unsubscribe link").textContent).toContain("3");
+    expect(rowOf(panel, "One main button").textContent).toContain("3");
     await settle();
     expect(loadFacets).not.toHaveBeenCalled();
     // A change: the old numbers fade until the draft's arrive.
-    await click(rowOf(panel, "Hard-to-read text").querySelector('[role="checkbox"]'));
+    await click(rowOf(panel, "Good contrast").querySelector('[role="checkbox"]'));
     expect(button().textContent).toBe("Show designs");
     expect(button().getAttribute("aria-busy")).toBe("true");
     await settle();
     expect(loadFacets).toHaveBeenCalledTimes(1);
     expect(loadFacets.mock.calls[0]![0]).toMatchObject({ problem: ["contrast"], page: 1 });
     expect(button().textContent).toBe("Show 2 designs");
-    expect(rowOf(panel, "No unsubscribe link").textContent).toContain("1");
+    expect(rowOf(panel, "One main button").textContent).toContain("1");
     expect(rowOf(panel, "LinkedIn").textContent).toContain("1");
     // Back to the applied view: the page's counts again, without asking.
-    await click(rowOf(panel, "Hard-to-read text").querySelector('[role="checkbox"]'));
+    await click(rowOf(panel, "Good contrast").querySelector('[role="checkbox"]'));
     expect(button().textContent).toBe("Show 10 designs");
     await settle();
     expect(loadFacets).toHaveBeenCalledTimes(1);

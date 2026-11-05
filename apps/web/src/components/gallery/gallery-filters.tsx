@@ -1,4 +1,5 @@
 "use client";
+import { BAD_MISSES_MIN } from "@edf/design/checklist";
 import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -293,7 +294,7 @@ function PanelBody({
             <FontSection facets={facets} fresh={fresh} value={font} onChange={setFont} />
           </>
         ) : null}
-        <Section title="Design score" hint="0 is the worst, 100 the best.">
+        <Section title="Design score" hint="The detailed 0–100 score, separate from the 16 rules: 0 is the worst, 100 the best.">
           <div className="flex items-center gap-2">
             <ScoreInput label="Lowest score" value={smin} onChange={setSmin} />
             <span className="text-sm text-muted-foreground">to</span>
@@ -316,8 +317,8 @@ function PanelBody({
         </Section>
         <SenderSection facets={facets} fresh={fresh} value={sender} onChange={setSender} />
         <Section
-          title="Problems"
-          hint="Each one makes a design Bad. Shows designs with any you tick."
+          title="Missed rules"
+          hint={`Shows designs that missed any rule you tick. Missing ${BAD_MISSES_MIN} or more makes a design Bad.`}
         >
           <ul className="space-y-1">
             {GALLERY_PROBLEMS.map((x) => (

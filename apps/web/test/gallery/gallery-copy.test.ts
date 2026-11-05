@@ -9,15 +9,15 @@ import { isActionableBanner } from "@/components/shell/banners";
 import * as copy from "@/lib/gallery-copy";
 
 describe("gallery wording", () => {
-  it("has short badge words and a friendly not-scored line", () => {
+  it("has short badge words and a friendly not-checked line", () => {
     expect(copy.VERDICT_SHORT).toEqual({
       good: "Good",
       bad: "Bad",
       ok: "Okay",
-      unscored: "Not scored yet",
+      unscored: "Not checked yet",
     });
     // Plain and true: no "still checking" (nothing is being checked while it waits).
-    expect(copy.UNSCORED_LINE).toBe("This design doesn't have a score yet.");
+    expect(copy.UNSCORED_LINE).toBe("This design hasn't been checked against the design rules yet.");
     expect(copy.UNSCORED_LINE).not.toMatch(/checking/i);
   });
 

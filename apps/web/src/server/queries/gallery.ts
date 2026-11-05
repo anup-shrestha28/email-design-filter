@@ -15,38 +15,22 @@ import "server-only";
 import { sql, type SQL } from "@edf/db";
 import { raw } from "@edf/db";
 import { withUser } from "@edf/db";
-import type { DesignBand, DesignIssue, ScoreSummary } from "@edf/design/types";
+import { BAD_MISSES_MIN, CHECKLIST_VERSION } from "@edf/design/checklist";
+import type { DesignBand } from "@edf/design/types";
 import { previewFrameOf } from "@/lib/gallery-preview";
 import { FOLD_FROM, FOLD_TO, parseGallerySearch, type SearchTerm } from "@/lib/gallery-search";
 import { requestTimeZone } from "@/lib/request-context";
 import {
-  CONFIDENCE_EPSILON,
-  COVERAGE_CONFIDENCE_MIN,
   EMAIL_GALLERY_CATEGORY_IDS,
   GALLERY_SHOWN_CATEGORIES,
-  GOOD_SCORE_MIN,
-  GOOD_SOURCES,
-  CURRENT_SIGNALS_KEY,
-  BIG_LINK_H,
-  BIG_LINK_W,
-  IMAGE_TEXT_CHARS_MAX,
-  IMAGE_TEXT_SHARE_MIN,
-  IMAGES_UNKNOWN_SHARE_MAX,
-  LEGACY_SHRINK_K_MAX,
-  LEGACY_TINY_PHONE_TEXT_PX,
-  POOR_SCORE_MAX,
-  SHRINK_K_MAX,
-  TINY_PHONE_TEXT_PX,
-  UNSUBSCRIBE_REQUIRED_TYPE,
   categoryRules,
+  checklistReason,
   galleryCategoryOf,
-  galleryReason,
   verdictOf,
   type EmailGalleryCategory,
   type GalleryCategory,
   type GalleryParams,
   type GalleryProblem,
-  type RenderFacts,
   GALLERY_DATE_DAYS,
   GALLERY_PROBLEMS,
   clampPage,
@@ -146,87 +130,43 @@ const SHOWN_CATEGORIES = sql`(${sql.join(
   sql` OR `,
 )})`;
 
+/** A saved checklist count (`misses` / `unknown`) as a number, when it is one. */
+const checklistCount = (key: "misses" | "unknown") =>
+  sql`(CASE WHEN jsonb_typeof(a.score_summary #> ${sql.raw(`'{checklist,${key}}'`)}) = 'number'
+    THEN (a.score_summary #>> ${sql.raw(`'{checklist,${key}}'`)})::numeric END)`;
+const isCount = (x: SQL) => sql`coalesce(${x} >= 0 AND ${x} = trunc(${x}), false)`;
 /**
- * The verdicts in SQL — exactly verdictOf()'s VERDICT POLICY (lib/gallery.ts); bad wins over good.
- * Needs JOIN_ANALYSIS (every cap that fired, the design-coverage confidence and the severe-problem
- * signals).
- *  - severe = capped, or any cap / issue chip fired, or the signals show one of the severe
- *             problems (severeTriggers: pictures that didn't load, text baked into images unless
- *             most of the picture area wasn't drawn, text that shrinks too small on phones, the
- *             unsubscribe link after Gmail's cut, mail that is promotional now (e.primary_type)
- *             without an unsubscribe link — v1.5 rules for rows scored before 2026.5), whatever
- *             'provisional' says
- *  - bad    = scored and (severe, or score < 60 / Poor band)
- *  - good   = score ≥ 85, not severe, render/template coverage, and not provisional for lack of
- *             design coverage (provisional only from an unsure email type doesn't block it)
+ * The saved checklist (score_summary.checklist) when it is of the current version with both counts
+ * whole numbers ≥ 0, else NULL — lib/gallery.ts storedChecklist() in SQL.
  */
+const CHECKLIST_OF = sql`(CASE WHEN a.score_summary #>> '{checklist,v}' = ${CHECKLIST_VERSION}::text
+  AND ${isCount(checklistCount("misses"))} AND ${isCount(checklistCount("unknown"))}
+  THEN a.score_summary -> 'checklist' END)`;
+/** CHECKLIST_OF as JOIN_ANALYSIS works it out: once per row (`ck`), however many tests read it. */
+const CHECKLIST = sql`ck.checklist`;
+const MISSES = sql`((${CHECKLIST} ->> 'misses')::numeric)`;
+const UNKNOWN = sql`((${CHECKLIST} ->> 'unknown')::numeric)`;
 /**
- * The severe-problem signals (VerdictInput.signals): score_summary.signals, kept after compaction,
- * or — for rows scored before the engine saved them — the same facts from the stored checks
- * (migration 0015 summary_signals; compaction saves them into the summary before emptying checks).
+ * The verdicts in SQL — exactly verdictOf()'s VERDICT POLICY (lib/gallery.ts), from the checklist
+ * alone: Bad = three or more rules missed; Good = none missed and none unchecked; Okay = any other
+ * checked design; no checklist = not checked yet (neither). Needs JOIN_ANALYSIS.
  */
-export const GALLERY_SIGNALS = sql`(CASE WHEN jsonb_typeof(a.score_summary -> 'signals') = 'object'
-  THEN a.score_summary -> 'signals' ELSE public.summary_signals(a.checks) END)`;
-/** GALLERY_SIGNALS as JOIN_ANALYSIS works it out: once per row (`sg`), however many tests read it. */
-const SIGNALS = sql`sg.signals`;
-type NumSignal =
-  | "imgShare"
-  | "legibleChars"
-  | "phoneTextPx"
-  | "layoutK"
-  | "htmlContentImages"
-  | "drawnContentImages"
-  | "liveTextChars"
-  | "imagesUnknownShare";
-const signalNum = (key: NumSignal) =>
-  sql`(CASE WHEN jsonb_typeof(${SIGNALS} -> ${sql.raw(`'${key}'`)}) = 'number'
-    THEN (${SIGNALS} ->> ${sql.raw(`'${key}'`)})::float8 END)`;
-const signalText = (key: "unsubscribe" | "unsubscribeUnion") =>
-  sql`(${SIGNALS} ->> ${sql.raw(`'${key}'`)})`;
+const BAD = sql`coalesce(${MISSES} >= ${BAD_MISSES_MIN}::numeric, false)`;
+const GOOD = sql`coalesce(${MISSES} = 0 AND ${UNKNOWN} = 0, false)`;
 /**
- * currentSignals(): saved by scoring 2026.5 or later — the key is there, even as JSON null (`->`
- * then gives 'null'::jsonb, not SQL NULL). Older summaries and summary_signals() lack it.
+ * The verdict as a sort key: Bad 0 < Okay 1 < Good 2; unchecked rows get -1 (best) / 3 (worst), so
+ * they come last in both directions. Best / Worst sort by verdict first, then the rules missed,
+ * then the score, so the order always matches the words on the cards.
  */
-const CURRENT_SIGNALS = sql`((${SIGNALS} -> ${sql.raw(`'${CURRENT_SIGNALS_KEY}'`)}) IS NOT NULL)`;
-/**
- * severeTriggers() in SQL, one test per trigger; each is NULL-safe (a missing signal never triggers
- * or blocks Good).
- */
-const PICTURES_NOT_LOADED = sql`coalesce(${CURRENT_SIGNALS} AND ${signalNum("htmlContentImages")} >= 1::float8
-  AND ${signalNum("drawnContentImages")} = 0::float8 AND ${signalNum("liveTextChars")} < ${IMAGE_TEXT_CHARS_MAX}::float8, false)`;
-/** picturesUnknown(): most of the picture area wasn't drawn, so the share isn't trusted. */
-const PICTURES_UNKNOWN = sql`coalesce(${CURRENT_SIGNALS} AND ${signalNum("imagesUnknownShare")} > ${IMAGES_UNKNOWN_SHARE_MAX}::float8, false)`;
-const TEXT_IN_IMAGES = sql`coalesce(${signalNum("imgShare")} >= ${IMAGE_TEXT_SHARE_MIN}::float8 AND ${signalNum("legibleChars")} < ${IMAGE_TEXT_CHARS_MAX}::float8 AND NOT ${PICTURES_UNKNOWN}, false)`;
-const TINY_PHONE_TEXT = sql`coalesce(CASE WHEN ${CURRENT_SIGNALS}
-  THEN ${signalNum("layoutK")} < ${SHRINK_K_MAX}::float8 AND ${signalNum("phoneTextPx")} < ${TINY_PHONE_TEXT_PX}::float8
-  ELSE ${signalNum("phoneTextPx")} < ${LEGACY_TINY_PHONE_TEXT_PX}::float8 AND ${signalNum("layoutK")} < ${LEGACY_SHRINK_K_MAX}::float8 END, false)`;
-const UNSUBSCRIBE_CLIPPED = sql`coalesce(${CURRENT_SIGNALS} AND ${signalText("unsubscribeUnion")} = 'after_clip', false)`;
-/** The current rule reads the email's type now (e.primary_type), as its category chip does. */
-const NO_UNSUBSCRIBE = sql`coalesce(CASE WHEN ${CURRENT_SIGNALS}
-  THEN e.primary_type = ${UNSUBSCRIBE_REQUIRED_TYPE}::text AND ${signalText("unsubscribeUnion")} = 'none'
-  ELSE ${signalText("unsubscribe")} = 'none' END, false)`;
-const SEVERE_SIGNALS = sql`(${PICTURES_NOT_LOADED} OR ${TEXT_IN_IMAGES} OR ${TINY_PHONE_TEXT} OR ${UNSUBSCRIBE_CLIPPED} OR ${NO_UNSUBSCRIBE})`;
-const SEVERE = sql`(e.design_capped IS TRUE OR cardinality(e.design_issues) > 0 OR coalesce(cardinality(a.caps), 0) > 0 OR ${SEVERE_SIGNALS})`;
-const LOW_SCORE = sql`(e.design_score < ${POOR_SCORE_MAX} OR e.design_band = 'poor')`;
-const BAD = sql`(e.design_score IS NOT NULL AND (${SEVERE} OR ${LOW_SCORE}))`;
-const GOOD = sql`(e.design_score >= ${GOOD_SCORE_MIN} AND e.design_band IS DISTINCT FROM 'poor' AND NOT ${SEVERE}
-  AND e.design_source = ANY(${textArray(GOOD_SOURCES)})
-  AND (e.design_provisional IS NOT TRUE OR coalesce(a.confidence::float8, 0) + ${CONFIDENCE_EPSILON}::float8 >= ${COVERAGE_CONFIDENCE_MIN}::float8))`;
-/**
- * The verdict as a sort key: Bad 0 < Okay 1 < Good 2; unscored rows get -1 (best) / 3 (worst), so
- * they come last in both directions. Best / Worst sort by verdict first, then score, so the order
- * always matches the words on the cards (a capped "Bad · 69" never sorts above an "Okay · 65").
- */
-const VERDICT_RANK = sql`(CASE WHEN e.design_score IS NULL THEN NULL WHEN ${BAD} THEN 0 WHEN ${GOOD} THEN 2 ELSE 1 END)`;
+const VERDICT_RANK = sql`(CASE WHEN ${CHECKLIST} IS NULL THEN NULL WHEN ${BAD} THEN 0 WHEN ${GOOD} THEN 2 ELSE 1 END)`;
 const BEST_RANK = sql`coalesce(${VERDICT_RANK}, -1)`;
 const WORST_RANK = sql`coalesce(${VERDICT_RANK}, 3)`;
 /**
- * The analysis row the verdict conditions read, and its signals (`sg.signals`) worked out once per
- * row: OFFSET 0 keeps Postgres from copying the expression into each of the ~20 tests that read
- * it, which read the whole score summary again every time (the counts took ~90 ms, now ~13 ms).
+ * The analysis row the verdict conditions read, and its checklist (`ck.checklist`) worked out once
+ * per row (OFFSET 0 keeps Postgres from copying the expression into each test that reads it).
  */
 const JOIN_ANALYSIS = sql`LEFT JOIN email_analysis a ON a.email_id = e.id AND a.user_id = e.user_id
-  LEFT JOIN LATERAL (SELECT ${GALLERY_SIGNALS} AS signals OFFSET 0) sg ON true`;
+  LEFT JOIN LATERAL (SELECT ${CHECKLIST_OF} AS checklist OFFSET 0) ck ON true`;
 
 function fontCondition(font: string): SQL {
   return sql`EXISTS (SELECT 1 FROM unnest(e.font_families) ff WHERE lower(ff) = ${font.toLowerCase()})`;
@@ -330,42 +270,12 @@ function dateCondition(p: GalleryParams, userId: string, timeZone?: string): SQL
 }
 
 /**
- * Has problem `x` (a Problems option, lib/gallery.ts GALLERY_PROBLEMS): a scored design whose cap
- * or issue chip for it fired, or that shows the severe problem the Bad cards name for it, or (Low
- * score) scores under 60 — galleryProblemsOf() in SQL. The filter and its counts both use this,
- * so a count is always what ticking the option shows, and the options together are exactly BAD.
+ * Missed rule `x` (a Problems option, lib/gallery.ts GALLERY_PROBLEMS): its saved checklist has
+ * that rule with the result "miss" — galleryProblemsOf() in SQL. The filter and its counts both
+ * use this, so a count is always what ticking the option shows.
  */
 function problemCondition(x: GalleryProblem): SQL {
-  const chip = sql`(${x} = ANY(e.design_issues))`;
-  const cap = (id: string) => sql`coalesce(${id}::text = ANY(a.caps), false)`;
-  let hit: SQL;
-  switch (x) {
-    case "image_only":
-      hit = sql`(${chip} OR ${cap("CAP_IMAGE_ONLY")} OR ${TEXT_IN_IMAGES} OR ${PICTURES_NOT_LOADED})`;
-      break;
-    case "contrast":
-      hit = sql`(${chip} OR ${cap("CAP_CONTRAST")})`;
-      break;
-    case "merge_tag":
-      hit = sql`(${chip} OR ${cap("CAP_MERGE_TAG")})`;
-      break;
-    case "mobile":
-      hit = sql`(${chip} OR ${cap("CAP_MOBILE_BROKEN")} OR ${TINY_PHONE_TEXT})`;
-      break;
-    case "clipped":
-      hit = sql`(${chip} OR ${cap("CAP_CLIPPED")} OR ${UNSUBSCRIBE_CLIPPED})`;
-      break;
-    case "broken_images":
-      hit = sql`(${chip} OR ${cap("CAP_BROKEN_IMAGES")})`;
-      break;
-    case "no_unsubscribe":
-      hit = NO_UNSUBSCRIBE;
-      break;
-    case "low_score":
-      hit = LOW_SCORE;
-      break;
-  }
-  return sql`(e.design_score IS NOT NULL AND ${hit})`;
+  return sql`coalesce(${CHECKLIST} -> 'rules' @> jsonb_build_array(jsonb_build_object('id', ${x}::text, 'result', 'miss')), false)`;
 }
 
 function uuidArray(values: readonly string[]): SQL {
@@ -455,24 +365,10 @@ interface Row {
   subtype: string | null;
   design_score: number | null;
   design_band: DesignBand | null;
-  design_capped: boolean | null;
-  design_provisional: boolean | null;
-  design_issues: DesignIssue[];
-  design_source: string;
   font_families: string[];
-  needs: ScoreSummary["needsImprovement"] | null;
-  good: ScoreSummary["good"] | null;
-  summary_version: string | null;
-  /** email_analysis.renderer_version: the render the stored features came from. */
-  renderer_version: string | null;
   layout: unknown;
-  caps: string[] | null;
-  coverage_confidence: number | null;
-  checks: unknown;
-  /** GALLERY_SIGNALS: the severe-problem facts (VerdictInput.signals). */
-  signals: unknown;
-  /** RENDER_FACTS (null once compacted). */
-  render_facts: RenderFacts | null;
+  /** CHECKLIST: the saved checklist of the current version (null when there is none). */
+  checklist: unknown;
   mailbox_status: string;
   /** Saved in at least one of the user's boards. */
   saved?: boolean | null;
@@ -481,10 +377,14 @@ interface Row {
 /** Score keys that put unscored emails last in both directions (scores are 0..100). */
 const BEST_KEY = sql`coalesce(e.design_score, -1)`;
 const WORST_KEY = sql`coalesce(e.design_score, 101)`;
+/** Rules missed, unchecked designs last in both directions (there are 16 rules). */
+const FEWEST_MISSES_KEY = sql`coalesce(${MISSES}, 99)`;
+const MOST_MISSES_KEY = sql`coalesce(${MISSES}, -1)`;
 
 /**
  * The sort keys of each sort, in order. Every one ends in received_at, id — a total order, so
- * OFFSET pages never overlap or skip. Best / Worst rank by verdict first, then score (VERDICT_RANK).
+ * OFFSET pages never overlap or skip. Best / Worst rank by verdict first, then the rules missed,
+ * then the score (VERDICT_RANK).
  */
 function sortKeys(sort: GalleryParams["sort"]): Array<{ key: SQL; desc: boolean }> {
   const tail = [
@@ -493,9 +393,19 @@ function sortKeys(sort: GalleryParams["sort"]): Array<{ key: SQL; desc: boolean 
   ];
   switch (sort) {
     case "best":
-      return [{ key: BEST_RANK, desc: true }, { key: BEST_KEY, desc: true }, ...tail];
+      return [
+        { key: BEST_RANK, desc: true },
+        { key: FEWEST_MISSES_KEY, desc: false },
+        { key: BEST_KEY, desc: true },
+        ...tail,
+      ];
     case "worst":
-      return [{ key: WORST_RANK, desc: false }, { key: WORST_KEY, desc: false }, ...tail];
+      return [
+        { key: WORST_RANK, desc: false },
+        { key: MOST_MISSES_KEY, desc: true },
+        { key: WORST_KEY, desc: false },
+        ...tail,
+      ];
     case "newest":
     default:
       return tail;
@@ -505,40 +415,8 @@ function sortKeys(sort: GalleryParams["sort"]): Array<{ key: SQL; desc: boolean 
 // ───────────────────────── row mapping ─────────────────────────
 
 function toGalleryItem(r: Row): GalleryItem {
-  const verdict = verdictOf({
-    score: r.design_score,
-    band: r.design_band,
-    capped: r.design_capped,
-    provisional: r.design_provisional,
-    caps: r.caps ?? [],
-    issues: r.design_issues,
-    source: r.design_source,
-    coverageConfidence: r.coverage_confidence,
-    signals: r.signals,
-    primaryType: r.primary_type,
-  });
-  const { reason, problems, strengths } = galleryReason(
-    verdict,
-    {
-      needsImprovement: r.needs ?? [],
-      good: r.good ?? [],
-      ...(r.summary_version ? { scoringVersion: r.summary_version } : {}),
-    },
-    {
-      capped: r.design_capped,
-      caps: r.caps ?? [],
-      issues: r.design_issues,
-      checks: r.checks,
-      subject: r.subject,
-      fontsMeasured: r.font_families.length > 0,
-      signals: r.signals,
-      primaryType: r.primary_type,
-      score: r.design_score,
-      render: r.render_facts,
-      // Only an own render re-reads this email's HTML pass (a template's render is another email's).
-      rendererVersion: r.design_source === "render" ? r.renderer_version : null,
-    },
-  );
+  const verdict = verdictOf({ checklist: r.checklist });
+  const { reason, problems, strengths } = checklistReason(r.checklist);
   const domain =
     r.sender_domain ??
     (r.from_address?.includes("@") ? r.from_address.split("@").pop()!.toLowerCase() : null);
@@ -565,38 +443,6 @@ function toGalleryItem(r: Row): GalleryItem {
 }
 
 // ───────────────────────── queries ─────────────────────────
-
-/**
- * lib/gallery.ts RenderFacts from the stored features while they're kept (null once compaction
- * empties them): the buttons each pass found, standalone links a button's size on a phone, and
- * why the content images that weren't drawn weren't. Only numbers and reason words leave Postgres.
- * Also read by the detail view's evidence query (queries/gallery-evidence.ts).
- */
-export const RENDER_FACTS = sql`(CASE WHEN jsonb_typeof(a.features) = 'object' THEN jsonb_build_object(
-  'staticButtons', CASE WHEN jsonb_typeof(a.features #> '{static,cta,buttonLike}') = 'number' THEN a.features #> '{static,cta,buttonLike}' END,
-  'buttons', CASE WHEN jsonb_typeof(a.features #> '{render,cta,buttonLike}') = 'number' THEN a.features #> '{render,cta,buttonLike}' END,
-  'buttonLabels', CASE WHEN jsonb_typeof(a.features #> '{render,cta,labels}') = 'array' THEN jsonb_array_length(a.features #> '{render,cta,labels}') END,
-  'buttonStyles', CASE WHEN jsonb_typeof(a.features #> '{render,cta,buttonStyles}') = 'number' THEN a.features #> '{render,cta,buttonStyles}' END,
-  'bigLinks', CASE WHEN jsonb_typeof(a.features #> '{render,links,targets}') = 'array' THEN (
-    SELECT count(*) FROM jsonb_array_elements(a.features #> '{render,links,targets}') t
-    WHERE jsonb_typeof(t -> 0) = 'number' AND jsonb_typeof(t -> 1) = 'number'
-      AND (t ->> 0)::float8 >= ${BIG_LINK_W}::float8 AND (t ->> 1)::float8 >= ${BIG_LINK_H}::float8) END,
-  'missedImageReasons', CASE WHEN jsonb_typeof(a.features #> '{render,images,loads}') = 'array' THEN (
-    SELECT coalesce(jsonb_agg(DISTINCT l ->> 'reason') FILTER (WHERE l ->> 'reason' IS NOT NULL), '[]'::jsonb)
-    FROM jsonb_array_elements(a.features #> '{render,images,loads}') l
-    WHERE (l -> 'decoded') IS DISTINCT FROM 'true'::jsonb) END
-) END)`;
-
-/**
- * Only the check fields galleryReason reads (id, status, w, pointsLost, value), and no value for
- * checks that weren't evaluated: roughly half the stored ~10 KB per email stays in Postgres.
- */
-const CHECKS_PROJECTION = sql`(CASE WHEN jsonb_typeof(a.checks) = 'array' THEN (
-  SELECT coalesce(jsonb_agg(jsonb_build_object(
-    'id', c -> 'id', 'status', c -> 'status', 'w', c -> 'w', 'pointsLost', c -> 'pointsLost',
-    'value', CASE WHEN c ->> 'status' IN ('not_applicable', 'not_evaluated') THEN NULL ELSE c -> 'value' END
-  )), '[]'::jsonb) FROM jsonb_array_elements(a.checks) c
-) END)`;
 
 /**
  * One numbered page of the gallery (`params.page`, `params.size` cards). A page past the end is
@@ -646,15 +492,10 @@ export async function listGallery(
       )
       SELECT e.id, e.received_at, e.subject, e.from_name, e.from_address::text AS from_address,
              s.display_name AS sender_name, s.domain AS sender_domain, e.primary_type, e.subtype,
-             e.design_score, e.design_band, e.design_capped, e.design_provisional, e.design_issues, e.design_source, e.font_families,
-             a.score_summary -> 'needsImprovement' AS needs, a.score_summary -> 'good' AS good,
-             a.score_summary ->> 'scoringVersion' AS summary_version, a.renderer_version,
+             e.design_score, e.design_band, e.font_families,
              -- score_summary.layout is kept after compaction (migration 0016); features until then.
              coalesce(a.score_summary -> 'layout', a.features #> '{render,layout}') AS layout,
-             a.caps, a.confidence::float8 AS coverage_confidence,
-             ${CHECKS_PROJECTION} AS checks,
-             ${SIGNALS} AS signals,
-             ${RENDER_FACTS} AS render_facts,
+             ${CHECKLIST} AS checklist,
              m.status AS mailbox_status,
              EXISTS (SELECT 1 FROM board_item bi WHERE bi.email_id = e.id) AS saved
       FROM pick
@@ -664,7 +505,7 @@ export async function listGallery(
       ${JOIN_ANALYSIS}
       ORDER BY ${order("pick.")}`);
     return {
-      // Unscored cards say when their score comes, from the real render queue (gallery-waiting.ts).
+      // Unchecked cards say when their check comes, from the real render queue (gallery-waiting.ts).
       items: await withWaiting(db, userId, res.rows.map(toGalleryItem)),
       total,
       page,

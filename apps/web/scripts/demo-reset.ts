@@ -20,7 +20,6 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createPool, withUser, type pg } from "@edf/db";
-import type { DesignBand } from "@edf/design/types";
 import { verdictOf, type Verdict } from "../src/lib/gallery";
 
 const args = process.argv.slice(2);
@@ -194,21 +193,8 @@ async function galleryCounts(
     userId,
     async (_db, c) =>
       (
-        await c.query<{
-          design_score: number | null;
-          design_band: DesignBand | null;
-          design_capped: boolean | null;
-          design_provisional: boolean | null;
-          design_issues: string[];
-          design_source: string;
-          caps: string[] | null;
-          confidence: number | null;
-          signals: unknown;
-        }>(
-          `SELECT e.design_score, e.design_band, e.design_capped, e.design_provisional, e.design_issues, e.design_source,
-                a.caps, a.confidence::float8 AS confidence,
-                CASE WHEN jsonb_typeof(a.score_summary -> 'signals') = 'object' THEN a.score_summary -> 'signals'
-                     ELSE public.summary_signals(a.checks) END AS signals
+        await c.query<{ checklist: unknown }>(
+          `SELECT a.score_summary -> 'checklist' AS checklist
          FROM email e LEFT JOIN email_analysis a ON a.email_id = e.id AND a.user_id = e.user_id
          WHERE e.user_id = $1 AND NOT e.is_hidden AND NOT e.security_sensitive AND e.design_status NOT IN ('plain_text', 'skipped')`,
           [userId],
@@ -217,19 +203,7 @@ async function galleryCounts(
   );
   const verdicts: Record<Verdict, number> = { good: 0, bad: 0, ok: 0, unscored: 0 };
   for (const r of rows) {
-    verdicts[
-      verdictOf({
-        score: r.design_score,
-        band: r.design_band,
-        capped: r.design_capped,
-        provisional: r.design_provisional,
-        caps: r.caps ?? [],
-        issues: r.design_issues,
-        source: r.design_source,
-        coverageConfidence: r.confidence,
-        signals: r.signals,
-      })
-    ]++;
+    verdicts[verdictOf({ checklist: r.checklist })]++;
   }
   return { total: rows.length, verdicts };
 }

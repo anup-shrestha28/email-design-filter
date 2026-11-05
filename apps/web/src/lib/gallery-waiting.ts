@@ -1,5 +1,5 @@
 /**
- * When an unscored design will get its score — decided from the real render queue and the
+ * When an unchecked design will get its score and design checklist — decided from the real render queue and the
  * governor's switches, never guessed (client-safe and pure; the query that feeds it is
  * server/queries/gallery-waiting.ts, the words are lib/gallery-copy.ts `waitingCopy`).
  *
@@ -25,6 +25,12 @@
  *               "Analyze this email" scores it
  *  - unscorable rendered, but there wasn't enough to measure for a score (no render gives one)
  *  - mailbox    its Gmail account is disconnected (the render step can't fetch it)
+ *
+ * A design scored before the checklist existed (2026-11-05) and since compacted has a score but no
+ * checklist (`recheck`): the nightly fill re-checks it after its regular candidates, newest first
+ * (@edf/pipeline render-policy.ts RECHECK_CANDIDATE_SQL), at any age — `scheduled` while it is
+ * among the batch's ~20, `queued` past that or for a friend, `failed` after a failed re-check
+ * (tried again a week later, or now with "Analyze this email").
  */
 
 export type WaitingState =
@@ -125,8 +131,13 @@ export interface WaitingInput {
     everRequested: boolean;
     /** Fresh candidates newer than it (≤ 48 h old items only). */
     freshAhead: number | null;
-    /** Nightly fill candidates newer than it (≤ 14 days old items only). */
+    /**
+     * Nightly fill candidates the batch takes before it: newer ones (≤ 14 days old items), or, for
+     * a re-check, every regular one plus the newer re-check candidates.
+     */
     fillAhead: number | null;
+    /** Scored, but without a design checklist of the current version: a re-check (file comment). */
+    recheck?: boolean;
   };
 }
 
@@ -169,8 +180,17 @@ export function waitingFor(input: WaitingInput): Waiting {
     if (!owner) return { state: "queued" };
     return (item.queuedAhead ?? 0) < cap ? nightly : { state: "queued" };
   }
-  // Nothing requested now. Rendered already (or not analysable) and still no score: another render
-  // measures the same, so none comes on its own.
+  // Nothing requested now. A re-check: the nightly fill's last candidates, at any age.
+  if (item.recheck === true && item.designStatus === "done") {
+    if (item.lastFailed === true) return !planned && !owner ? { state: "paused" } : { state: "failed" };
+    if (!planned || a.fillRendersOff === true) return { state: "paused" };
+    if (!owner) return { state: "queued" };
+    const ahead =
+      user.queued.onDemand + (a.samplesOff === true ? 0 : user.queued.exemplar) + user.queued.fill;
+    return ahead + (item.fillAhead ?? 0) < cap ? nightly : { state: "queued" };
+  }
+  // Rendered already (or not analysable) and still no score: another render measures the same, so
+  // none comes on its own.
   if (item.designStatus !== "done" || item.designSource === "render") return { state: "unscorable" };
 
   // Only fill renders it on its own, and only mail still within 14 days when the nightly run takes

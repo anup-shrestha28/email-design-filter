@@ -134,9 +134,12 @@ describe("score summary (FREE-TIER.md §5.4 compaction)", () => {
     expect(JSON.stringify(s.fonts).length).toBeLessThanOrEqual(300);
     // ~0.5 KB is not reachable with nine pillar entries in the fixed type; keep it bounded.
     // Top 5 problems + top 5 strengths (so the gallery keeps root causes after compaction), and
-    // the saved signals (≈ 0.5 KB since methodology 2026.5: the gate bars and both passes' facts).
-    expect(JSON.stringify(s).length).toBeLessThan(3000);
+    // the saved signals (≈ 0.5 KB since methodology 2026.5: the gate bars and both passes' facts),
+    // and the design checklist (≈ 1.2 KB since 2026-11-05: 16 rules, each with its measured
+    // sentence, so the gallery's verdict and "How we judged this" survive compaction).
+    expect(JSON.stringify(s).length).toBeLessThan(4500);
     expect(JSON.stringify(s.signals).length).toBeLessThan(600);
+    expect(JSON.stringify(s.checklist).length).toBeLessThan(1500);
     expect(s.scoringVersion).toBe(SCORING_VERSION);
   });
 });

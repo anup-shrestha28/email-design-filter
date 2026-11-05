@@ -1,5 +1,5 @@
 /**
- * The gallery's search, "Pick dates", Problems and counts against the real database
+ * The gallery's search, "Pick dates" and counts against the real database
  * (queries/gallery.ts, lib/gallery-search.ts):
  *  - a search is a filter like any other: more than 200 matches are all counted, paged and in the
  *    counts, newest first (it used to be a capped, rank-ordered list of 200)
@@ -8,9 +8,7 @@
  *    and subjects; "-word" leaves out; "or"; "quoted phrases"; symbols-only searches find that text
  *  - "Pick dates" reads days in the zone the cards show: "Automatic" (saved "UTC") follows the
  *    device's zone, a zone chosen in Settings wins
- *  - each Problems option is exactly galleryProblemsOf(): its cap or chip, the severe problem the
- *    Bad cards name (pictures, phones, Gmail's cut, no unsubscribe link — current and v1.5
- *    signals) or a low score; counts agree, and together the options are exactly the Bad designs
+ *  (the Missed-rule options and their counts are gallery-checklist-sql.test.ts)
  *  - the counts are never cached: a new email shows in them at once, as in the list
  *  - senders sharing a name come with their address; the Font menu lists more than 30 fonts
  */
@@ -19,13 +17,9 @@ import type { pg } from "@edf/db";
 import type { EmailRecord } from "@edf/pipeline";
 import type * as GalleryQueries from "@/server/queries/gallery";
 import type { GalleryItem } from "@/server/queries/types";
-import {
-  DEFAULT_GALLERY_PARAMS,
-  GALLERY_PROBLEMS,
-  galleryProblemsOf,
-  type GalleryParams,
-} from "@/lib/gallery";
+import { DEFAULT_GALLERY_PARAMS, type GalleryParams } from "@/lib/gallery";
 import { HAS_DB } from "../support/env";
+import { checklistOf } from "../support/checklist";
 import { appPool, createMailbox, createUser, ownerPool, seedEmail } from "../support/db";
 import { fromSender } from "../tests-server/helpers";
 
@@ -54,20 +48,10 @@ const CLEAN: Signals = {
   layoutK: 1,
   unsubscribe: "before_clip",
 };
-/** CLEAN as scoring 2026.5 saves it (the current rules read these keys). */
-const CURRENT = (over: Record<string, unknown> = {}): Signals => ({
-  ...CLEAN,
-  primaryType: "promotional",
-  htmlContentImages: 3,
-  drawnContentImages: 3,
-  imagesOff: false,
-  liveTextChars: 800,
-  unsubscribeUnion: "before_clip",
-  htmlKB: 40,
-  gate: [],
-  ...over,
-});
-
+/**
+ * A scored design with a saved checklist: every rule passed at 85+ (Good), three missed under 60
+ * (Bad), one missed in between (Okay).
+ */
 function scored(
   score: number | null,
   opts: {
@@ -101,6 +85,16 @@ function scored(
         needsImprovement: [],
         good: [],
         ...(opts.signals === undefined ? { signals: CLEAN } : { signals: opts.signals }),
+        ...(score === null
+          ? {}
+          : {
+              checklist:
+                score >= 85
+                  ? checklistOf()
+                  : score < 60
+                    ? checklistOf({ button: "miss", cta: "miss", body: "miss" })
+                    : checklistOf({ width: "miss" }),
+            }),
       },
       aiReview: null,
       aiModel: null,
@@ -362,188 +356,6 @@ describe.skipIf(!HAS_DB)("gallery search, dates, problems and counts against the
         device.zone = null;
         await owner.query("UPDATE user_settings SET timezone = 'UTC' WHERE user_id = $1", [user]);
       }
-    });
-  });
-
-  describe("Problems match what the Bad cards say", () => {
-    let user: string;
-    const rows: Array<{
-      subject: string;
-      issues: EmailRecord["designIssues"];
-      signals: Signals;
-      caps?: string[];
-      score?: number;
-      /** email.primary_type (default promotional): the type now, which the unsubscribe rule reads. */
-      primaryType?: EmailRecord["primaryType"];
-    }> = [
-      { subject: "chip-image", issues: ["image_only"], signals: CLEAN },
-      {
-        subject: "pictures",
-        issues: [],
-        signals: { ...CLEAN!, imgShare: 0.87, legibleChars: 97 },
-      },
-      {
-        subject: "pictures-but-text",
-        issues: [],
-        signals: { ...CLEAN!, imgShare: 1, legibleChars: 367 },
-      },
-      { subject: "chip-mobile", issues: ["mobile"], signals: CLEAN },
-      {
-        subject: "shrinks",
-        issues: [],
-        signals: { ...CLEAN!, phoneTextPx: 10.5, layoutK: 0.66 },
-      },
-      {
-        subject: "small-but-fits",
-        issues: [],
-        signals: { ...CLEAN!, phoneTextPx: 10, layoutK: 1 },
-      },
-      { subject: "no-unsub", issues: [], signals: { ...CLEAN!, unsubscribe: "none" } },
-      { subject: "unsub-exempt", issues: [], signals: { ...CLEAN!, unsubscribe: null } },
-      { subject: "contrast", issues: ["contrast"], signals: CLEAN },
-      {
-        subject: "clipped-and-no-unsub",
-        issues: ["clipped"],
-        signals: { ...CLEAN!, unsubscribe: "none" },
-      },
-      { subject: "broken", issues: ["broken_images"], signals: CLEAN },
-      {
-        subject: "everything",
-        issues: ["mobile", "image_only"],
-        signals: {
-          imgShare: 0.9,
-          legibleChars: 0,
-          phoneTextPx: 8,
-          layoutK: 0.5,
-          unsubscribe: "none",
-        },
-      },
-      { subject: "clean", issues: [], signals: CLEAN },
-      { subject: "no-signals", issues: [], signals: null },
-      // Scored by 2026.5: the current rules.
-      {
-        subject: "cur-not-loaded",
-        issues: [],
-        signals: CURRENT({ htmlContentImages: 1, drawnContentImages: 0, liveTextChars: 51 }),
-      },
-      {
-        subject: "cur-images-off",
-        issues: [],
-        signals: CURRENT({ drawnContentImages: null, imagesOff: true, liveTextChars: 51 }),
-      },
-      { subject: "cur-phone", issues: [], signals: CURRENT({ layoutK: 0.7, phoneTextPx: 10 }) },
-      {
-        subject: "cur-phone-ok",
-        issues: [],
-        signals: CURRENT({ layoutK: 0.81, phoneTextPx: 11.3 }),
-      },
-      { subject: "cur-cut", issues: [], signals: CURRENT({ unsubscribeUnion: "after_clip" }) },
-      { subject: "cur-no-unsub", issues: [], signals: CURRENT({ unsubscribeUnion: "none" }) },
-      {
-        subject: "cur-notice-no-unsub",
-        issues: [],
-        primaryType: "notification",
-        signals: CURRENT({
-          primaryType: "notification",
-          unsubscribeUnion: "none",
-          unsubscribe: "none",
-        }),
-      },
-      // The type changed after scoring (a correction, or the AI settling a pending email): the
-      // rule follows the type now, as the category chip does.
-      {
-        subject: "cur-retyped-to-notice",
-        issues: [],
-        primaryType: "account_notice",
-        signals: CURRENT({ primaryType: "promotional", unsubscribeUnion: "none" }),
-      },
-      {
-        subject: "cur-retyped-to-promo",
-        issues: [],
-        primaryType: "promotional",
-        signals: CURRENT({ primaryType: "notification", unsubscribeUnion: "none" }),
-      },
-      // Most of the picture area wasn't drawn: the picture share isn't trusted.
-      {
-        subject: "cur-pictures-unknown",
-        issues: [],
-        signals: CURRENT({
-          imgShare: 1,
-          legibleChars: 65,
-          liveTextChars: 65,
-          imagesUnknownShare: 0.522,
-        }),
-      },
-      { subject: "cap-merge", issues: [], signals: CURRENT(), caps: ["CAP_MERGE_TAG"] },
-      { subject: "cap-clip", issues: [], signals: CURRENT(), caps: ["CAP_CLIPPED"] },
-      { subject: "low", issues: [], signals: CURRENT(), score: 55 },
-    ];
-
-    beforeAll(async () => {
-      user = (await createUser(app)).id;
-      const mb = await createMailbox(app, user);
-      for (const [i, r] of rows.entries())
-        await seedEmail(app, user, mb, {
-          ...scored(r.score ?? 70, { issues: r.issues, signals: r.signals, caps: r.caps }),
-          ...(r.primaryType ? { primaryType: r.primaryType } : {}),
-          subject: r.subject,
-          receivedAt: new Date(now - i * HOUR),
-        });
-    });
-
-    it("each option is its chip or its severe problem, exactly as galleryProblemsOf says", async () => {
-      const f = await q.galleryFacets(user, params(), "UTC");
-      for (const x of GALLERY_PROBLEMS) {
-        const want = rows
-          .filter((r) =>
-            galleryProblemsOf({
-              score: r.score ?? 70,
-              band: (r.score ?? 70) >= 60 ? "good" : "poor",
-              caps: r.caps ?? [],
-              issues: r.issues,
-              signals: r.signals,
-              primaryType: r.primaryType ?? "promotional",
-            }).includes(x),
-          )
-          .map((r) => r.subject)
-          .sort();
-        const got = (await all(user, params({ problem: [x] }), "UTC")).map((i) => i.subject).sort();
-        expect(got, x).toEqual(want);
-        expect(f.problems[x], x).toBe(want.length);
-      }
-      const names = async (x: (typeof GALLERY_PROBLEMS)[number]) =>
-        (await all(user, params({ problem: [x] }), "UTC")).map((i) => i.subject).sort();
-      expect(await names("image_only")).toEqual([
-        "chip-image",
-        "cur-not-loaded",
-        "everything",
-        "pictures",
-      ]);
-      expect(await names("mobile")).toEqual(["chip-mobile", "cur-phone", "everything", "shrinks"]);
-      expect(await names("clipped")).toEqual(["cap-clip", "clipped-and-no-unsub", "cur-cut"]);
-      expect(await names("no_unsubscribe")).toEqual([
-        "clipped-and-no-unsub",
-        "cur-no-unsub",
-        "cur-retyped-to-promo",
-        "everything",
-        "no-unsub",
-      ]);
-      expect(await names("image_only")).not.toContain("cur-pictures-unknown");
-      expect(await names("merge_tag")).toEqual(["cap-merge"]);
-      expect(await names("low_score")).toEqual(["low"]);
-    });
-
-    it("together the options are exactly the Bad designs, and each count is within Bad", async () => {
-      const bad = (await all(user, params({ design: "bad" }), "UTC")).map((i) => i.id).sort();
-      const anyProblem = (await all(user, params({ problem: [...GALLERY_PROBLEMS] }), "UTC"))
-        .map((i) => i.id)
-        .sort();
-      expect(bad.length).toBeGreaterThan(0);
-      expect(anyProblem).toEqual(bad);
-      // An option with Design = Bad shows the same designs as the option alone.
-      const f = await q.galleryFacets(user, params({ design: "bad" }), "UTC");
-      const all0 = await q.galleryFacets(user, params(), "UTC");
-      expect(f.problems).toEqual(all0.problems);
     });
   });
 

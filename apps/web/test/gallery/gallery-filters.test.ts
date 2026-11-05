@@ -2,7 +2,7 @@
  * The gallery's numbered pages and Filters panel against the real database (queries/gallery.ts):
  *  - pages: OFFSET / LIMIT over a total order, a page past the end clamps to the last page
  *  - score range, date received (relative and custom days in the user's own zone), senders,
- *    problems (any of), mailbox, web fonts — alone and combined
+ *    missed rules (any of), mailbox, web fonts — alone and combined
  *  - facet counts for senders, problems, mailboxes and web fonts respect the OTHER filters
  *  - another user's sender / mailbox ids never match anything
  */
@@ -11,18 +11,21 @@ import type { pg } from "@edf/db";
 import type { EmailRecord } from "@edf/pipeline";
 import type * as GalleryQueries from "@/server/queries/gallery";
 import type { GalleryItem } from "@/server/queries/types";
-import { DEFAULT_GALLERY_PARAMS, type GalleryParams } from "@/lib/gallery";
+import type { ChecklistRuleId } from "@edf/design/checklist";
+import { DEFAULT_GALLERY_PARAMS, GALLERY_PROBLEMS, type GalleryParams } from "@/lib/gallery";
 import { HAS_DB } from "../support/env";
+import { checklistOf } from "../support/checklist";
 import { appPool, createMailbox, createUser, ownerPool, seedEmail } from "../support/db";
 import { fromSender } from "../tests-server/helpers";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
+/** A scored design whose saved checklist missed `missed` (the Missed-rule filter reads it). */
 function scored(
   score: number | null,
   band: EmailRecord["designBand"],
-  issues: EmailRecord["designIssues"] = [],
+  missed: ChecklistRuleId[] = [],
 ): Partial<EmailRecord> {
   return {
     designStatus: "done",
@@ -31,7 +34,7 @@ function scored(
     designBand: band,
     designCapped: score === null ? null : false,
     designProvisional: score === null ? null : false,
-    designIssues: issues,
+    designIssues: [],
     designConfidence: score === null ? null : "high",
     analysis: {
       scoringVersion: "test",
@@ -43,7 +46,13 @@ function scored(
       caps: [],
       confidence: 0.9,
       trust: {},
-      scoreSummary: { needsImprovement: [], good: [] },
+      scoreSummary: {
+        needsImprovement: [],
+        good: [],
+        ...(score === null
+          ? {}
+          : { checklist: checklistOf(Object.fromEntries(missed.map((id) => [id, "miss" as const]))) }),
+      },
       aiReview: null,
       aiModel: null,
       renderRefEmailId: null,
@@ -53,6 +62,10 @@ function scored(
     },
   };
 }
+
+/** Missed-rule counts: every rule 0 but the ones given. */
+const counts = (over: Partial<Record<ChecklistRuleId, number>> = {}) =>
+  Object.fromEntries(GALLERY_PROBLEMS.map((id) => [id, over[id] ?? 0]));
 
 const params = (over: Partial<GalleryParams> = {}): GalleryParams => ({
   ...DEFAULT_GALLERY_PARAMS,
@@ -117,7 +130,7 @@ describe.skipIf(!HAS_DB)("gallery pages and advanced filters against the databas
     await seed(
       "a3",
       new Date(now - 40 * DAY),
-      { ...scored(60, "needs_work", ["image_only"]), ...shop, usesWebFonts: true },
+      { ...scored(60, "needs_work", ["no_decoration"]), ...shop, usesWebFonts: true },
       mb2,
     );
     await seed(
@@ -194,8 +207,8 @@ describe.skipIf(!HAS_DB)("gallery pages and advanced filters against the databas
       "a4",
     ]);
     expect(await subjects({ problem: ["contrast"] })).toEqual(["a2"]);
-    expect(await subjects({ problem: ["image_only", "mobile"] })).toEqual(["a2", "a3"]);
-    expect(await subjects({ problem: ["clipped"] })).toEqual([]);
+    expect(await subjects({ problem: ["no_decoration", "mobile"] })).toEqual(["a2", "a3"]);
+    expect(await subjects({ problem: ["width"] })).toEqual([]);
     expect(await subjects({ mailbox: mb2 })).toEqual(["a3", "a4"]);
     expect(await subjects({ webfonts: "yes" })).toEqual(["a1", "a3", "a7", "a6"].sort(byAge));
     expect(await subjects({ webfonts: "no" })).toEqual(["a5", "a2", "a4"]);
@@ -221,16 +234,7 @@ describe.skipIf(!HAS_DB)("gallery pages and advanced filters against the databas
 
   it("facet counts for the Filters panel respect the other filters, not their own", async () => {
     const f = await q.galleryFacets(fay.id, params());
-    expect(f.problems).toEqual({
-      image_only: 1,
-      contrast: 1,
-      mobile: 1,
-      clipped: 0,
-      broken_images: 0,
-      no_unsubscribe: 0,
-      merge_tag: 0,
-      low_score: 1,
-    });
+    expect(f.problems).toEqual(counts({ no_decoration: 1, contrast: 1, mobile: 1 }));
     expect(f.webFonts).toEqual({ yes: 4, no: 3 });
     expect(f.senders.map((s) => [s.name, s.domain, s.count])).toEqual([
       ["News", "news.example", 3],
@@ -250,16 +254,7 @@ describe.skipIf(!HAS_DB)("gallery pages and advanced filters against the databas
       ["News", 3],
       ["Shop", 2],
     ]);
-    expect(li.problems).toEqual({
-      image_only: 0,
-      contrast: 1,
-      mobile: 1,
-      clipped: 0,
-      broken_images: 0,
-      no_unsubscribe: 0,
-      merge_tag: 0,
-      low_score: 1,
-    });
+    expect(li.problems).toEqual(counts({ contrast: 1, mobile: 1 }));
     expect(li.mailboxes.map((m) => m.count)).toEqual([2, 0]);
     expect(li.webFonts).toEqual({ yes: 1, no: 1 });
     expect(li.categories.all).toBe(2);
@@ -269,7 +264,7 @@ describe.skipIf(!HAS_DB)("gallery pages and advanced filters against the databas
     // design left still shows, with 0, so its chip keeps its name).
     const img = await q.galleryFacets(
       fay.id,
-      params({ problem: ["image_only"], sender: [sender.linkedin!] }),
+      params({ problem: ["no_decoration"], sender: [sender.linkedin!] }),
     );
     expect(img.problems).toEqual(li.problems);
     expect(img.senders).toEqual([
@@ -292,7 +287,7 @@ describe.skipIf(!HAS_DB)("gallery pages and advanced filters against the databas
     // Mailbox, web fonts, score and date narrow the others too.
     const box = await q.galleryFacets(fay.id, params({ mailbox: mb2 }));
     expect(box.mailboxes.map((m) => m.count)).toEqual([5, 2]);
-    expect(box.problems.image_only).toBe(1);
+    expect(box.problems.no_decoration).toBe(1);
     expect(box.problems.contrast).toBe(0);
     const web = await q.galleryFacets(fay.id, params({ webfonts: "no" }));
     expect(web.webFonts).toEqual({ yes: 4, no: 3 });
@@ -339,7 +334,7 @@ describe.skipIf(!HAS_DB)("gallery pages and advanced filters against the databas
     const past = await q.listGallery(hal.id, params({ page: 99 }));
     expect(past).toMatchObject({ page: 2, pageCount: 2, total: 30 });
     expect(past.items).toHaveLength(6);
-    const empty = await q.listGallery(hal.id, params({ page: 5, problem: ["clipped"] }));
+    const empty = await q.listGallery(hal.id, params({ page: 5, problem: ["width"] }));
     expect(empty).toMatchObject({ items: [], total: 0, page: 1, pageCount: 1 });
   });
 });

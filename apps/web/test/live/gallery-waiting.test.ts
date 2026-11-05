@@ -1,13 +1,15 @@
 /**
- * "When will it be scored?" (src/lib/gallery-waiting.ts, lib/gallery-copy.ts `waitingCopy`):
+ * "When will it be checked?" (src/lib/gallery-waiting.ts, lib/gallery-copy.ts `waitingCopy`):
  * decided from the real render queue and the governor, mirroring the render planner:
- *  - a running render, or a queued on-demand one → "Scoring now";
- *  - the owner's new mail (≤ 48 h, never tried) the next fresh batch takes → "Scoring soon";
+ *  - a running render, or a queued on-demand one → "Checking now";
+ *  - the owner's new mail (≤ 48 h, never tried) the next fresh batch takes → "Checking soon";
  *  - the owner's mail the nightly batch takes (≤ 14 days, within its ~20) → the run's time, in the
  *    viewer's own zone ("around 10:15 AM" in Kathmandu is 04:30 UTC);
  *  - past the batch's room, or a friend's mail → "Waiting in line" (no promised time);
  *  - governor limits → "paused"; the owner's switch → "switched off"; > 14 days → "Open it";
  *    a disconnected mailbox → "Reconnect Gmail";
+ *  - a design scored before the design checklist is re-checked by the nightly batch at any age,
+ *    after the batch's regular work;
  *  - the numbers match @edf/pipeline's (render-policy.ts, render.ts) and the render-batch cron.
  */
 import { describe, expect, it, vi } from "vitest";
@@ -294,6 +296,28 @@ describe("waitingFor", () => {
     expect(state(input({ item: { designSource: "template" } }))).toBe("soon");
   });
 
+  it("a design scored before the checklist: re-checked by the nightly batch at any age, after its regular work", () => {
+    const old = new Date(NOW - 60 * 24 * H).toISOString();
+    const recheck = (over: Parameters<typeof input>[0] = {}) =>
+      input({ ...over, item: { receivedAt: old, designSource: "render", recheck: true, everRequested: true, ...over.item } });
+    // Never "can't be checked" or "open it": the nightly run takes it while its batch has room.
+    expect(waitingFor(recheck())).toEqual({ state: "scheduled", at: tonight });
+    expect(state(recheck({ item: { fillAhead: RENDER_SCHEDULE.batchCapacity - 1 } }))).toBe("scheduled");
+    expect(state(recheck({ item: { fillAhead: RENDER_SCHEDULE.batchCapacity } }))).toBe("queued");
+    expect(state(recheck({ user: { queued: { onDemand: 5, exemplar: 0, fill: 15 } } }))).toBe("queued");
+    // Never a fresh batch, even for new mail.
+    expect(state(recheck({ item: { receivedAt: new Date(NOW - H).toISOString(), everRequested: false } }))).toBe(
+      "scheduled",
+    );
+    expect(state(recheck({ role: "friend" }))).toBe("queued");
+    expect(state(recheck({ item: { lastFailed: true } }))).toBe("failed");
+    expect(state(recheck({ governor: { level: 1, actions: { fillRendersOff: true } } }))).toBe("paused");
+    expect(state(recheck({ governor: { level: 2, actions: { plannedRendersOff: true } } }))).toBe("paused");
+    expect(state(recheck({ governor: { level: 3, actions: {} } }))).toBe("paused");
+    // Already on its way.
+    expect(state(recheck({ item: { request: { kind: "fill", state: "running" } } }))).toBe("scoring");
+  });
+
   it("no renderer set up: nothing is promised", () => {
     expect(state({ ...input(), rendererOff: true })).toBe("off");
   });
@@ -321,22 +345,22 @@ describe("waitingCopy: plain words, the viewer's own clock", () => {
     // 04:30 UTC tomorrow is 10:15 AM tomorrow in Kathmandu (UTC+5:45), 9:30 PM today in Los Angeles.
     const w = { state: "scheduled" as const, at: tonight };
     expect(waitingCopy(w, ctx("Asia/Kathmandu"))).toEqual({
-      badge: "Not scored yet",
-      line: "Gets its score tomorrow around 10:15 AM",
-      detail: "It gets its score in the daily scoring run, tomorrow around 10:15 AM.",
+      badge: "Not checked yet",
+      line: "Gets checked tomorrow around 10:15 AM",
+      detail: "It gets checked in the daily run, tomorrow around 10:15 AM.",
     });
-    expect(waitingCopy(w, ctx("America/Los_Angeles")).line).toBe("Gets its score around 9:30 PM");
+    expect(waitingCopy(w, ctx("America/Los_Angeles")).line).toBe("Gets checked around 9:30 PM");
     expect(waitingCopy(w, ctx("America/Los_Angeles")).detail).toBe(
-      "It gets its score in the daily scoring run, today around 9:30 PM.",
+      "It gets checked in the daily run, today around 9:30 PM.",
     );
     // A page older than the run: it's on its way.
-    expect(waitingCopy(w, ctx("UTC", Date.parse(tonight) + 1)).badge).toBe("Scoring soon");
+    expect(waitingCopy(w, ctx("UTC", Date.parse(tonight) + 1)).badge).toBe("Checking soon");
     // After a failed try: the same run, said as a retry.
     expect(waitingCopy({ state: "retry", at: tonight }, ctx("Asia/Kathmandu"))).toEqual({
-      badge: "Not scored yet",
+      badge: "Not checked yet",
       line: "Trying again tomorrow around 10:15 AM",
       detail:
-        "Scoring it didn't work last time. It's tried again in the daily scoring run, tomorrow around 10:15 AM.",
+        "Checking it didn't work last time. It's tried again in the daily run, tomorrow around 10:15 AM.",
     });
   });
 
@@ -357,39 +381,40 @@ describe("waitingCopy: plain words, the viewer's own clock", () => {
       ] as const
     ).map((s) => waitingCopy({ state: s }, c));
     expect(all.map((x) => x.badge)).toEqual([
-      "Scoring now",
-      "Scoring soon",
-      "Not scored yet",
-      "Not scored yet",
-      "Not scored yet",
-      "Not scored yet",
-      "Not scored yet",
-      "Not scored yet",
-      "No score",
-      "Not scored yet",
+      "Checking now",
+      "Checking soon",
+      "Not checked yet",
+      "Not checked yet",
+      "Not checked yet",
+      "Not checked yet",
+      "Not checked yet",
+      "Not checked yet",
+      "Can't be checked",
+      "Not checked yet",
     ]);
     expect(all.map((x) => x.line)).toEqual([
       "Ready in a few minutes",
       "Usually within the hour",
-      "Waiting in line to be scored",
-      "Scoring is paused for now",
-      "Scoring is switched off",
-      "Open it to get a score",
-      "Scoring didn't work",
-      "Open it to get a score",
-      "Can't be scored",
-      "Reconnect Gmail to score it",
+      "Waiting in line to be checked",
+      "Checking is paused for now",
+      "Checking is switched off",
+      "Open it to check it",
+      "Checking didn't work",
+      "Open it to check it",
+      "Not enough to measure",
+      "Reconnect Gmail to check it",
     ]);
     for (const x of all) {
       expect(x.line.length).toBeLessThanOrEqual(45);
-      expect(`${x.line} ${x.detail}`).not.toMatch(
-        /checking|render|governor|sandbox|batch|quota|queue/i,
+      // The gallery's word is "checked" (the design rules), never the score's.
+      expect(`${x.badge} ${x.line} ${x.detail}`).not.toMatch(
+        /scor|render|governor|sandbox|batch|quota|queue/i,
       );
     }
     expect(waitingCopy(null, c)).toEqual({
-      badge: "Not scored yet",
+      badge: "Not checked yet",
       line: "",
-      detail: "This design doesn't have a score yet.",
+      detail: "This design hasn't been checked against the design rules yet.",
     });
   });
 
@@ -407,6 +432,19 @@ describe("the numbers match the render planner's", () => {
     const { SANDBOX_VCPUS } = await import("@edf/render");
     expect(pipeline.RENDER_VM_VCPUS).toBe(SANDBOX_VCPUS);
     expect(pipeline.FRESH_BATCH_MAX_CPU_S).toBe(SANDBOX_VCPUS * 250);
+  });
+
+  it("the gallery's types are the ones the re-check takes", async () => {
+    const { EMAIL_SUBTYPES, EMAIL_TYPES } = await import("@edf/core/types");
+    const { galleryCategoryOf, isShownCategory } = await import("@/lib/gallery");
+    for (const t of EMAIL_TYPES)
+      for (const sub of [null, ...(EMAIL_SUBTYPES[t] as readonly string[])]) {
+        const listed = isShownCategory(galleryCategoryOf(t, sub));
+        const taken = pipeline.GALLERY_TYPES.some(
+          (g) => g.type === t && (g.subtypes === null || (sub !== null && g.subtypes.includes(sub))),
+        );
+        expect(taken, `${t}/${sub}`).toBe(listed);
+      }
   });
 
   it("fresh window, fill window, daily fill batches, batch room and the nightly time", () => {

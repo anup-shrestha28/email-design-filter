@@ -22,6 +22,7 @@ import { truncate } from "../util/text";
 import { FEATURES_VERSION } from "../version";
 import { declaredImages, imagesOff, imagesUnknownShare } from "./checks/images";
 import { renderUnsubscribe, staticUnsubscribe, unsubscribeUnion } from "./checks/technical";
+import { designChecklist } from "./checklist";
 import type { ExcellenceGate } from "./excellence";
 import { r3, type CheckInput } from "./kit";
 
@@ -66,6 +67,7 @@ export function summarizeScore(
       points: i.points,
       ai: i.ai,
     }));
+  const signals = result.signals ?? summarySignals(result.checks);
   return {
     scoringVersion: result.scoringVersion,
     coverage: result.coverage,
@@ -78,8 +80,11 @@ export function summarizeScore(
     needsImprovement: brief(result.needsImprovement, 5),
     good: brief(result.good, 5),
     fonts: profile ? fontSummary(profile) : null,
-    signals: result.signals ?? summarySignals(result.checks),
+    signals,
     ...(render ? { layout: summaryLayout(render) } : {}),
+    // The owner's design checklist decides Good / Okay / Bad; only a render (own or template) can
+    // answer it — a static-only email is "Not checked yet".
+    checklist: result.coverage === "static" ? null : designChecklist(result.checks, signals),
   };
 }
 

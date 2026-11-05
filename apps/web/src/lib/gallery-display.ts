@@ -1,47 +1,9 @@
 /**
- * Presentation rules for the gallery's verdicts (client-safe, pure; unit-tested in
+ * Presentation helpers for the gallery's cards (client-safe, pure; unit-tested in
  * test/tests-ui/gallery-ui.test.ts). The verdict rules themselves live in lib/gallery.ts
- * (`verdictOf`); this file only decides how a verdict and its score are shown together, so the two
- * can never contradict each other on screen.
+ * (`verdictOf`); the badge shows the verdict word alone (components/gallery/verdict-badge.tsx).
  */
-import { GOOD_SCORE_MIN, type Verdict } from "./gallery";
-
-/**
- * Below this a score reads as "poor" (DESIGN-SCORE §3.1). A Bad verdict can come from a severe,
- * visible problem at any score, but its number is then capped low by the engine; a Bad badge never
- * shows a number at or above this.
- */
-const BAD_SCORE_SHOWN_BELOW = 70;
-
-/**
- * The score to print next to the verdict word, or null to show the word alone. The number is always
- * drawn in the verdict's own colour, and is left out whenever it would seem to argue with the word:
- *  - Good → always (Good needs ≥ 85, so the number agrees).
- *  - Okay → only below the Good threshold. An Okay at 85+ is one that isn't fully checked yet
- *    (e.g. its layout checks are still provisional); "Okay · 98" would read as a contradiction.
- *  - Bad  → never on cards: the reason line says what's wrong, and a capped Bad (up to 69) could
- *    otherwise read as better than an Okay beside it. The detail view's large badge (`detail`)
- *    shows it below 70.
- *  - Not scored yet → never.
- */
-export function shownScore(
-  verdict: Verdict,
-  score: number | null | undefined,
-  opts: { detail?: boolean } = {},
-): number | null {
-  if (score === null || score === undefined || !Number.isFinite(score)) return null;
-  const s = Math.round(score);
-  switch (verdict) {
-    case "good":
-      return s;
-    case "ok":
-      return s < GOOD_SCORE_MIN ? s : null;
-    case "bad":
-      return opts.detail === true && s < BAD_SCORE_SHOWN_BELOW ? s : null;
-    default:
-      return null;
-  }
-}
+import type { Verdict } from "./gallery";
 
 interface Groupable {
   id: string;

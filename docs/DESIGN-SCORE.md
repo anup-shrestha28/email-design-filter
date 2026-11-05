@@ -1,6 +1,9 @@
-# Email Design Score — Methodology Specification (v1.7)
+# Email Design Score — Methodology Specification (v1.8)
 
-> Status: implemented · Scoring version: `2026.6` · Last reviewed: 2026-10-01.
+> Status: implemented · Scoring version: `2026.6` · Last reviewed: 2026-11-05.
+> **v1.8 (2026-11-05): the gallery's Good / Okay / Bad comes from the owner's 16-rule design
+> checklist (§3.2), not the score.** The score, bands, caps and the Excellent gate below are
+> unchanged and still shown on the full analysis page, sorts and the score filter.
 > v1.1 incorporates an adversarial methodology review (5 critical and 12 high findings fixed).
 > v1.2 applies the gallery verdict policy ("Good" = really good, "Bad" = really bad, with a
 > reason a reader can verify): caps only for severe visible problems, main-content contrast,
@@ -365,7 +368,9 @@ list still reconciles (`packages/design/src/scoring/excellence.ts`). It is evalu
 rendered email, binding or not, and its failed bars are saved (`gate` below). Because the gate is
 in the score, the number, the band, the Best/Worst sorts and the verdict always agree.
 
-**Gallery verdict (v1.2, gate v1.3, severe problems v1.5, rules v1.6)** — strict, so "Good" means *really good* and "Bad" *really bad*:
+**Gallery verdict (v1.2–v1.7; replaced by the design checklist in v1.8, §3.2)** — kept here as
+the history of the score-based rules; the engine still saves the signals they read, and the full
+analysis page words its findings from them:
 
 | Verdict | Rule |
 |---|---|
@@ -530,6 +535,52 @@ support, language attributes) is never listed as a gallery problem. The gallery 
 server-side (`galleryReason`) from the saved summary — which keeps the top 5 problems and top 5
 strengths, so this still works after compaction empties `checks` — and the client shows them
 unchanged.
+
+### 3.2 The design checklist — Good / Okay / Bad (v1.8)
+
+From 2026-11-05 the gallery's verdict follows the owner's rules strictly: the "Email Design Cheat
+Sheet" from their notes on Designmodo's *Email Design: The Ultimate Guide with Examples* (16
+questions). `packages/design/src/scoring/checklist.ts` answers each one from the engine's own
+measured checks and saved signals; `summarizeScore` saves the answers as
+`score_summary.checklist` (version `designmodo-2026.11`) for every rendered email (own or template
+render; never static-only), so they outlive the 30-day compaction of the checks.
+
+| # | Rule (cheat sheet) | Measured by | Miss when |
+|---|---|---|---|
+| 1 | One clear message | hero / headline signals, H5 | no hero and no headline ≥ 1.5× body, or the first screens push > 1 action |
+| 2 | One primary CTA | H1, `ctaCompeting` | no button (text links only), or ≥ 3 look-alike buttons for different actions |
+| 3 | Strong hero / above the fold | `heroPicture`, `heroBand` (G4) | neither |
+| 4 | Clear visual hierarchy | H6 | credit < 0.75 |
+| 5 | Easy to scan | C3 | credit < 0.75 (n/a for short copy) |
+| 6 | ~600px desktop structure | L1 | credit < 0.75 |
+| 7 | Mobile-friendly | M1, M3, M7 | M1 < 0.9, or M3 / M7 < 0.75 |
+| 8 | Fonts used correctly | T6 | > 2 families (brand fit not measurable) |
+| 9 | Colours used correctly | L5 | credit < 0.75 (brand fit not measurable) |
+| 10 | Body copy readable | T1, T3 | < 14 px on a phone, or line height < 1.4× |
+| 11 | CTA specific and visible | H1, H3, H4, I2 | no button; a generic label (H4 ≤ 0.4: "Learn more", "Click here"); H3 < 0.7 |
+| 12 | Good contrast | A1 | credit < 0.9 (WCAG AA 4.5:1) |
+| 13 | Images support the message | I3, A2 | < 0.9 load, or < half described (support not measurable; n/a without images) |
+| 14 | Enough, not excessive whitespace | L2 | credit < 0.75 |
+| 15 | Unnecessary elements removed | L3, C5 | either credit < 0.75 |
+| 16 | Works without decoration | live text, I1, I2, I4 | < 200 characters of live text, or I1 / I2 / I4 < 0.75 |
+
+A rule is **unknown** when the measurements can't see it — chiefly an email made of pictures
+(< 200 characters of live text), whose headline, body copy, contrast and button are inside the
+images — and **n/a** when it doesn't apply. The verdict (`checklistVerdict`; the gallery's
+`verdictOf` and its SQL twin read the saved counts):
+
+| Verdict | Rule |
+|---|---|
+| **Good design** | no rule missed and none unknown |
+| **Okay** | 1–2 missed, or none missed with any unknown |
+| **Bad design** | ≥ 3 missed |
+| **Not checked yet** | no checklist of the current version (not rendered yet, or rendered before v1.8 with its checks since compacted) |
+
+Calibrated on the owner's and a friend's 137 fully measured gallery emails (2026-11-05): Good 6,
+Okay 55, Bad 76 — letter-style emails with text links and no button miss 7–8 rules. Rows analysed
+before v1.8 got their checklist from their stored checks (`apps/web/scripts/backfill-checklist.ts`);
+gallery mail whose checks were already compacted is re-rendered by the nightly fill, after its
+regular candidates (FREE-TIER.md §5.3 "Re-check").
 
 ## 4. Hard caps (show-stoppers)
 
@@ -1010,6 +1061,12 @@ Badge states:
   metrics < 400 ms; scoring < 5 ms.
 
 ## 11. Change log
+
+- **v1.8 (2026-11-05), the design checklist decides the verdict** (no score change): the gallery's
+  Good / Okay / Bad, its Good / Bad filters, Best / Worst order and the Problems filter (now
+  "Missed rules", one option per rule) follow the owner's 16-rule checklist (§3.2). The badge shows
+  no number; the card says how many rules were missed and which; "How we judged this" and the full
+  analysis page list all 16 with what was measured.
 
 - **v1.7 security fixes (2026-10-01)** (renderer `render-2026.6`; scoring version unchanged —
   the new rules read facts only a render-2026.6 render records, and re-scoring the 634 stored

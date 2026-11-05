@@ -1,18 +1,22 @@
 /**
  * Design gallery model shared by the server (queries/gallery.ts, actions/gallery.ts) and the client:
- * the gallery's categories, the strict Good / Bad verdict (VERDICT POLICY below), the one-line
- * reason on each card and the detail lists (REASON POLICY below) and the URL state (category,
- * design, font, q, sort, pages and the Filters panel). Client-safe: no server imports.
+ * the gallery's categories, the Good / Okay / Bad verdict from the 16-rule design checklist
+ * (VERDICT POLICY below), the card's line and the detail lists (checklistReason), the engine
+ * findings' wording for the full analysis page (FINDINGS WORDING below) and the URL state
+ * (category, design, font, q, sort, pages and the Filters panel). Client-safe: no server imports.
  */
 import { z } from "zod";
 import { EMAIL_SUBTYPES, EMAIL_TYPES, type EmailType } from "@edf/core/types";
 import {
-  CAP_DISPLAY_ORDER,
-  type CapId,
-  type DesignBand,
-  type DesignIssue,
-  type ScoreSummary,
-} from "@edf/design/types";
+  CHECKLIST_RULES,
+  CHECKLIST_VERSION,
+  checklistVerdict,
+  type ChecklistResult,
+  type ChecklistRule,
+  type ChecklistRuleId,
+  type DesignChecklist,
+} from "@edf/design/checklist";
+import { CAP_DISPLAY_ORDER, type ScoreSummary } from "@edf/design/types";
 
 // ───────────────────────── categories ─────────────────────────
 
@@ -143,79 +147,21 @@ export function categoryRules(category: EmailGalleryCategory): Array<{
 
 // ───────────────────────── verdict ─────────────────────────
 //
-// VERDICT POLICY ("really good" / "really bad"; mirrored in SQL by queries/gallery.ts):
-//  - BAD      = a severe, visible problem, or a poor overall score:
-//               · any design cap the engine found (image-only / text baked into images, main body
-//                 text too faint, clipped in Gmail, a visible merge tag, genuinely broken on
-//                 phones, and — decided deliberately — most images definitively broken: the
-//                 sender's server said 404/410 or not-an-image for ≥ 2 and > 50% of them; DNS
-//                 failures, timeouts and proxy blocks never count) — `caps` lists every cap that
-//                 fired, binding or not, so a merge tag on an email whose raw score is already
-//                 under the cap still counts;
-//               · or one of five more clearly visible problems the engine deducts for but doesn't
-//                 cap (`severeTriggers`, from score_summary.signals — kept after compaction, see
-//                 migration 0015; each leads the card with its own plain reason). The rules were
-//                 set on the 2026-10-01 verdict audit (DESIGN-SCORE §3.1) and read the facts the
-//                 engine saves since scoring 2026.5 ("current" signals: the `unsubscribeUnion` key
-//                 is there, even when null). Rows scored before keep the v1.5 rules (marked "v1.5")
-//                 until they are re-scored — their signals can't tell the new rules apart:
-//                   - just pictures, and they didn't load: the HTML declares ≥ 1 content image
-//                     (htmlContentImages), none was drawn (drawnContentImages = 0 — null when we
-//                     didn't ask for images, which never counts) and there are < 200 characters of
-//                     real live text (liveTextChars): a 4 MB poster too big to load ("Most of this
-//                     email is one huge picture (too big for us to load): only 51 characters of
-//                     real text" — why it wasn't drawn comes from the stored render, RenderFacts;
-//                     "one picture that didn't load" when its own server failed it);
-//                   - text baked into images: images cover ≥ 50% of the email (I1 imgShare ≥ 0.5)
-//                     and it has < 200 characters of real live text (I1 legibleChars) — the
-//                     image-only cap's own thresholds, without its images-off escape, so alt text
-//                     doesn't rescue it ("Most of this email is pictures: only 97 characters of
-//                     real text"); the same in both rule sets, except that the current rules
-//                     don't trust the share when more than half the picture area wasn't drawn for
-//                     reasons that say nothing about the design (imagesUnknownShare > 0.5: our
-//                     privacy proxy or size limits; the engine's own "imagery unknown" bar): a
-//                     YouTube alert whose blocked thumbnail read as "pictures cover 100%" with its
-//                     title and channel in real text isn't Bad for it (decided on the 2026-10-01
-//                     review, a departure from the audit's simulation; those emails are Okay);
-//                   - doesn't fit phones: the layout is scaled below 80% (layoutK < 0.80) and body
-//                     text ends up under 12.5 px on a phone (phoneTextPx = CSS px × k; the cap only
-//                     fires under 8 px) ("Doesn't fit phones: text shrinks to about 10.5 px"). v1.5:
-//                     any shrink (k < 0.99) with text under 11.5 px;
-//                   - Gmail cuts the email off and the unsubscribe link is after the cut
-//                     (unsubscribeUnion "after_clip": both passes, whatever the type) ("Gmail cuts
-//                     this email off (136 KB; Gmail's limit is 102 KB) and hides the unsubscribe
-//                     link"). v1.5: none;
-//                   - no unsubscribe link in marketing mail: the email is promotional — its type
-//                     now (email.primary_type, VerdictInput.primaryType: the type its category chip
-//                     shows, so a type the reader corrects, or the AI settles later, moves the
-//                     verdict with the chip without a re-score) — and neither pass found a link
-//                     (unsubscribeUnion "none", measured for every type), whether or not it's
-//                     flagged as a subscription. Receipts, account notices and app notifications
-//                     never trigger it. v1.5: U1 "none" (U1 applies only to subscription mail that
-//                     isn't transactional or account mail, as scored);
-//               · or a score under 60 (the Poor band, < 50, and the bottom of Needs work).
-//               Caps are deterministic defects the pending AI review can never lift, so a capped
-//               email is Bad whether or not it is 'provisional'; the same goes for the five
-//               measured problems above. A low score is Bad too. Every Bad email matches at least
-//               one Problems option (GALLERY_PROBLEMS: one per cap, per measured problem, and
-//               "Low score"), so the Problems counts break the Bad count down rule by rule.
-//  - GOOD     = score ≥ 85, none of the Bad problems (Bad always wins), and a real design coverage
-//               (own render or template render, never static-only). "Really good" is enforced by
-//               the engine's Excellent gate (@edf/design scoring/excellence.ts, DESIGN-SCORE §3.1):
-//               since 2026.5 a score of 85+ needs a real headline (≥ 1.5× the body text) AND a
-//               main button that stands out AND, in app and system mail, pictures on ≥ 8% of the
-//               email (or an AI visual rating ≥ 4 instead of the three), and no phone-layout
-//               problem on ≥ 50% of the text; an email without that is held at 84, so it is
-//               "Okay" here and its number, band and sort position agree (the failed bars are
-//               saved as signals.gate and become its "not Good because" lines, `gateLines`).
-//               'Provisional' blocks Good only when it comes from low
-//               design-coverage confidence (email_analysis.confidence below the engine's Medium
-//               floor, 0.70 — e.g. a template render without the AI review, ≈ 0.64). A score of
-//               85+ is never within ±3 of the 50/70 band edges, so the only other source of
-//               'provisional' there is a low email-TYPE classification confidence, which says
-//               nothing about design quality and must not block Good.
-//  - OKAY     = every other scored email.
-//  - UNSCORED = no score.
+// VERDICT POLICY (2026-11-05; mirrored in SQL by queries/gallery.ts): the owner's 16-rule design
+// checklist, followed strictly — the "Email Design Cheat Sheet" from their notes on Designmodo's
+// "Email Design: The Ultimate Guide with Examples" (@edf/design scoring/checklist.ts, which says
+// how each rule is measured). Every rendered design's checklist is saved with its score summary
+// (score_summary.checklist), so it outlives the 30-day compaction of the measurements.
+//  - GOOD     = every rule checked and passed. A rule that doesn't apply (pictures in an email
+//               without any, paragraphs in a short note) doesn't count; one we couldn't check
+//               does: the email isn't Good until every rule is known to pass.
+//  - BAD      = three or more rules missed.
+//  - OKAY     = one or two rules missed, or none missed with at least one we couldn't check.
+//  - UNSCORED = no checklist yet ("Not checked yet"): not rendered yet, or rendered before the
+//               checklist existed and its measurements were since compacted — a new render checks
+//               it. A checklist of an older version is treated as missing.
+// The engine's 0–100 score is still measured (sort, score filter, the full analysis page) but no
+// longer decides the verdict.
 
 export type Verdict = "good" | "bad" | "ok" | "unscored";
 
@@ -223,16 +169,61 @@ export const VERDICT_LABELS: Record<Verdict, string> = {
   good: "Good design",
   bad: "Bad design",
   ok: "Okay",
-  unscored: "Not scored yet",
+  unscored: "Not checked yet",
 };
 
-/** Score a "Good design" needs (plus: no cap, real coverage, no low-coverage provisional). */
-export const GOOD_SCORE_MIN = 85;
+/** Rules in the checklist (CHECKLIST_RULES); the tests assert they agree. */
+export const CHECKLIST_RULE_COUNT = 16;
+
+const RULE_IDS: ReadonlySet<string> = new Set(CHECKLIST_RULES.map((r) => r.id));
+const RESULTS: ReadonlySet<string> = new Set(["pass", "miss", "na", "unknown"]);
+const RULE_LABELS = new Map(CHECKLIST_RULES.map((r) => [r.id, r.label]));
+const isCount = (x: unknown): x is number => typeof x === "number" && Number.isInteger(x) && x >= 0;
+
 /**
- * A score below this is "Bad design": the Poor band (< 50) and the bottom of Needs work (50–59),
- * where real mail with no single fatal flaw has many smaller ones.
+ * The saved checklist (score_summary.checklist) when it is one of the current version with its two
+ * counts, else null — the same test as the SQL twin (queries/gallery.ts CHECKLIST). Rules that
+ * aren't well-formed are left out of `rules`; the counts are the saved ones, which the verdict
+ * (here and in SQL) reads.
  */
-export const POOR_SCORE_MAX = 60;
+export function storedChecklist(x: unknown): DesignChecklist | null {
+  if (typeof x !== "object" || x === null || Array.isArray(x)) return null;
+  const o = x as Record<string, unknown>;
+  if (o.v !== CHECKLIST_VERSION || !isCount(o.misses) || !isCount(o.unknown)) return null;
+  const rules = Array.isArray(o.rules)
+    ? o.rules.flatMap((r): ChecklistRule[] => {
+        if (typeof r !== "object" || r === null) return [];
+        const { id, result, why } = r as Record<string, unknown>;
+        return typeof id === "string" && RULE_IDS.has(id) && typeof result === "string" && RESULTS.has(result)
+          ? [{ id: id as ChecklistRuleId, result: result as ChecklistResult, why: typeof why === "string" ? why : "" }]
+          : [];
+      })
+    : [];
+  return { v: CHECKLIST_VERSION, rules, misses: o.misses, unknown: o.unknown };
+}
+
+export interface VerdictInput {
+  /** score_summary.checklist as stored (validated here). */
+  checklist: unknown;
+}
+
+/** The verdict (see VERDICT POLICY above). */
+export function verdictOf(d: VerdictInput): Verdict {
+  const c = storedChecklist(d.checklist);
+  return c ? checklistVerdict(c) : "unscored";
+}
+
+/** A rule's plain name ("One main button"). */
+export function ruleLabel(id: ChecklistRuleId): string {
+  return RULE_LABELS.get(id) ?? id;
+}
+
+// ───────────────────────── engine findings ─────────────────────────
+//
+// The engine's own findings in plain words (the full analysis page's lists, components/design
+// design-panel.tsx compatibleStrengthItems): the measured facts below decide which strengths a
+// problem contradicts. They no longer decide the gallery's verdict (VERDICT POLICY above).
+
 /** Text baked into images: images cover at least this share of the email (I1 imgShare)… */
 export const IMAGE_TEXT_SHARE_MIN = 0.5;
 /**
@@ -254,25 +245,16 @@ export const SHRINK_K_MAX = 0.8;
 export const LEGACY_TINY_PHONE_TEXT_PX = 11.5;
 /** …with any shrink at all. */
 export const LEGACY_SHRINK_K_MAX = 0.99;
-/** The only type whose missing unsubscribe link makes it Bad (current signals). */
+/** The only type whose missing unsubscribe link is a severe problem (current signals). */
 export const UNSUBSCRIBE_REQUIRED_TYPE = "promotional";
 /** Gmail cuts off an email's HTML past this size (KB of 1,000 bytes, as `htmlKB` is saved). */
 export const GMAIL_CLIP_KB = 102;
 /**
  * The key whose presence marks summary signals saved by scoring 2026.5 or later ("current"):
  * absent on older summaries and in summary_signals(checks), present (maybe null) on every newer
- * one. The SQL twin reads the same key (queries/gallery.ts CURRENT_SIGNALS).
+ * one.
  */
 export const CURRENT_SIGNALS_KEY = "unsubscribeUnion";
-/**
- * Design-coverage confidence under which the engine calls a score "Low" for lack of evidence
- * (@edf/design CONFIDENCE_MEDIUM; the gallery tests assert they agree).
- */
-export const COVERAGE_CONFIDENCE_MIN = 0.7;
-/** email_analysis.confidence is a float4: 0.70 comes back as 0.6999999881. */
-export const CONFIDENCE_EPSILON = 1e-4;
-/** Design sources that measured the email's layout (static-only never earns Good). */
-export const GOOD_SOURCES: readonly string[] = ["render", "template"];
 /**
  * The Excellent gate's bars (@edf/design scoring/excellence.ts; the gallery tests assert they
  * agree): G1 a headline at least this many times the body text (H6 ratio)…
@@ -280,46 +262,12 @@ export const GOOD_SOURCES: readonly string[] = ["render", "template"];
 export const HEADLINE_RATIO_MIN = 1.5;
 /** …G2 a main button whose fill salience (H3) is at least this… */
 export const CTA_SALIENCE_MIN = 0.9;
-/** …and not one of this many look-alike buttons for this many different actions (ctaCompeting)… */
-export const COMPETING_BUTTONS_MIN = 3;
 /** …G3 pictures on at least this share of app and system mail (I1 imgShare)… */
 export const IMAGERY_SHARE_MIN = 0.08;
-/** …G4 a hero picture at least this wide on desktop (CSS px) and this large (CSS px²)… */
-export const HERO_PICTURE_WIDTH_MIN = 300;
-export const HERO_PICTURE_AREA_MIN = 40_000;
-/** …or a large headline on a band at least this far from white (contrast ratio)… */
-export const HERO_BAND_CONTRAST_MIN = 1.15;
 /** …and less than this share of the text squeezed or at the screen edge on phones (M3 / M7). */
 export const PHONE_PROBLEM_SHARE = 0.5;
 
-export interface VerdictInput {
-  score: number | null;
-  band: DesignBand | null;
-  capped: boolean | null;
-  provisional: boolean | null;
-  /** Every cap that fired (email_analysis.caps), binding or not. Any one is a severe problem. */
-  caps?: readonly string[] | null;
-  /** Issue chips (email.design_issues), derived from caps; any one is a severe problem. */
-  issues?: readonly string[] | null;
-  /** email.design_source. Good needs "render" or "template"; omitted = not checked. */
-  source?: string | null;
-  /** email_analysis.confidence: design coverage 0..1 (without the type-confidence drop). */
-  coverageConfidence?: number | null;
-  /**
-   * The measured facts behind `severeTriggers` (score_summary.signals, or the same extracted from
-   * the stored checks for older rows — queries/gallery.ts GALLERY_SIGNALS). Omitted = none.
-   */
-  signals?: unknown;
-  /**
-   * email.primary_type: the email's type now, which decides whether a missing unsubscribe link
-   * makes it Bad (current signals). It can differ from the type the score used (signals
-   * .primaryType) once the reader corrects it or the AI classifies a pending email; omitted
-   * (undefined) = the type the score used.
-   */
-  primaryType?: string | null;
-}
-
-/** A clearly visible problem that makes an email Bad although the engine doesn't cap it. */
+/** A clearly visible problem the engine deducts for but doesn't cap (the old verdict's Bad rules). */
 export type SevereTrigger =
   | "pictures_not_loaded"
   | "text_in_images"
@@ -402,108 +350,23 @@ export function severeTriggers(signals: unknown, primaryType?: string | null): S
   return SEVERE_ORDER.filter((t) => hit[t]);
 }
 
-/**
- * A severe, visible problem: the engine capped the score, any cap / issue chip fired, or the
- * signals show one of the severe problems in `severeTriggers`.
- */
-export function hasSevereProblem(
-  d: Pick<VerdictInput, "capped" | "caps" | "issues" | "signals" | "primaryType">,
-): boolean {
-  return (
-    d.capped === true ||
-    (Array.isArray(d.caps) && d.caps.length > 0) ||
-    (Array.isArray(d.issues) && d.issues.length > 0) ||
-    severeTriggers(d.signals, d.primaryType).length > 0
-  );
-}
-
-/** 'Provisional' because the design evidence itself is thin (not just an unsure email type). */
-export function lowCoverageProvisional(d: VerdictInput): boolean {
-  if (d.provisional !== true) return false;
-  const c = d.coverageConfidence;
-  return !(
-    typeof c === "number" &&
-    Number.isFinite(c) &&
-    c + CONFIDENCE_EPSILON >= COVERAGE_CONFIDENCE_MIN
-  );
-}
-
-/** The verdict (see VERDICT POLICY above). Bad is checked first, so the two can never overlap. */
-export function verdictOf(d: VerdictInput): Verdict {
-  if (d.score === null || d.score === undefined) return "unscored";
-  if (hasSevereProblem(d) || d.score < POOR_SCORE_MAX || d.band === "poor") return "bad";
-  const sourceOk =
-    d.source === undefined || (typeof d.source === "string" && GOOD_SOURCES.includes(d.source));
-  if (d.score >= GOOD_SCORE_MIN && sourceOk && !lowCoverageProvisional(d)) return "good";
-  return "ok";
-}
-
 // ───────────────────────── reason ─────────────────────────
 //
-// REASON POLICY (card line + detail lists), from the saved score summary and signals and — while
-// the email's full check results are still stored (they're compacted after a while) — from those
-// checks. Every line must be true of the email and checkable by looking at it:
-//  - BAD  → the rule that made it Bad, in plain, specific words ("Body text is light grey on
-//           white (2.1:1) — hard to read", "Gmail cuts this email off (136 KB; Gmail's limit is
-//           102 KB) and hides the unsubscribe link"). Caps lead, most visible first (image-only,
-//           contrast, merge tag, phone layout, clipping, broken images), not simply the lowest
-//           cap; then the verdict's severe problems ("Most of this email is one huge picture
-//           (too big for us to load): only 51 characters of real text", "Doesn't fit phones: text
-//           shrinks to about 10.5 px", "No unsubscribe link anywhere in this marketing email"),
-//           worded from the saved signals so they survive compaction; Bad for its score alone,
-//           "Several problems add up to a low score (55 of 100; Bad is under 60)".
-//  - GOOD → the most distinctive strengths (hierarchy, button, imagery, phone layout), two combined
-//           when short ("A big headline and a standout “Shop now” button"); baseline strengths
-//           (contrast, "a restrained colour palette", "a clean layout") never make up a combined
-//           line and lead only when nothing more distinctive passed.
-//  - OKAY → its main issue, in the plainest checkable words: held at 84 by the Excellent gate, the
-//           first "not Good because" line (one per failed bar in signals.gate, with what was
-//           measured and what Good needs: "No real headline (the biggest text is 1.1× the body
-//           text; Good needs 1.5×)", "Few pictures for this kind of email (3%; Good needs 8%)");
-//           a readable non-responsive layout reads "Doesn't resize for phones (text ≈ 10.5 px)"
-//           (the measured sentence stays in the detail); an email just over Gmail's size limit
-//           whose cut hides nothing that matters reads "Over Gmail's size limit (103 KB; the limit
-//           is 102 KB): the last 9% of it is behind “[Message clipped]”" — "Gmail cuts this email
-//           off" is the Bad rule's wording only; a filled button that a bigger link elsewhere
-//           outweighs, "Another link or picture in the email is bigger than the main button “View
-//           message”" (never "comes first": the render compares it with every link). With no
-//           problem that may lead, its best strength.
-//  - Weak problems (weakProblem: faint small print, narrow columns on under half the text, line
-//    length, images without a description, phone styles some apps ignore, "no clear button for
-//    the main action") are listed after the others and never lead a card. Not listed at all:
-//    "phone styles" for an email that fits, alt text when the only images are pixels, a missing
-//    headline outside marketing mail, a missing unsubscribe link outside promotional and
-//    newsletter mail (the verdict's own scope), the footer statements the HTML pass matches by set
-//    phrases (HTML_PASS_CHECKS: preferences link, "why you get this") and the engine's "stray text
-//    addressed to AI" note (HTML_PASS_NOTES) unless they come from the current HTML pass, a
-//    methodology 2026.6+ summary with an own render of render-2026.5+ (currentHtmlPass: the older
-//    phrases missed "Manage recommendations", the older patterns matched ordinary copy like "rank
-//    the Top 100"), how much of the email is pictures when most of the picture area
-//    wasn't drawn (picturesUnknown), and "no main button" unless the email's stored render and
-//    HTML pass both back it up (no link painted as a button, no link box a button's size:
-//    RenderFacts) — the render misses some real buttons (an 8-word label, a cell painted around a
-//    short link) — and a letter or a notice needs none, so even a backed-up one never leads,
-//    unless it is the Excellent gate's "not Good because" line ("No main button (Good needs one
-//    that stands out)").
-//  - Numbers are worded the same everywhere: a phone text size to one decimal, never rounded onto
-//    the bar it misses ("about 10.5 px" on the card, in the list and in "How we judged this").
-//  - Detail: up to 3 problems and up to 3 strengths, each specific, deduplicated by root cause,
-//    root cause first; generic baseline strengths only when nothing better passed (never on Bad).
-//    Symptoms of one root cause are one problem: a fixed-width layout shrinking on phones also
-//    makes the button's tap area, the headline and tap targets small (M4, H6, A7) and squeezes
-//    columns / text (M2, M3, M7, T1); those fold into the layout problem, and an email that is just
-//    pictures has no separate button, headline or text-size / text-layout problem (they are in
-//    its pictures).
-//  - Strengths are dropped when a listed problem contradicts them ("fits phones" next to a
-//    shrinking layout, button praise next to "doesn't stand out", desktop text called comfortable
-//    next to the same size called small on phones) and when the facts don't back them
-//    (`unbacked`: the engine's own rules — a "standout" button needs a bold fill that is the most
-//    prominent link, "one clear main button at the top" the first phone screen too, no headline
-//    praise without heading text, "images resize cleanly" only for pictures that were drawn,
-//    typography / palette / grid never for unstyled mail; an email that is just pictures gets no
-//    text, layout, picture-button or picture-resizing praise). One of several buttons that look
-//    the same is never "the standout “Try AI in Sheets” button" — they are "clear, bold buttons" —
-//    and a main button that stands out over buttons of another style isn't "competing" with them.
+// FINDINGS WORDING (the full analysis page's lists: compatibleStrengthItems drops an engine
+// strength that a listed problem contradicts). The gallery's own card line and lists come from the
+// checklist (checklistReason, next to the Problems options). Problems are worded from the saved score
+// summary and signals and — while the email's full check results are still stored — from those
+// checks; every line must be true of the email and checkable by looking at it:
+//  - caps lead, most visible first (image-only, contrast, merge tag, phone layout, clipping,
+//    broken images), then the severe problems the signals show ("Doesn't fit phones: text shrinks
+//    to about 10.5 px"), then the rest; weak problems (faint small print, line length, images
+//    without a description, "no clear button for the main action") come last;
+//  - symptoms of one root cause are one problem (a fixed-width layout shrinking on phones also
+//    makes the button, the headline and tap targets small), and an email that is just pictures
+//    has no separate button, headline or text-size problem;
+//  - a strength is dropped when a listed problem's root cause contradicts it ("fits phones" next
+//    to a shrinking layout, button praise next to "doesn't stand out", "reads fine with images
+//    off" next to "only 97 characters of real text").
 
 export interface GalleryReason {
   kind: "problem" | "strength";
@@ -514,8 +377,6 @@ export const REASON_MAX = 120;
 /** Longer limit for the detail view's problem / strength lists. */
 export const DETAIL_ITEM_MAX = 200;
 const LIST_MAX = 3;
-/** A combined two-strength card line must stay this short. */
-const COMBINED_MAX = 70;
 
 /**
  * Summaries saved before methodology 2026.2 cut every title at exactly this many characters,
@@ -851,15 +712,6 @@ const CAP_ROOT: Record<string, string> = {
   CAP_CLIPPED: "clipped",
   CAP_BROKEN_IMAGES: "broken-images",
 };
-/** The cap each issue chip stands for (email.design_issues; also lib/gallery-evidence.ts). */
-export const ISSUE_CAP: Record<DesignIssue, CapId> = {
-  image_only: "CAP_IMAGE_ONLY",
-  contrast: "CAP_CONTRAST",
-  mobile: "CAP_MOBILE_BROKEN",
-  clipped: "CAP_CLIPPED",
-  broken_images: "CAP_BROKEN_IMAGES",
-};
-
 /** What a cap means when neither the summary nor the checks can say more. */
 const CAP_FALLBACK: Record<string, string> = {
   CAP_IMAGE_ONLY: "Most of this email is pictures, with very little real text",
@@ -1981,18 +1833,6 @@ function buttonStylesOf(facts: Facts, render: RenderFacts | null): number | null
 }
 
 /**
- * The main button is one of several that look the same — one button look, and two or more
- * different actions (H5 in the first two phone screens, or the render's labels) or three or more
- * buttons — so it doesn't stand out from the others (Google's three blue "Try AI in …" pills,
- * three navy "Explore course" buttons). A button repeated at the end ("Try Flux 3" twice) is one.
- */
-function equalButtons(facts: Facts, render: RenderFacts | null): boolean {
-  if (buttonStylesOf(facts, render) !== 1) return false;
-  const distinct = num(facts.get("H5")?.value ?? {}, "distinct");
-  return (distinct ?? 0) >= 2 || (render?.buttonLabels ?? 0) >= 2 || (render?.buttons ?? 0) >= 3;
-}
-
-/**
  * The main button is a picture (its words aren't live text): I2's `ctaLive` false, or H3 measured a
  * button without a label contrast (the engine's sign of an image button).
  */
@@ -2229,321 +2069,6 @@ function tidyTitle(title: string): string {
 
 // ── strengths ──
 
-interface StrengthRule {
-  /** Theme: strengths of one theme are one strength (the most distinctive one wins). */
-  theme: string;
-  /** 1 = distinctive design strength, 2 = supporting, 3 = baseline hygiene. */
-  tier: 1 | 2 | 3;
-  text: (v: Value, title: string) => string;
-  /** Lower-case noun phrase for a combined card line ("a bold headline"). */
-  np?: (v: Value, title: string) => string;
-}
-
-const aiLevel = (v: Value, title: string) => num(v, "level") ?? fromTitle(title, /rated (\d)\/5/);
-/** H6 passes (credit ≥ 0.9) from about this ratio: "a big headline". */
-const HEADLINE_BOLD_RATIO = 1.55;
-
-/** Distinctiveness order: the first passing strength in this list leads a Good card. */
-const STRENGTHS: ReadonlyArray<[string, StrengthRule]> = [
-  [
-    "H7",
-    {
-      theme: "headline",
-      tier: 1,
-      text: (v, t) => `${aiLevel(v, t) === 5 ? "Excellent" : "Strong"} visual hierarchy`,
-      np: (v, t) => `${aiLevel(v, t) === 5 ? "excellent" : "strong"} visual hierarchy`,
-    },
-  ],
-  [
-    "H6",
-    {
-      theme: "headline",
-      tier: 1,
-      // Size is measured, weight isn't: never "bold" (a 30 px weight-300 headline is big, not bold).
-      text: (v) => {
-        const r = num(v, "ratio");
-        if (r === null) return "A big headline that clearly stands out";
-        return r < HEADLINE_BOLD_RATIO
-          ? `A clear headline, ${round(r)}× the size of the text`
-          : `A big headline, ${round(r)}× the size of the text`;
-      },
-      np: (v) => {
-        const r = num(v, "ratio");
-        return r !== null && r < HEADLINE_BOLD_RATIO ? "a clear headline" : "a big headline";
-      },
-    },
-  ],
-  [
-    "H3",
-    {
-      theme: "cta",
-      tier: 1,
-      text: (v, t) =>
-        labelOf(v, t) ? `A standout ${labelOf(v, t)} button` : "A main button that stands out",
-      np: (v, t) =>
-        labelOf(v, t) ? `a standout ${labelOf(v, t)} button` : "a standout main button",
-    },
-  ],
-  [
-    "H5",
-    {
-      theme: "cta",
-      tier: 1,
-      // Claimed only for a main button that stands out and sits up top (strengthList); "one"
-      // only when it is the only action there (H5 passes with up to two).
-      text: (v) =>
-        num(v, "distinct") === 1
-          ? "One clear main button at the top"
-          : "A main button that leads at the top, with little competing with it",
-      np: (v) => (num(v, "distinct") === 1 ? "one clear main button" : "a main button that leads"),
-    },
-  ],
-  [
-    "H2",
-    {
-      theme: "cta",
-      tier: 1,
-      text: (v, t) =>
-        `The main button${labelOf(v, t) ? ` ${labelOf(v, t)}` : ""} is on the first screen of a phone`,
-      np: () => "the main button right on the first screen",
-    },
-  ],
-  [
-    "L8",
-    {
-      theme: "layout",
-      tier: 1,
-      text: (v, t) =>
-        aiLevel(v, t) === 5 ? "Beautifully polished visual design" : "Polished visual design",
-      np: () => "polished visuals",
-    },
-  ],
-  [
-    "I6",
-    {
-      theme: "imagery",
-      tier: 1,
-      text: (v, t) => (aiLevel(v, t) === 5 ? "Excellent imagery" : "Strong imagery"),
-      np: () => "strong imagery",
-    },
-  ],
-  [
-    "M1",
-    {
-      theme: "mobile",
-      tier: 1,
-      text: () => "Fits a phone screen without shrinking",
-      np: () => "a phone-friendly layout",
-    },
-  ],
-  // I2 and L3 pass on nearly every email: supporting / baseline only, never a Good card line.
-  [
-    "I2",
-    {
-      theme: "imagery",
-      tier: 2,
-      // Says what I2 measures; "button" only when there is a live-text button.
-      text: (v) =>
-        v.ctaLive === true
-          ? "The text and the button are real text, so they read fine with images off"
-          : "All the text is real text, so it reads fine with images off",
-    },
-  ],
-  ["L3", { theme: "layout", tier: 3, text: () => "A clean, uncluttered layout" }],
-  [
-    "M4",
-    {
-      theme: "cta",
-      tier: 1,
-      text: (v, t) => {
-        const px = num(v, "minSidePx") ?? fromTitle(t, /is ([\d.]+)px tall/i);
-        return px !== null
-          ? `A big, easy-to-tap button (${round(px)} px)`
-          : "A big, easy-to-tap button";
-      },
-      np: () => "a big, easy-to-tap button",
-    },
-  ],
-  [
-    "M2",
-    {
-      theme: "mobile",
-      tier: 1,
-      text: () => "Stays phone-friendly even in apps that ignore phone styles",
-      np: () => "a layout that adapts to any phone",
-    },
-  ],
-  [
-    "L2",
-    {
-      theme: "layout",
-      tier: 1,
-      text: () => "Balanced whitespace",
-      np: () => "balanced whitespace",
-    },
-  ],
-  // T6, L5 and L4 pass on nearly any plain email (one font, black text, one column): baseline,
-  // never a Bad email's strength, and never claimed for unstyled mail (strengthList).
-  [
-    "T6",
-    {
-      theme: "type",
-      tier: 3,
-      text: () => "Disciplined typography: few fonts and sizes",
-      np: () => "disciplined typography",
-    },
-  ],
-  [
-    "H4",
-    {
-      theme: "cta",
-      tier: 1,
-      text: (v, t) =>
-        `The button${labelOf(v, t) ? ` ${labelOf(v, t)}` : ""} says exactly what it does`,
-      np: () => "a button that says what it does",
-    },
-  ],
-  [
-    "H1",
-    {
-      theme: "cta",
-      tier: 1,
-      text: () => "A clear button for the main action",
-      np: () => "a clear main button",
-    },
-  ],
-  [
-    "L5",
-    {
-      theme: "colour",
-      tier: 3,
-      text: () => "A restrained colour palette",
-      np: () => "a restrained palette",
-    },
-  ],
-  [
-    "C4",
-    {
-      theme: "copy",
-      tier: 1,
-      text: () => "Clear, well-written copy",
-      np: () => "clear, well-written copy",
-    },
-  ],
-  [
-    "L4",
-    {
-      theme: "layout",
-      tier: 3,
-      text: () => "Neatly aligned to a simple grid",
-      np: () => "a tidy grid",
-    },
-  ],
-  ["I1", { theme: "imagery", tier: 2, text: () => "Plenty of real text alongside the images" }],
-  ["I4", { theme: "imagery", tier: 2, text: () => "Still makes sense with images turned off" }],
-  ["M5", { theme: "mobile", tier: 2, text: () => "Images resize cleanly on phones" }],
-  ["M6", { theme: "colour", tier: 2, text: () => "Looks right in dark mode" }],
-  ["M3", { theme: "mobile", tier: 2, text: () => "Text columns stay readable on phones" }],
-  ["M7", { theme: "mobile", tier: 2, text: () => "Comfortable side margins on phones" }],
-  ["T3", { theme: "type", tier: 2, text: () => "Comfortable line spacing" }],
-  ["T4", { theme: "type", tier: 2, text: () => "Comfortable line length" }],
-  ["T5", { theme: "type", tier: 2, text: () => "Paragraphs are left-aligned and easy to follow" }],
-  ["T7", { theme: "type", tier: 2, text: () => "Capitals used sparingly" }],
-  ["T8", { theme: "copy", tier: 2, text: () => "Clear, easy-to-read wording" }],
-  [
-    "L1",
-    {
-      theme: "layout",
-      tier: 2,
-      text: (v, t) => {
-        const w = num(v, "width") ?? fromTitle(t, /comfortable (\d+)px/i);
-        return w !== null ? `A comfortable ${w} px content column` : "A comfortable content column";
-      },
-    },
-  ],
-  [
-    "T1",
-    {
-      theme: "text",
-      tier: 2,
-      text: (v, t) => {
-        const px = num(v, "px") ?? fromTitle(t, /is ([\d.]+)px/i);
-        return px !== null
-          ? `Comfortable ${round(px)} px text on phones`
-          : "Comfortable text size on phones";
-      },
-    },
-  ],
-  [
-    "T2",
-    {
-      theme: "text",
-      tier: 2,
-      text: (v, t) => {
-        const px = num(v, "px") ?? fromTitle(t, /is ([\d.]+)px/i);
-        return px !== null
-          ? `Comfortable ${round(px)} px text on desktop`
-          : "Comfortable text size on desktop";
-      },
-    },
-  ],
-  ["A13", { theme: "imagery", tier: 2, text: () => "No important text hidden in images" }],
-  ["A1", { theme: "text", tier: 3, text: () => "Text is easy to read (good contrast)" }],
-  [
-    "A2",
-    { theme: "access", tier: 3, text: () => "Images are described for people who can't see them" },
-  ],
-  ["A3", { theme: "access", tier: 3, text: () => "Links say where they go" }],
-  ["A6", { theme: "access", tier: 3, text: () => "Headings are marked up for screen readers" }],
-  ["A7", { theme: "access", tier: 3, text: () => "Links are easy to tap on phones" }],
-  ["A8", { theme: "access", tier: 3, text: () => "Links in the text are easy to spot" }],
-  ["I3", { theme: "images-load", tier: 3, text: () => "Every image loads" }],
-  ["U1", { theme: "footer", tier: 3, text: () => "Easy to unsubscribe" }],
-  ["U2", { theme: "footer", tier: 3, text: () => "The unsubscribe link is easy to read" }],
-  ["X1", { theme: "tech", tier: 3, text: () => "Small enough that Gmail shows the whole email" }],
-  ["X2", { theme: "tech", tier: 3, text: () => "Code works in all major email apps" }],
-  ["X3", { theme: "tech", tier: 3, text: () => "Links and personalization are clean" }],
-];
-const STRENGTH_RULES = new Map(STRENGTHS);
-const STRENGTH_RANK = new Map(STRENGTHS.map(([id], i) => [id, i]));
-
-/**
- * The engine's grouped strength items (@edf/design explain.ts `distinctive`), for summaries whose
- * checks were compacted away: the engine applied its conflict rules when it wrote them, so their
- * titles are safe to show, reworded where they carry render jargon ("a 375px screen"). While the
- * checks are stored the per-check rules above say the same things, so these are skipped then.
- */
-const ENGINE_GROUP_STRENGTHS: Record<string, StrengthRule> = {
-  "good:hierarchy-cta": {
-    theme: "headline",
-    tier: 1,
-    text: (_v, t) => t.replace(/(\d+)px\b/g, "$1 px"),
-  },
-  "good:hierarchy": {
-    theme: "headline",
-    tier: 1,
-    text: (_v, t) => {
-      const r = fromTitle(t, /([\d.]+)×/);
-      return r !== null
-        ? `A clear headline, ${round(r)}× the size of the text`
-        : "A clear headline that stands out";
-    },
-  },
-  "good:cta": { theme: "cta", tier: 1, text: (_v, t) => t },
-  "good:mobile": {
-    theme: "mobile",
-    tier: 1,
-    text: (_v, t) => {
-      const px = fromTitle(t, /with (\d+(?:\.\d+)?)px body text/i);
-      return px !== null
-        ? `Fits a phone screen without shrinking, with ${round(px)} px text`
-        : "Fits a phone screen without shrinking";
-    },
-  },
-  "good:imagery": { theme: "imagery", tier: 2, text: (_v, t) => t },
-  "good:type": { theme: "type", tier: 3, text: (_v, t) => t },
-};
-
 /** Typography and readability strengths: meaningless for an email whose text is mostly pixels. */
 const TEXT_STRENGTHS = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "A1"] as const;
 /** Layout strengths: likewise meaningless when the layout is one big picture. */
@@ -2681,287 +2206,6 @@ export function compatibleStrengthItems<T extends { key: string; checkIds?: read
   });
 }
 
-interface Strength {
-  id: string;
-  rule: StrengthRule;
-  v: Value;
-  title: string;
-}
-
-/** What the strengths may claim, beyond the listed problems (the engine's own conflict rules). */
-interface StrengthContext {
-  signals: unknown;
-  /** email.font_families non-empty (undefined = not checked). */
-  fontsMeasured?: boolean;
-  /** Facts from the stored render and HTML pass (null once compacted, or not given). */
-  render?: RenderFacts | null;
-}
-
-/** H3's strength when the main button is one of several that look the same (equalButtons). */
-const EQUAL_BUTTONS_RULE: StrengthRule = {
-  theme: "cta",
-  tier: 1,
-  text: () => "Clear, bold buttons",
-  np: () => "clear, bold buttons",
-};
-
-/**
- * Strengths the facts don't back up, whatever the problem list says (@edf/design explain.ts
- * `conflictsWith`, applied here too because the gallery reads the checks directly):
- *  - a button "stands out" (H3) only with a bold fill that is the most prominent link, and "one
- *    clear main button at the top" (H5) only when such a button is also on the first phone screen;
- *    nor is a button whose fill doesn't stand out "a clear button for the main action" (H1);
- *  - no headline praise (H6) when the email has no heading text at all;
- *  - "images resize cleanly" / "still makes sense with images off" (M5 / I4) only when its
- *    pictures were drawn: not when none loaded, most didn't, or images were off for it;
- *  - "disciplined typography", "a restrained palette", "a simple grid" (T6 / L5 / L4) never for
- *    unstyled mail: no font of its own, or a single text size throughout.
- * Unknown facts (older rows, compacted checks) don't rule a strength out.
- */
-function unbacked(id: string, facts: Facts, ctx: StrengthContext): boolean {
-  const sig = ctx.signals;
-  switch (id) {
-    case "H1": {
-      // "A clear button" for one whose colour doesn't stand out from the background.
-      const salience =
-        num(facts.get("H3")?.value ?? {}, "salience") ?? signalNum(sig, "ctaSalience");
-      return salience !== null && salience < CTA_SALIENCE_MIN;
-    }
-    case "H3":
-    case "H5": {
-      const h3 = facts.get("H3")?.value ?? {};
-      const salience = num(h3, "salience") ?? signalNum(sig, "ctaSalience");
-      const top =
-        typeof h3.mostProminent === "boolean"
-          ? h3.mostProminent
-          : (signalObj(sig)?.ctaMostProminent ?? null);
-      if (salience === null && top === null) return false;
-      const standsOut = salience !== null && salience >= CTA_SALIENCE_MIN && top === true;
-      if (!standsOut) return true;
-      if (id === "H3") return false;
-      const h2 = facts.get("H2");
-      return !(h2 ? h2.status === "pass" : signalObj(sig)?.ctaFirstScreen === true);
-    }
-    case "H6": {
-      const h = facts.get("H6")?.value.headline ?? signalObj(sig)?.hasHeadline;
-      return h === false;
-    }
-    case "M5":
-    case "I4":
-      return (
-        signalNum(sig, "drawnContentImages") === 0 ||
-        signalObj(sig)?.imagesOff === true ||
-        (signalNum(sig, "imagesUnknownShare") ?? 0) > 0.5
-      );
-    case "T6":
-    case "L5":
-    case "L4":
-      return ctx.fontsMeasured === false || (num(facts.get("T6")?.value ?? {}, "sizes") ?? 2) <= 1;
-    default:
-      return false;
-  }
-}
-
-function strengthList(
-  summary: SummaryLike,
-  facts: Facts,
-  problemRoots: ReadonlySet<string>,
-  ctx: StrengthContext = { signals: null },
-): Strength[] {
-  const found = new Map<string, Strength>();
-  const add = (id: string, v: Value, title: string) => {
-    if (found.has(id) || unbacked(id, facts, ctx)) return;
-    // A strength with no plain rule (e.g. a newer engine check) still shows, tidied, last. One of
-    // several buttons that look the same isn't "the standout" one.
-    const rule =
-      (id === "H3" && equalButtons(facts, ctx.render ?? null) ? EQUAL_BUTTONS_RULE : null) ??
-      STRENGTH_RULES.get(id) ??
-      (title ? { theme: `other:${id}`, tier: 3 as const, text: () => tidyTitle(title) } : null);
-    if (rule) found.set(id, { id, rule, v, title });
-  };
-  // I2 ("reads fine with images off") only means something when the email has content images.
-  const hasImages = hasContentImages(facts) === true;
-  for (const [id, f] of facts) {
-    if (id === "I2" && !hasImages) continue;
-    if (AI_NAMES[id]) {
-      const level = num(f.value, "level");
-      if ((f.status === "pass" || f.status === "partial") && level !== null && level >= 4)
-        add(id, f.value, "");
-    } else if (f.status === "pass" && f.w >= 1) {
-      add(id, f.value, "");
-    } else if (
-      id === "H6" &&
-      f.status === "partial" &&
-      (num(f.value, "ratio") ?? 0) >= HEADLINE_RATIO_MIN
-    ) {
-      add(id, f.value, ""); // a real headline (≥ 1.5×) just short of "bold"
-    }
-  }
-  for (const c of candidates(summary?.good)) {
-    const group = ENGINE_GROUP_STRENGTHS[c.key];
-    if (group) {
-      // Compacted: the engine's grouped item is all there is (see ENGINE_GROUP_STRENGTHS).
-      if (facts.size === 0 && !found.has(c.key))
-        found.set(c.key, { id: c.key, rule: group, v: {}, title: c.title });
-      continue;
-    }
-    const id = checkIdOf(c.key) ?? c.key;
-    if (id === "I2" && facts.size > 0 && !hasImages) continue;
-    add(id, facts.get(id)?.value ?? {}, c.title);
-  }
-  const blocked = blockedStrengths(problemRoots);
-  return [...found.values()]
-    .filter((s) => !blocked.has(s.id))
-    .sort((a, b) => (STRENGTH_RANK.get(a.id) ?? 999) - (STRENGTH_RANK.get(b.id) ?? 999));
-}
-
-/**
- * The detail view's strengths: up to 3 distinctive or supporting ones (tiers 1–2). Baseline hygiene
- * (tier 3: "Every image loads", "Small enough that Gmail shows the whole email") is filler, not a
- * reason a design works: it is shown only when nothing better passed, at most one, and never for
- * a Bad design — fewer (or no) strengths beat generic ones.
- */
-function detailStrengths(ranked: readonly Strength[], verdict: Verdict): Strength[] {
-  const real = ranked.filter((s) => s.rule.tier < 3).slice(0, LIST_MAX);
-  if (real.length > 0 || verdict === "bad") return real;
-  return ranked.slice(0, 1);
-}
-
-/** One strength per theme, most distinctive first. */
-function byTheme(list: readonly Strength[]): Strength[] {
-  const themes = new Set<string>();
-  return list.filter((s) => (themes.has(s.rule.theme) ? false : (themes.add(s.rule.theme), true)));
-}
-
-/**
- * The card's strength line: the most distinctive strength, with a second one when both are short.
- * Baseline hygiene (tier 3: "A restrained colour palette") leads only when nothing distinctive or
- * supporting passed — a Good email (which passed the Excellent gate) always has better.
- */
-function strengthLine(all: readonly Strength[]): string | null {
-  const real = all.filter((s) => s.rule.tier < 3);
-  const list = real.length > 0 ? real : all;
-  const [first, second] = list;
-  if (!first) return null;
-  const alone = first.rule.text(first.v, first.title);
-  if (first.rule.tier === 1 && second?.rule.tier === 1 && first.rule.np && second.rule.np) {
-    const combined = cap1(
-      `${first.rule.np(first.v, first.title)} and ${second.rule.np(second.v, second.title)}`,
-    );
-    // A shortened button label reads badly mid-sentence: only whole phrases are combined.
-    if (combined.length <= COMBINED_MAX && !combined.includes("…")) return combined;
-  }
-  return alone;
-}
-
-/**
- * The card's one-line reason plus up to 3 problems and 3 strengths for the detail view (see
- * REASON POLICY above). `opts.checks` is `email_analysis.checks` (empty once compacted);
- * `opts.caps` / `opts.issues` name caps the summary may not explain.
- */
-export function galleryReason(
-  verdict: Verdict,
-  summary: SummaryLike,
-  opts: {
-    capped?: boolean | null;
-    caps?: readonly string[] | null;
-    issues?: readonly DesignIssue[] | null;
-    checks?: unknown;
-    /** The email's subject, to quote a merge tag the engine found there. */
-    subject?: string | null;
-    /**
-     * Whether any font was measured (email.font_families non-empty). An unstyled email (the mail
-     * app's default font) has nothing to call "disciplined typography"; omitted = not checked.
-     */
-    fontsMeasured?: boolean;
-    /**
-     * The verdict's signals (VerdictInput.signals; default: summary.signals): each severe problem
-     * they show leads right after the caps, in its own plain words, and the Excellent gate's
-     * failed bars become the "not Good because" lines.
-     */
-    signals?: unknown;
-    /**
-     * email.primary_type: the email's type now (VerdictInput.primaryType), which the verdict's
-     * unsubscribe rule and the lists' type rules read; omitted = the type the score used.
-     */
-    primaryType?: string | null;
-    /** The design score: a Bad design with no cap or severe problem is Bad for its low score. */
-    score?: number | null;
-    /** Facts from the stored render and HTML pass (queries/gallery.ts RENDER_FACTS). */
-    render?: RenderFacts | null;
-    /**
-     * The renderer of the email's own render (email_analysis.renderer_version; null for template
-     * coverage): with a summary of methodology 2026.6+, render-2026.5+ lists the footer
-     * statements and the stray-text note (currentHtmlPass). Omitted = an older render.
-     */
-    rendererVersion?: string | null;
-  } = {},
-): { reason: GalleryReason | null; problems: string[]; strengths: string[] } {
-  if (verdict === "unscored") return { reason: null, problems: [], strengths: [] };
-  const signals = opts.signals !== undefined ? opts.signals : (summary?.signals ?? null);
-  const render = opts.render ?? null;
-  const htmlPass = currentHtmlPass(summary?.scoringVersion, opts.rendererVersion ?? null);
-  const primaryType =
-    opts.primaryType !== undefined ? opts.primaryType : signalStr(signals, "primaryType");
-  const severe = severeProblems(signals, primaryType, render);
-  const facts = factsOf(opts.checks);
-  const capIds = [
-    ...new Set([
-      ...(Array.isArray(summary?.caps)
-        ? summary.caps.filter((x): x is CapId => typeof x === "string")
-        : []),
-      ...(opts.caps ?? []).filter((x) => typeof x === "string"),
-      ...(opts.issues ?? []).flatMap((i) => (ISSUE_CAP[i] ? [ISSUE_CAP[i]] : [])),
-    ]),
-  ];
-  const subject =
-    typeof opts.subject === "string" && opts.subject.trim() !== "" ? opts.subject : null;
-  const listed = problemList(
-    summary,
-    facts,
-    capIds,
-    { subject, signals, primaryType, render, htmlPass },
-    severe,
-  );
-  const { roots } = listed;
-  let { texts: problems, card } = listed;
-  // Bad with no cap and no severe problem: the rule that decided it is the score itself.
-  if (
-    verdict === "bad" &&
-    capIds.length === 0 &&
-    severe.length === 0 &&
-    typeof opts.score === "number"
-  ) {
-    // No single check is worth more than a few points, so a score this low is always several.
-    const low = `Several problems add up to a low score (${Math.round(opts.score)} of 100; Bad is under ${POOR_SCORE_MAX})`;
-    problems = [low, ...problems].slice(0, LIST_MAX);
-    card = low;
-  }
-  const ranked = byTheme(
-    strengthList(summary, facts, roots, { signals, fontsMeasured: opts.fontsMeasured, render }),
-  );
-  const strengths = detailStrengths(ranked, verdict).map((s) =>
-    trimReason(s.rule.text(s.v, s.title), DETAIL_ITEM_MAX, { summaryCut: false }),
-  );
-  const line = strengthLine(ranked);
-  const asProblem = (t: string | undefined) =>
-    t ? { kind: "problem" as const, text: trimReason(t, REASON_MAX, { summaryCut: false }) } : null;
-  // The card's problem: the first one that may lead it (`card`: a shorter wording, never a weak
-  // problem — an Okay card with only weak ones names its best strength, or nothing); a Bad card
-  // always names a problem.
-  const problem = asProblem(card ?? undefined);
-  const strength = line
-    ? { kind: "strength" as const, text: trimReason(line, REASON_MAX, { summaryCut: false }) }
-    : null;
-  const reason =
-    verdict === "good"
-      ? (strength ?? problem)
-      : verdict === "bad"
-        ? (problem ?? asProblem(problems[0]))
-        : (problem ?? strength);
-  return { reason, problems, strengths };
-}
-
 // ───────────────────────── URL state ─────────────────────────
 
 export const GALLERY_DESIGNS = ["all", "good", "bad"] as const;
@@ -3012,84 +2256,105 @@ export const GALLERY_WEB_FONT_LABELS: Record<GalleryWebFonts, string> = {
 };
 
 /**
- * The Problems options (`?problem=`): one per rule that makes a design Bad (VERDICT POLICY), so the
- * counts break the Bad count down rule by rule — every Bad design has at least one, and only Bad
- * designs have any (galleryProblemsOf; the SQL twin is queries/gallery.ts problemCondition):
- *  - "Mostly pictures": the image-only cap, text baked into images, or pictures that didn't load
- *  - "Hard-to-read text": the main-text contrast cap
- *  - "Visible merge tags": the merge-tag cap
- *  - "Doesn't fit phones": the broken-phone-layout cap, or text that shrinks too small on phones
- *  - "Gmail cuts off key parts": the clipping cap (the cut hides the main button or over a
- *    quarter of the text), or the unsubscribe link after Gmail's cut — not every email over
- *    Gmail's size limit: one whose cut hides none of that is Okay and its line says "Over
- *    Gmail's size limit …" (clippedText)
- *  - "Broken images": the broken-images cap
- *  - "No unsubscribe link": marketing mail (its type now) without one (v1.5 rows: subscription
- *    mail)
- *  - "Low score": a score under 60
- * The ids are the ones links used before ("image_only", "mobile", …), so old links still work.
+ * The Problems options (`?problem=`): one per checklist rule (VERDICT POLICY), in the cheat
+ * sheet's order — a design matches an option when it missed that rule (galleryProblemsOf; the SQL
+ * twin is queries/gallery.ts problemCondition). Rules it passed, couldn't be checked or that don't
+ * apply never match, and an unchecked design matches none. Every Bad design matches at least three.
  */
-export const GALLERY_PROBLEMS = [
-  "image_only",
-  "contrast",
-  "merge_tag",
-  "mobile",
-  "clipped",
-  "broken_images",
-  "no_unsubscribe",
-  "low_score",
-] as const satisfies readonly (DesignIssue | "merge_tag" | "no_unsubscribe" | "low_score")[];
-export type GalleryProblem = (typeof GALLERY_PROBLEMS)[number];
-export const GALLERY_PROBLEM_LABELS: Record<GalleryProblem, string> = {
-  image_only: "Mostly pictures",
-  contrast: "Hard-to-read text",
-  merge_tag: "Visible merge tags",
-  mobile: "Doesn't fit phones",
-  clipped: "Gmail cuts off key parts",
-  broken_images: "Broken images",
-  no_unsubscribe: "No unsubscribe link",
-  low_score: `Low score (under ${POOR_SCORE_MAX})`,
-};
+export const GALLERY_PROBLEMS = CHECKLIST_RULES.map((r) => r.id) as [
+  ChecklistRuleId,
+  ...ChecklistRuleId[],
+];
+export type GalleryProblem = ChecklistRuleId;
+export const GALLERY_PROBLEM_LABELS: Record<GalleryProblem, string> = Object.fromEntries(
+  CHECKLIST_RULES.map((r) => [r.id, r.label]),
+) as Record<GalleryProblem, string>;
 
-/** The cap behind each Problems option, if any (its issue chip has the option's id). */
-export const PROBLEM_CAP: Partial<Record<GalleryProblem, CapId>> = {
-  image_only: "CAP_IMAGE_ONLY",
-  contrast: "CAP_CONTRAST",
-  merge_tag: "CAP_MERGE_TAG",
-  mobile: "CAP_MOBILE_BROKEN",
-  clipped: "CAP_CLIPPED",
-  broken_images: "CAP_BROKEN_IMAGES",
-};
-/** The severe problems (severeTriggers) each Problems option also covers. */
-export const PROBLEM_TRIGGERS: Partial<Record<GalleryProblem, readonly SevereTrigger[]>> = {
-  image_only: ["text_in_images", "pictures_not_loaded"],
-  mobile: ["tiny_phone_text"],
-  clipped: ["unsubscribe_clipped"],
-  no_unsubscribe: ["no_unsubscribe"],
+/** The rules a design missed (its Problems options), in the cheat sheet's order. */
+export function galleryProblemsOf(d: VerdictInput): GalleryProblem[] {
+  const c = storedChecklist(d.checklist);
+  if (!c) return [];
+  const missed = new Set(c.rules.filter((r) => r.result === "miss").map((r) => r.id));
+  return GALLERY_PROBLEMS.filter((id) => missed.has(id));
+}
+
+/**
+ * What a missed rule is called on a card ("Misses 3 rules: no main button, faint text, …"):
+ * short, and true of every way the rule can be missed.
+ */
+export const MISSED_RULE_TEXT: Record<ChecklistRuleId, string> = {
+  message: "no one clear message",
+  button: "no single main button",
+  hero: "weak top section",
+  hierarchy: "no clear headline",
+  scan: "hard to scan",
+  width: "not about 600px wide",
+  mobile: "doesn't work well on phones",
+  fonts: "too many fonts",
+  colors: "too many colours",
+  body: "body text hard to read",
+  cta: "button vague or hard to see",
+  contrast: "faint text",
+  images: "pictures don't load or aren't described",
+  whitespace: "spacing off",
+  clutter: "cluttered or too long",
+  no_decoration: "relies on pictures",
 };
 
 /**
- * The Problems options a scored design has: the caps and issue chips that fired, the severe
- * problems its signals show (the same facts the verdict and the card read) and a score under 60.
- * An unscored design has none. Non-empty exactly when verdictOf says "bad" (the gallery tests
- * check it, and that the SQL twin, queries/gallery.ts problemCondition, agrees).
+ * The card's line and the detail lists, from the saved checklist only, so a card always agrees
+ * with its badge:
+ *  - any rule missed: "Misses 3 rules: no single main button, faint text, relies on pictures"
+ *    (the rules that don't fit in 120 characters become "and 2 more");
+ *  - nothing missed, every rule checked (Good): "Passes all 16 design rules" (or "all 15 that
+ *    apply" when one doesn't apply);
+ *  - nothing missed, some couldn't be checked (Okay): "Passes every rule we could check (2
+ *    couldn't be checked)".
+ * `problems` are the missed rules' measured sentences, `strengths` the passed ones'. An unchecked
+ * design has neither.
  */
-export function galleryProblemsOf(
-  d: Pick<VerdictInput, "score" | "band" | "caps" | "issues" | "signals" | "primaryType">,
-): GalleryProblem[] {
-  if (d.score === null || d.score === undefined) return [];
-  const issues = new Set<string>(Array.isArray(d.issues) ? d.issues : []);
-  const caps = new Set<string>(Array.isArray(d.caps) ? d.caps : []);
-  const triggers = new Set(severeTriggers(d.signals, d.primaryType));
-  return GALLERY_PROBLEMS.filter((x) => {
-    if (x === "low_score") return d.score! < POOR_SCORE_MAX || d.band === "poor";
-    const cap = PROBLEM_CAP[x];
-    // An issue chip is its cap's (email.design_issues): only cap-backed options have one.
-    return (
-      (cap !== undefined && (issues.has(x) || caps.has(cap))) ||
-      (PROBLEM_TRIGGERS[x] ?? []).some((t) => triggers.has(t))
-    );
-  });
+export function checklistReason(checklist: unknown): {
+  reason: GalleryReason | null;
+  problems: string[];
+  strengths: string[];
+} {
+  const c = storedChecklist(checklist);
+  if (!c) return { reason: null, problems: [], strengths: [] };
+  const missed = c.rules.filter((r) => r.result === "miss");
+  const problems = missed.map((r) => r.why).filter(Boolean);
+  const strengths = c.rules.filter((r) => r.result === "pass").map((r) => r.why).filter(Boolean);
+  if (c.misses > 0) {
+    const head = `Misses ${c.misses} ${plural(c.misses, "rule", "rules")}`;
+    const names = missed.map((r) => MISSED_RULE_TEXT[r.id]);
+    let shown = names.length;
+    const line = (k: number) => {
+      if (k === 0) return head;
+      const rest = c.misses - k;
+      return `${head}: ${names.slice(0, k).join(", ")}${rest > 0 ? ` and ${rest} more` : ""}`;
+    };
+    while (shown > 1 && line(shown).length > REASON_MAX) shown--;
+    return { reason: { kind: "problem", text: line(shown) }, problems, strengths };
+  }
+  if (c.unknown > 0) {
+    return {
+      reason: {
+        kind: "strength",
+        text: `Passes every rule we could check (${c.unknown} couldn't be checked)`,
+      },
+      problems,
+      strengths,
+    };
+  }
+  const na = c.rules.filter((r) => r.result === "na").length;
+  const applies = CHECKLIST_RULE_COUNT - na;
+  return {
+    reason: {
+      kind: "strength",
+      text: na > 0 ? `Passes all ${applies} design rules that apply` : `Passes all ${CHECKLIST_RULE_COUNT} design rules`,
+    },
+    problems,
+    strengths,
+  };
 }
 
 const UUID_PARAM_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -3469,7 +2734,7 @@ export function activeFilterChips(
   for (const issue of p.problem)
     chips.push({
       key: `problem:${issue}`,
-      label: GALLERY_PROBLEM_LABELS[issue],
+      label: `Missed: ${GALLERY_PROBLEM_LABELS[issue]}`,
       remove: { problem: p.problem.filter((x) => x !== issue) },
     });
   if (p.mailbox)

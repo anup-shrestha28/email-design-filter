@@ -31,6 +31,7 @@ import {
   type GalleryParams,
 } from "@/lib/gallery";
 import { PreviewUrlStore } from "@/components/gallery/preview-urls";
+import { checklistOf } from "../support/checklist";
 
 const A = "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
 const B = "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c";
@@ -48,7 +49,7 @@ describe("gallery URL params: pages and the Filters panel", () => {
       since: "2026-09-01",
       until: "2026-09-20",
       sender: [A, B],
-      problem: ["contrast", "mobile"],
+      problem: ["mobile", "contrast"], // the rules' own order
       mailbox: A,
       webfonts: "no",
     });
@@ -122,14 +123,14 @@ describe("gallery URL params: pages and the Filters panel", () => {
       parseGalleryParams({ sender: [twenty[0], ...twenty, uuid(99)].join(",") }).sender,
     ).toEqual(twenty);
     // Empty items are ignored; problems keep one fixed order, in any case.
-    expect(parseGalleryParams({ problem: "mobile,,image_only," }).problem).toEqual([
-      "image_only",
+    expect(parseGalleryParams({ problem: "mobile,,button," }).problem).toEqual([
+      "button",
       "mobile",
     ]);
     expect(parseGalleryParams({ problem: "mobile,spam" }).problem).toEqual(["mobile"]);
-    expect(parseGalleryParams({ problem: "No_Unsubscribe,MOBILE" }).problem).toEqual([
+    expect(parseGalleryParams({ problem: "No_Decoration,MOBILE" }).problem).toEqual([
       "mobile",
-      "no_unsubscribe",
+      "no_decoration",
     ]);
     expect(parseGalleryParams({ sender: "", problem: "" })).toEqual(DEFAULT_GALLERY_PARAMS);
   });
@@ -202,13 +203,13 @@ describe("gallery URL params: pages and the Filters panel", () => {
       since: "2026-09-01",
       until: null,
       sender: [A, B],
-      problem: ["image_only", "broken_images"],
+      problem: ["button", "no_decoration"],
       mailbox: B,
       webfonts: "yes",
     });
     const href = galleryHref(full);
     expect(href).toBe(
-      `/gallery?category=promotions&design=good&font=Inter&q=sale&sort=best&smin=60&date=custom&since=2026-09-01&sender=${A},${B}&problem=image_only,broken_images&mailbox=${B}&webfonts=yes&size=96&page=4`,
+      `/gallery?category=promotions&design=good&font=Inter&q=sale&sort=best&smin=60&date=custom&since=2026-09-01&sender=${A},${B}&problem=button,no_decoration&mailbox=${B}&webfonts=yes&size=96&page=4`,
     );
     expect(parseGalleryParams(new URL(href, "http://x").searchParams)).toEqual(full);
     for (const one of [
@@ -218,7 +219,7 @@ describe("gallery URL params: pages and the Filters panel", () => {
       { date: "30d" as const },
       { date: "custom" as const, until: "2026-01-31" },
       { sender: [A] },
-      { problem: ["clipped" as const] },
+      { problem: ["width" as const] },
       { mailbox: A },
       { webfonts: "no" as const },
     ]) {
@@ -289,7 +290,7 @@ describe("Filters panel chips and badge", () => {
       "Last 30 days",
       "LinkedIn",
       "1 sender",
-      "Hard-to-read text",
+      "Missed: Good contrast",
       "me@gmail.com",
       "Uses web fonts",
       "Board: Welcome emails",
@@ -399,73 +400,25 @@ describe("Pick dates: a calendar day in a time zone", () => {
   });
 });
 
-describe("Problems: what the Bad cards name", () => {
-  const clean = { imgShare: 0.1, phoneTextPx: 16, layoutK: 1, unsubscribe: "before_clip" };
-  const scored = { score: 75, band: "good" as const };
-  it("each option is its cap or chip, or the severe problem the card names for it", () => {
-    expect(galleryProblemsOf({ ...scored, issues: [], signals: clean })).toEqual([]);
-    expect(
-      galleryProblemsOf({ ...scored, issues: ["contrast", "clipped"], signals: null }),
-    ).toEqual(["contrast", "clipped"]);
-    // The caps themselves count too (a merge tag has no issue chip of its own).
-    expect(
-      galleryProblemsOf({ ...scored, caps: ["CAP_MERGE_TAG", "CAP_BROKEN_IMAGES"], signals: null }),
-    ).toEqual(["merge_tag", "broken_images"]);
-    // "Most of this email is pictures: only 97 characters of real text"
-    expect(
-      galleryProblemsOf({ ...scored, signals: { ...clean, imgShare: 0.87, legibleChars: 97 } }),
-    ).toEqual(["image_only"]);
-    // "Doesn't fit phones: text shrinks to about 11 px"
-    expect(
-      galleryProblemsOf({ ...scored, signals: { ...clean, phoneTextPx: 10.5, layoutK: 0.66 } }),
-    ).toEqual(["mobile"]);
-    // "No unsubscribe link anywhere in the email"
-    expect(galleryProblemsOf({ ...scored, signals: { ...clean, unsubscribe: "none" } })).toEqual([
-      "no_unsubscribe",
-    ]);
-    // "Low score": under 60
-    expect(galleryProblemsOf({ score: 59, band: "needs_work", signals: clean })).toEqual([
-      "low_score",
-    ]);
-    expect(galleryProblemsOf({ score: 60, band: "needs_work", signals: clean })).toEqual([]);
-    expect(
-      galleryProblemsOf({
-        ...scored,
-        issues: ["image_only", "mobile", "broken_images"],
-        signals: {
-          imgShare: 1,
-          legibleChars: 0,
-          phoneTextPx: 8,
-          layoutK: 0.5,
-          unsubscribe: "none",
-        },
-      }),
-    ).toEqual(["image_only", "mobile", "broken_images", "no_unsubscribe"]);
-    // An unscored design has none, whatever its stale chips say.
-    expect(galleryProblemsOf({ score: null, band: null, issues: ["clipped"] })).toEqual([]);
+describe("Missed rules: the Problems filter", () => {
+  it("a design matches the rules it missed, never ones unchecked or not applying", () => {
+    const c = checklistOf({ contrast: "miss", width: "miss", body: "unknown", images: "na" });
+    expect(galleryProblemsOf({ checklist: c })).toEqual(["width", "contrast"]);
+    expect(galleryProblemsOf({ checklist: checklistOf() })).toEqual([]);
+    // An unchecked design has none.
+    expect(galleryProblemsOf({ checklist: null })).toEqual([]);
   });
 
-  it("every option has a plain label and a chip; old links keep their ids", () => {
-    expect(GALLERY_PROBLEMS).toContain("no_unsubscribe");
+  it("every option has a plain label and a chip; links from before the rules match nothing", () => {
     for (const x of GALLERY_PROBLEMS) expect(GALLERY_PROBLEM_LABELS[x]).toMatch(/^[A-Z][^.]*$/);
-    expect(GALLERY_PROBLEM_LABELS.no_unsubscribe).toBe("No unsubscribe link");
-    expect(activeFilterChips(p({ problem: ["no_unsubscribe"] })).map((c) => c.label)).toEqual([
-      "No unsubscribe link",
+    expect(GALLERY_PROBLEM_LABELS.button).toBe("One main button");
+    expect(activeFilterChips(p({ problem: ["button"] })).map((c) => c.label)).toEqual([
+      "Missed: One main button",
     ]);
-    // Links made before the options matched the Bad rules one to one still filter the same.
-    for (const old of [
-      "image_only",
-      "contrast",
-      "mobile",
-      "clipped",
-      "broken_images",
-      "no_unsubscribe",
-    ])
-      expect(parseGalleryParams({ problem: old }).problem, old).toEqual([old]);
-    // Named for the Bad rule (the cut hides the main button, the unsubscribe link or a quarter of
-    // the text), so an email just over the limit isn't missing from it.
-    expect(GALLERY_PROBLEM_LABELS.clipped).toBe("Gmail cuts off key parts");
-    expect(GALLERY_PROBLEM_LABELS.image_only).toBe("Mostly pictures");
+    for (const old of ["image_only", "clipped", "broken_images", "no_unsubscribe", "low_score"])
+      expect(parseGalleryParams({ problem: old }).problem, old).toEqual([]);
+    // "contrast" and "mobile" are rule names too.
+    expect(parseGalleryParams({ problem: "contrast,mobile" }).problem).toEqual(["mobile", "contrast"]);
   });
 });
 

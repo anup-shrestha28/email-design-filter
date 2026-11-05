@@ -3,9 +3,8 @@
  * actions/gallery.ts):
  *  - never listed: security-sensitive, plain-text and hidden mail; a disconnected mailbox's emails
  *    are listed but not previewable
- *  - verdict filters use exactly verdictOf()'s VERDICT POLICY: 84/85, a cap (binding or not, provisional
- *    or not) → Bad, a score under 60 → Bad, type-only 'provisional' → Good allowed, low-coverage
- *    'provisional' or static coverage → never Good (float4 confidence at the 0.70 edge included)
+ *  - cards, the Good / Bad filters and Best / Worst read the saved design checklist (the verdict
+ *    rules themselves, at every edge, are gallery-checklist-sql.test.ts)
  *  - a page past the end (or a hand-made page number) clamps to the last page
  *  - SQL category filters agree with galleryCategoryOf() for every core type/subtype
  *  - numbered pages return every row exactly once, in order, for every sort and page size (ties, nulls, µs)
@@ -23,15 +22,16 @@ import type * as GalleryQueries from "@/server/queries/gallery";
 import type * as GalleryActions from "@/server/actions/gallery";
 import type { GalleryItem } from "@/server/queries/types";
 import {
+  checklistReason,
   DEFAULT_GALLERY_PARAMS,
   EMAIL_GALLERY_CATEGORY_IDS,
   GALLERY_SHOWN_CATEGORIES,
   galleryCategoryOf,
   isShownCategory,
-  verdictOf,
   type GalleryParams,
 } from "@/lib/gallery";
 import { HAS_DB } from "../support/env";
+import { checklistOf } from "../support/checklist";
 import { appPool, createMailbox, createUser, ownerPool, seedEmail } from "../support/db";
 import { type FakeSession, fromSender, sessionFor } from "../tests-server/helpers";
 
@@ -64,6 +64,16 @@ const summary = (needs: string[], good: string[], capKey?: string): Summary => (
   good: good.map((t, i) => ({ key: `check:G${i}`, title: t, points: 1, ai: false })),
 });
 
+/** Checklists for the fixtures: every rule passed (Good), one missed (Okay), three missed (Bad). */
+const GOOD = checklistOf();
+const OKAY = checklistOf({ width: "miss" });
+const BAD = checklistOf({ button: "miss", cta: "miss", body: "miss" });
+
+/**
+ * A scored design. Its saved checklist gives the verdict these scores had before the checklist
+ * (85+ Good, capped or under 60 Bad, else Okay), so the list, filter and sort tests keep their
+ * shape; `checklist` overrides it.
+ */
 function scored(
   score: number | null,
   band: EmailRecord["designBand"],
@@ -75,8 +85,19 @@ function scored(
     caps?: string[];
     confidence?: number;
     source?: EmailRecord["designSource"];
+    checklist?: unknown;
   } = {},
 ): Partial<EmailRecord> {
+  const checklist =
+    opts.checklist !== undefined
+      ? opts.checklist
+      : score === null
+        ? undefined
+        : score >= 85
+          ? GOOD
+          : opts.capped || score < 60
+            ? BAD
+            : OKAY;
   return {
     designStatus: "done",
     designSource: opts.source ?? (score === null ? "static" : "render"),
@@ -96,7 +117,10 @@ function scored(
       caps: opts.caps ?? [],
       confidence: opts.confidence ?? 0.9,
       trust: {},
-      scoreSummary: opts.summary ?? summary([], []),
+      scoreSummary: {
+        ...(opts.summary ?? summary([], [])),
+        ...(checklist === undefined ? {} : { checklist }),
+      },
       aiReview: null,
       aiModel: null,
       renderRefEmailId: null,
@@ -277,39 +301,26 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
       sender: { name: "Good Co", domain: "goodco.example" },
       fonts: ["Inter", "Georgia"],
       previewable: true,
-      reason: { kind: "strength", text: "Clear main button" },
-      problems: ["Minor nit"],
-      // Findings with no plain rule count as baseline: one fills an otherwise empty list.
-      strengths: ["Clear main button"],
+      reason: { kind: "strength", text: "Passes all 16 design rules" },
+      problems: [],
+      strengths: checklistReason(GOOD).strengths,
     });
     expect(new Date(good.receivedAt).toISOString()).toBe(good.receivedAt);
     expect(items.get("ok84")).toMatchObject({
       verdict: "ok",
       category: "product_updates",
-      reason: { kind: "problem", text: "Small images lack alt text" },
+      reason: { kind: "problem", text: "Misses 1 rule: not about 600px wide" },
     });
-    // The cap's summary line has no measured values, so the gallery says what the cap means.
+    // The card's line and lists come from the checklist, never the engine's summary lists.
     expect(items.get("capped")).toMatchObject({
-      verdict: "bad",
-      reason: { kind: "problem", text: "Body text is too faint to read against its background" },
-    });
-    expect(items.get("capped")!.problems).toEqual([
-      "Body text is too faint to read against its background",
-      "Other thing",
-    ]);
-    // Bad for its score alone (no cap, no severe problem): the card names that rule, and the
-    // biggest problems follow it in the detail.
-    expect(items.get("poor")).toMatchObject({
       verdict: "bad",
       reason: {
         kind: "problem",
-        text: "Several problems add up to a low score (40 of 100; Bad is under 60)",
+        text: "Misses 3 rules: no single main button, body text hard to read, button vague or hard to see",
       },
-      problems: [
-        "Several problems add up to a low score (40 of 100; Bad is under 60)",
-        "Text is tiny on phones",
-      ],
+      problems: checklistReason(BAD).problems,
     });
+    expect(items.get("poor")).toMatchObject({ verdict: "bad" });
     expect(items.get("provGood")).toMatchObject({ verdict: "good", category: "welcome" });
     expect(items.get("provPoor")).toMatchObject({ verdict: "bad" });
     expect(items.get("unscored")).toMatchObject({
@@ -506,7 +517,7 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
     expect(second.total).toBe(71);
   });
 
-  it("Best / Worst sort by verdict first, then score, across pages (a capped Bad 69 never outranks an Okay 65)", async () => {
+  it("Best / Worst sort by verdict first, then score, across pages (a Bad 69 never outranks an Okay 65)", async () => {
     const erin = await createUser(app);
     const mb = await createMailbox(app, erin.id);
     const kinds = [
@@ -536,268 +547,6 @@ describe.skipIf(!HAS_DB)("design gallery against the database", () => {
     expect(worst.slice(0, 9).every((i) => i.score === 40)).toBe(true);
     expect(worst[9]!.score).toBe(69); // Bad before any Okay
     expect(worst[18]!.verdict).toBe("ok");
-  });
-
-  it("verdict counts from SQL match verdictOf on every row", async () => {
-    const items = await all(alice.id, params());
-    for (const it of items) {
-      const capped = it.subject === "capped";
-      expect(it.verdict, it.subject ?? "").toBe(
-        verdictOf({
-          score: it.score,
-          band: it.band,
-          capped,
-          caps: capped ? ["CAP_CONTRAST"] : [],
-          issues: capped ? ["contrast"] : [],
-          provisional: it.subject?.startsWith("prov") ?? false,
-          source: it.score === null ? "static" : "render",
-          coverageConfidence: 0.9,
-        }),
-      );
-    }
-  });
-
-  it("every VERDICT POLICY boundary: list verdicts, the Good / Bad filters and their counts agree with verdictOf", async () => {
-    const vera = await createUser(app);
-    const mb = await createMailbox(app, vera.id);
-    type Case = {
-      name: string;
-      want: string;
-      score: number | null;
-      band: EmailRecord["designBand"];
-      opts?: Parameters<typeof scored>[2];
-    };
-    const cases: Case[] = [
-      { name: "s85", want: "good", score: 85, band: "excellent" },
-      { name: "s84", want: "ok", score: 84, band: "good" },
-      // The Bad floor is 60 (v1.5): 59 and 50 are Bad, 60 is Okay.
-      { name: "s60", want: "ok", score: 60, band: "needs_work" },
-      { name: "s59", want: "bad", score: 59, band: "needs_work" },
-      { name: "s50", want: "bad", score: 50, band: "needs_work" },
-      { name: "s49", want: "bad", score: 49, band: "poor" },
-      {
-        name: "s49prov",
-        want: "bad",
-        score: 49,
-        band: "poor",
-        opts: { provisional: true, confidence: 0.5 },
-      },
-      {
-        name: "cappedProv",
-        want: "bad",
-        score: 69,
-        band: "needs_work",
-        opts: { capped: true, provisional: true, caps: ["CAP_MERGE_TAG"] },
-      },
-      {
-        name: "capNotBinding",
-        want: "bad",
-        score: 66,
-        band: "needs_work",
-        opts: { capped: false, caps: ["CAP_MERGE_TAG"] },
-      },
-      {
-        name: "capHighScore",
-        want: "bad",
-        score: 88,
-        band: "excellent",
-        opts: { capped: false, caps: ["CAP_CLIPPED"], issues: ["clipped"] },
-      },
-      {
-        name: "issueOnly",
-        want: "bad",
-        score: 64,
-        band: "needs_work",
-        opts: { capped: false, issues: ["mobile"] },
-      },
-      {
-        name: "typeProv",
-        want: "good",
-        score: 98,
-        band: "excellent",
-        opts: { provisional: true, confidence: 0.83 },
-      },
-      {
-        name: "edgeProv",
-        want: "good",
-        score: 90,
-        band: "excellent",
-        opts: { provisional: true, confidence: 0.7 },
-      },
-      {
-        name: "lowCovProv",
-        want: "ok",
-        score: 95,
-        band: "excellent",
-        opts: { provisional: true, confidence: 0.64, source: "template" },
-      },
-      {
-        name: "template",
-        want: "good",
-        score: 92,
-        band: "excellent",
-        opts: { source: "template", confidence: 0.71 },
-      },
-      { name: "staticOnly", want: "ok", score: 90, band: "excellent", opts: { source: "static" } },
-      { name: "unscored", want: "unscored", score: null, band: null },
-    ];
-    for (const [i, c] of cases.entries()) {
-      await seedEmail(app, vera.id, mb, {
-        ...scored(c.score, c.band, c.opts),
-        receivedAt: at(i),
-        subject: c.name,
-        searchText: c.name,
-      });
-    }
-    const items = new Map((await all(vera.id, params())).map((x) => [x.subject, x]));
-    for (const c of cases) {
-      const o = c.opts ?? {};
-      expect(items.get(c.name)?.verdict, c.name).toBe(c.want);
-      expect(
-        verdictOf({
-          score: c.score,
-          band: c.band,
-          capped: c.score === null ? null : (o.capped ?? false),
-          provisional: c.score === null ? null : (o.provisional ?? false),
-          caps: o.caps ?? [],
-          issues: o.issues ?? [],
-          source: o.source ?? (c.score === null ? "static" : "render"),
-          // float4 round trip, as the column stores it
-          coverageConfidence: Math.fround(o.confidence ?? 0.9),
-        }),
-        `${c.name} (verdictOf)`,
-      ).toBe(c.want);
-    }
-    const names = (want: string) => cases.filter((c) => c.want === want).map((c) => c.name);
-    const subjects = async (design: GalleryParams["design"]) =>
-      (await all(vera.id, params({ design }))).map((x) => x.subject);
-    expect(await subjects("good")).toEqual(names("good"));
-    expect(await subjects("bad")).toEqual(names("bad"));
-    const f = await q.galleryFacets(vera.id, params());
-    expect(f.design).toEqual({
-      all: cases.length,
-      good: names("good").length,
-      bad: names("bad").length,
-    });
-    // The Bad reason of a capped + provisional merge-tag email names the merge tag.
-    expect(items.get("cappedProv")!.reason?.text).toMatch(/raw merge tag/);
-  });
-
-  it("card reasons read the stored check results and quote a merge tag from the subject", async () => {
-    const rex = await createUser(app);
-    const mb = await createMailbox(app, rex.id);
-    const pass = (id: string, value: Record<string, unknown> = {}) => ({
-      id,
-      status: "pass",
-      s: 1,
-      w: 2,
-      points: 2,
-      pointsLost: 0,
-      value,
-    });
-    const good = scored(93, "excellent", { summary: summary([], ["Text meets WCAG AA contrast"]) });
-    good.analysis = {
-      ...good.analysis!,
-      checks: [pass("A1"), pass("H6"), pass("H3", { label: "Book now" })],
-    };
-    await seedEmail(app, rex.id, mb, { ...good, receivedAt: at(1), subject: "good one" });
-    const tag = scored(69, "needs_work", {
-      capped: true,
-      provisional: true,
-      caps: ["CAP_MERGE_TAG"],
-    });
-    tag.analysis = {
-      ...tag.analysis!,
-      scoreSummary: {
-        needsImprovement: [
-          {
-            key: "cap:CAP_MERGE_TAG",
-            title: "An unrendered merge tag is visible in the subject (score capped at 69)",
-            points: 5,
-            ai: false,
-          },
-        ],
-        good: [],
-      },
-    };
-    await seedEmail(app, rex.id, mb, {
-      ...tag,
-      receivedAt: at(2),
-      subject: "Hi {{first_name}}, your picks are here",
-    });
-    const items = new Map((await all(rex.id, params())).map((x) => [x.subject, x]));
-    expect(items.get("good one")).toMatchObject({
-      verdict: "good",
-      reason: { kind: "strength", text: "A big headline and a standout “Book now” button" },
-    });
-    expect(items.get("good one")!.strengths).toEqual([
-      "A big headline that clearly stands out",
-      "A standout “Book now” button",
-    ]);
-    expect(items.get("Hi {{first_name}}, your picks are here")).toMatchObject({
-      verdict: "bad",
-      reason: {
-        kind: "problem",
-        text: "Shows a raw merge tag in the subject: “Hi {{first_name}}”",
-      },
-    });
-  });
-
-  it("footer statements and the stray-text note show only for an own render-2026.5 render scored by 2026.6", async () => {
-    const fay = await createUser(app);
-    const mb = await createMailbox(app, fay.id);
-    const STRAY = "Shows stray text addressed to AI or review software, which readers see too";
-    const U3 = "No link to choose how often you get these emails";
-    const U4 = "Doesn't say why you're getting this email";
-    const footer = (
-      subject: string,
-      scoringVersion: string,
-      rendererVersion: string | null,
-      source: EmailRecord["designSource"] = "render",
-    ) => {
-      const e = scored(78, "good", { source });
-      e.analysis = {
-        ...e.analysis!,
-        scoringVersion,
-        rendererVersion,
-        // U4 only in the stored checks: the gallery reads both.
-        checks: [
-          {
-            id: "U4",
-            status: "fail",
-            s: 0,
-            w: 1,
-            points: 0,
-            pointsLost: 1,
-            value: { present: false },
-          },
-        ],
-        scoreSummary: {
-          scoringVersion,
-          needsImprovement: [
-            { key: "note:stray-text", title: STRAY, points: 0, ai: false },
-            { key: "check:U3", title: "No link to manage email preferences", points: 1, ai: false },
-          ],
-          good: [],
-        },
-      };
-      return seedEmail(app, fay.id, mb, { ...e, receivedAt: at(1), subject });
-    };
-    const NEW = "2026.6+w-2026.1+t-2026.3+lex-2026.3";
-    await footer("new engine", NEW, "render-2026.5");
-    await footer("older render", NEW, "render-2026.4");
-    await footer("older summary", "2026.5+w-2026.1+t-2026.3+lex-2026.2", "render-2026.5");
-    await footer("template", NEW, "render-2026.5", "template");
-    const items = new Map((await all(fay.id, params())).map((x) => [x.subject, x]));
-    expect(items.get("new engine")).toMatchObject({
-      verdict: "ok",
-      reason: { kind: "problem", text: STRAY },
-      problems: [STRAY, U3, U4],
-    });
-    for (const subject of ["older render", "older summary", "template"]) {
-      expect(items.get(subject)?.problems, subject).toEqual([]);
-      expect(items.get(subject)?.reason, subject).toBeNull();
-    }
   });
 
   it("isolation: another user's gallery, facets and preview ids never include Alice's emails", async () => {

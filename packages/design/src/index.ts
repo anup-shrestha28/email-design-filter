@@ -82,6 +82,17 @@ export {
 } from "./scoring/weights";
 export { CAP_LIMITS, CAP_ISSUE } from "./scoring/caps";
 export {
+  BAD_MISSES_MIN,
+  CHECKLIST_VERSION,
+  CHECKLIST_RULES,
+  designChecklist,
+  checklistVerdict,
+  type ChecklistResult,
+  type ChecklistRule,
+  type ChecklistRuleId,
+  type DesignChecklist,
+} from "./scoring/checklist";
+export {
   excellenceGate,
   EXCELLENCE_CEILING,
   HEADLINE_CREDIT_MIN,

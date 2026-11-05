@@ -86,7 +86,7 @@ describe("GalleryCard", () => {
     expect(describedByText(button).join(" ")).toContain("Strength:");
   });
 
-  it("unscored: says when the score comes, in the verdict's place — never 'still checking'", async () => {
+  it("unchecked: says when the check comes, in the verdict's place — never 'still checking'", async () => {
     const r = await render(
       card(
         item({
@@ -99,10 +99,10 @@ describe("GalleryCard", () => {
       ),
     );
     const li = root(r.container);
-    expect(visibleText(li)).not.toContain("Scoring now");
+    expect(visibleText(li)).not.toContain("Checking now");
     const text = metaOf(li).textContent ?? "";
     expect(text).toContain("Tidewell");
-    expect(text).toContain("Scoring now");
+    expect(text).toContain("Checking now");
     expect(text).toContain("Ready in a few minutes");
     expect(text).not.toContain("still checking");
     expect(text).not.toContain(SUBJECT);
@@ -111,18 +111,18 @@ describe("GalleryCard", () => {
     expect(badge.getAttribute("data-waiting")).toBe("scoring");
     // Screen readers hear it through the card's description.
     const button = li.querySelector("button[data-card-id]")!;
-    expect(describedByText(button).join(" ")).toContain("Scoring now");
+    expect(describedByText(button).join(" ")).toContain("Checking now");
     expect(button.getAttribute("title")).toBe(SUBJECT);
   });
 
-  it("unscored: each waiting state has its own plain words", async () => {
+  it("unchecked: each waiting state has its own plain words", async () => {
     const cases: Array<[NonNullable<GalleryItem["waiting"]>, string, string]> = [
-      [{ state: "soon" }, "Scoring soon", "Usually within the hour"],
-      [{ state: "queued" }, "Not scored yet", "Waiting in line to be scored"],
-      [{ state: "paused" }, "Not scored yet", "Scoring is paused for now"],
-      [{ state: "off" }, "Not scored yet", "Scoring is switched off"],
-      [{ state: "manual" }, "Not scored yet", "Open it to get a score"],
-      [{ state: "mailbox" }, "Not scored yet", "Reconnect Gmail to score it"],
+      [{ state: "soon" }, "Checking soon", "Usually within the hour"],
+      [{ state: "queued" }, "Not checked yet", "Waiting in line to be checked"],
+      [{ state: "paused" }, "Not checked yet", "Checking is paused for now"],
+      [{ state: "off" }, "Not checked yet", "Checking is switched off"],
+      [{ state: "manual" }, "Not checked yet", "Open it to check it"],
+      [{ state: "mailbox" }, "Not checked yet", "Reconnect Gmail to check it"],
     ];
     for (const [waiting, badge, line] of cases) {
       const r = await render(
@@ -133,11 +133,11 @@ describe("GalleryCard", () => {
       expect(text).toContain(line);
       await r.unmount();
     }
-    // No waiting info (e.g. an older server): just "Not scored yet", no made-up time.
+    // No waiting info (e.g. an older server): just "Not checked yet", no made-up time.
     const r = await render(
       card(item({ verdict: "unscored", score: null, band: null, reason: null })),
     );
-    expect(metaOf(root(r.container)).textContent).toContain("Not scored yet");
+    expect(metaOf(root(r.container)).textContent).toContain("Not checked yet");
   });
 
   it("each preview is its email's own shape: whole up to 3× its width, square while unknown", async () => {

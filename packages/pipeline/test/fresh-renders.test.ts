@@ -8,7 +8,9 @@
  *  - their own Sandbox allowance (2,520 CPU-s a rolling 30 days, recorded per batch from its VM time);
  *  - a fresh batch takes queued on-demand and fill work, then only fresh mail (static-only,
  *    ≤ 48 h, in an active mailbox, never requested) — no samples, never template-scored mail;
- *  - the nightly fill leaves out mail of mailboxes that aren't active (the render step can't fetch it).
+ *  - the nightly fill leaves out mail of mailboxes that aren't active (the render step can't fetch it);
+ *  - with room left, the nightly fill re-checks gallery mail scored before the design checklist
+ *    (RECHECK_CANDIDATE_SQL), newest first, after its regular candidates — never in a fresh batch.
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -17,6 +19,7 @@ import { createPool, type pg, withUser } from "@edf/db";
 import type { PipelineDeps } from "../src/deps";
 import { MAX_EMAILS_PER_BATCH, renderForUser, workKinds, type RenderOptions } from "../src/render";
 import { freshCpuUsed, freshRenderDue, freshRows, gateRenderOptions, planFrom, type RenderGovernor } from "../src/render-plan";
+import { CHECKLIST_VERSION } from "@edf/design/checklist";
 import {
   FILL_BATCHES_PER_DAY,
   FRESH_ACTIVE_MINUTES,
@@ -421,6 +424,53 @@ describe.skipIf(!HAS_DB)("fresh batches against the database", () => {
     expect(await freshRenderDue(deps)).toBe(false);
     await owner.query("UPDATE app_setting SET value = $1::jsonb WHERE key = 'governor'", [JSON.stringify({ level: 0, actions: { rendersNightlyOnly: true } })]);
     expect(await freshRenderDue(deps)).toBe(false);
+  });
+
+  it("the nightly fill re-checks gallery mail scored before the design checklist, after its own candidates", async () => {
+    const u = await setup("owner");
+    /** A scored email (an own render, 30 days old by default) with or without a saved checklist. */
+    const scoredEmail = async (
+      over: { hoursAgo?: number; type?: string; subtype?: string | null; checklist?: string | null; mailbox?: string } = {},
+    ) => {
+      const id = await email(u.userId, over.mailbox ?? u.active, { hoursAgo: over.hoursAgo ?? 720, source: "render" });
+      await withUser(pool, u.userId, async (_db, c) => {
+        await c.query("UPDATE email SET design_score = 70, primary_type = $2, subtype = $3 WHERE id = $1", [
+          id,
+          over.type ?? "promotional",
+          over.subtype ?? null,
+        ]);
+        if (over.checklist !== undefined)
+          await c.query(
+            `INSERT INTO email_analysis (email_id, user_id, scoring_version, checks, pillar_scores, confidence, score_summary)
+             VALUES ($1, $2, 'test', '[]', '[]', 0.9, jsonb_build_object('checklist', jsonb_build_object('v', $3::text)))`,
+            [id, u.userId, over.checklist],
+          );
+      });
+      return id;
+    };
+    const regular = await email(u.userId, u.active, { hoursAgo: 72, source: "template" });
+    const newer = await scoredEmail({ hoursAgo: 500 });
+    const older = await scoredEmail({ hoursAgo: 900, checklist: "designmodo-2026.10" }); // an older checklist
+    const welcome = await scoredEmail({ hoursAgo: 1000, type: "lifecycle", subtype: "welcome" });
+    // Never re-checked: already checked, not gallery mail, a lifecycle email that isn't a welcome,
+    // a disconnected mailbox, an earlier re-check that failed (kept 7 days).
+    await scoredEmail({ checklist: CHECKLIST_VERSION });
+    await scoredEmail({ type: "notification" });
+    await scoredEmail({ type: "lifecycle", subtype: "trial_ending" });
+    await scoredEmail({ mailbox: u.paused });
+    const failed = await scoredEmail({ hoursAgo: 400 });
+    await withUser(pool, u.userId, (_db, c) =>
+      c.query("INSERT INTO render_request (user_id, email_id, kind, state) VALUES ($1, $2, 'fill', 'failed')", [u.userId, failed]),
+    );
+    // A fresh batch never takes them.
+    const fresh = await renderForUser(deps, u.userId, { fresh: true, fillAllowed: true, samplesAllowed: false, aiSamplesAllowed: false });
+    expect(fresh.picked).toBe(0);
+    const out = await renderForUser(deps, u.userId, { fillAllowed: true, samplesAllowed: false, aiSamplesAllowed: false });
+    expect(out.picked).toBe(4);
+    const picked = (await requests(u.userId)).filter((r) => r.email_id !== failed);
+    // One transaction: the requests share a time, so compare them as a set.
+    expect(picked.map((x) => x.email_id).sort()).toEqual([regular, newer, older, welcome].sort());
+    expect(picked.every((x) => x.kind === "fill")).toBe(true);
   });
 
   it("the nightly fill leaves out mail of mailboxes that aren't active", async () => {

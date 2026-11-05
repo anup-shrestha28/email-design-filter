@@ -13,6 +13,7 @@
  */
 import type { EmailType } from "@edf/core/types";
 import type { StaticDesignFeatures } from "./features/static";
+import type { DesignChecklist } from "./scoring/checklist";
 import type { ImageLoadReason, RenderFeatures } from "./features/render";
 import type { FontFeatures } from "./features/fonts";
 
@@ -363,6 +364,12 @@ export interface ScoreSummary {
    * saved before it existed (backfilled from `features` by migration 0016 while they were stored).
    */
   layout?: SummaryLayout;
+  /**
+   * The owner's 16-rule design checklist (scoring/checklist.ts), which decides the gallery's Good /
+   * Okay / Bad. Null without a render (own or template); absent on summaries saved before it
+   * existed (backfilled from `checks` while they were stored; otherwise "Not checked yet").
+   */
+  checklist?: DesignChecklist | null;
 }
 
 /** Where the email sits and how tall it is (render px; see RenderFeatures["layout"]). */

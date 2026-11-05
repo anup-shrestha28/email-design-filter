@@ -46,6 +46,7 @@ import { errorCode } from "./poll";
 import { currentRenderOptions, freshCpuUsed } from "./render-plan";
 import {
   FILL_WINDOW_DAYS,
+  RECHECK_CANDIDATE_SQL,
   FRESH_CANDIDATE_SQL,
   FRESH_CPU_RESOURCE,
   freshAllowanceLeft,
@@ -267,8 +268,22 @@ async function pickWork(
          RETURNING id, email_id`,
         [userId, MAX_EMAILS_PER_BATCH - items.length],
       );
+      let filled = fill.rows;
+      // Nightly, with room left: gallery mail scored before the design checklist (RECHECK_CANDIDATE_SQL).
+      if (!opts.fresh && items.length + filled.length < MAX_EMAILS_PER_BATCH) {
+        const recheck = await c.query<{ id: string; email_id: string }>(
+          `INSERT INTO render_request (user_id, email_id, kind)
+           SELECT $1, e.id, 'fill' FROM email e
+           WHERE e.user_id = $1 AND ${RECHECK_CANDIDATE_SQL}
+           ORDER BY e.received_at DESC LIMIT $2
+           ON CONFLICT (email_id) WHERE state IN ('queued', 'running') DO NOTHING
+           RETURNING id, email_id`,
+          [userId, MAX_EMAILS_PER_BATCH - items.length - filled.length],
+        );
+        filled = filled.concat(recheck.rows);
+      }
       items = items.concat(
-        fill.rows.map((r) => ({
+        filled.map((r) => ({
           requestId: r.id,
           emailId: r.email_id,
           kind: "fill" as const,

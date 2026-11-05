@@ -21,7 +21,6 @@ import {
   type ScoreSummary,
 } from "@edf/design";
 import { verdictOf } from "@/lib/gallery";
-import { GALLERY_SIGNALS } from "./gallery";
 import { typeGroupOf } from "@/lib/types-display";
 import { getPool } from "../db";
 import { ON_DEMAND_LIMITS } from "../limits";
@@ -79,10 +78,6 @@ interface DetailRow {
   scoring_version: string | null;
   features: DesignFeatures | null;
   score_summary: ScoreSummary | null;
-  caps: string[] | null;
-  coverage_confidence: number | null;
-  /** The gallery's severe-problem facts (queries/gallery.ts GALLERY_SIGNALS). */
-  signals: unknown;
   trust: TrustBadge | null;
   render_ref_email_id: string | null;
   analyzed_at: Date | null;
@@ -113,7 +108,6 @@ export async function getEmailDetail(
              e.design_ai_state, e.design_score, e.design_band, e.design_provisional, e.design_capped, e.design_issues,
              e.design_confidence, e.font_source, e.is_unread, e.opened_in_app_at, e.done_at, e.pinned_at,
              a.scoring_version, a.features, a.score_summary, a.trust, a.render_ref_email_id, a.analyzed_at,
-             a.caps, a.confidence::float8 AS coverage_confidence, ${GALLERY_SIGNALS} AS signals,
              ref.analyzed_at AS ref_rendered_at
       FROM email e
       JOIN mailbox m ON m.id = e.mailbox_id AND m.user_id = e.user_id
@@ -276,21 +270,9 @@ export async function getEmailDetail(
         issues: row.design_issues,
         confidence: row.design_confidence,
       },
-      // The gallery's Good / Okay / Bad word, from exactly the inputs the gallery query uses, so
-      // the full analysis page never says "Needs work" where the gallery said "Bad design".
-      verdict: verdictOf({
-        score: row.design_score,
-        band: row.design_band,
-        capped: row.design_capped,
-        provisional: row.design_provisional,
-        caps: row.caps ?? [],
-        issues: row.design_issues,
-        source: row.design_source,
-        coverageConfidence: row.coverage_confidence,
-        signals: row.signals,
-        // The type now, as the gallery reads it (its unsubscribe rule follows a corrected type).
-        primaryType: row.primary_type,
-      }),
+      // The gallery's Good / Okay / Bad word, from the same saved design checklist the gallery
+      // reads, so the full analysis page never says otherwise.
+      verdict: verdictOf({ checklist: row.score_summary?.checklist ?? null }),
       result,
       summary: row.score_summary,
       renderRef:

@@ -348,7 +348,7 @@ export const GalleryCard = memo(function GalleryCard({
         {scored ? (
           <>
             <div className="flex h-6">
-              <VerdictBadge verdict={item.verdict} score={item.score} />
+              <VerdictBadge verdict={item.verdict} />
             </div>
             <ReasonLine item={item} />
           </>

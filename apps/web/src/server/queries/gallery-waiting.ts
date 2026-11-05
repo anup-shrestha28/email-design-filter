@@ -1,16 +1,18 @@
 /**
- * The real render state behind an unscored gallery card: its render request, the user's render
- * queue and fill batches, fresh renders' monthly allowance, and the governor's switches, for
- * lib/gallery-waiting.ts `waitingFor`.
+ * The real render state behind an unchecked gallery card (no score, or a score without the design
+ * checklist): its render request, the user's render queue and fill batches, fresh renders' monthly
+ * allowance, and the governor's switches, for lib/gallery-waiting.ts `waitingFor`.
  * Runs inside the gallery query's transaction (RLS-scoped to the user), one query for the user
- * and one for the page's unscored emails; nothing when every design on the page has a score.
+ * and one for the page's unchecked emails; nothing when every design on the page is checked.
  *
- * The candidate conditions mirror @edf/pipeline (render-policy.ts FRESH_CANDIDATE_SQL, render.ts
- * pickWork's nightly fill); the tests check both count the same emails.
+ * The candidate conditions mirror @edf/pipeline (render-policy.ts FRESH_CANDIDATE_SQL and
+ * RECHECK_CANDIDATE_SQL, render.ts pickWork's nightly fill); the tests check both count the same
+ * emails.
  */
 import "server-only";
 import { calibrationFactor, FREE_TIER_PROFILE, RESOURCES, resourceSpec } from "@edf/budget";
 import { raw, sql, type SQL } from "@edf/db";
+import { CHECKLIST_VERSION } from "@edf/design/checklist";
 import { rendererSetUp } from "@/env";
 import type { Db } from "@edf/db";
 import {
@@ -39,6 +41,24 @@ export function nightlyFillCandidate(alias: string): SQL {
     AND NOT ${e}.security_sensitive AND NOT ${e}.is_hidden
     AND EXISTS (SELECT 1 FROM mailbox m WHERE m.id = ${e}.mailbox_id AND m.status = 'active')
     AND NOT EXISTS (SELECT 1 FROM render_request r WHERE r.email_id = ${e}.id AND r.state IN ('queued', 'running'))`;
+}
+
+/** The email types the gallery lists (@edf/pipeline render-policy.ts GALLERY_TYPES). */
+function galleryType(alias: string): SQL {
+  const e = sql.raw(alias);
+  return sql`(${e}.primary_type IN ('promotional', 'event', 'product_update')
+    OR (${e}.primary_type = 'lifecycle' AND ${e}.subtype IN ('welcome', 'onboarding')))`;
+}
+
+/** A nightly re-check candidate (render-policy.ts RECHECK_CANDIDATE_SQL; the tests check both agree). */
+export function recheckCandidate(alias: string): SQL {
+  const e = sql.raw(alias);
+  return sql`${e}.design_status = 'done' AND ${e}.design_score IS NOT NULL AND ${galleryType(alias)}
+    AND NOT ${e}.security_sensitive AND NOT ${e}.is_hidden
+    AND EXISTS (SELECT 1 FROM mailbox m WHERE m.id = ${e}.mailbox_id AND m.status = 'active')
+    AND NOT EXISTS (SELECT 1 FROM email_analysis ra WHERE ra.email_id = ${e}.id
+      AND ra.score_summary #>> '{checklist,v}' = ${CHECKLIST_VERSION}::text)
+    AND NOT EXISTS (SELECT 1 FROM render_request r WHERE r.email_id = ${e}.id AND r.state IN ('queued', 'running', 'failed'))`;
 }
 
 /** render.ts pickWork's order for queued requests: on-demand, then samples, then fill; oldest first. */
@@ -70,16 +90,18 @@ interface ItemRow {
   ever_requested: boolean;
   fresh_ahead: number | null;
   fill_ahead: number | null;
+  /** Re-checks only: every regular nightly fill candidate plus the newer re-check candidates. */
+  recheck_ahead: number | null;
 }
 
-/** `items` with `waiting` set on the unscored ones (the others are returned as they are). */
+/** `items` with `waiting` set on the unchecked ones (the others are returned as they are). */
 export async function withWaiting(
   db: Db,
   userId: string,
   items: GalleryItem[],
   now = Date.now(),
 ): Promise<GalleryItem[]> {
-  const ids = items.filter((i) => i.score === null).map((i) => i.id);
+  const ids = items.filter((i) => i.verdict === "unscored").map((i) => i.id);
   if (ids.length === 0) return items;
   const idList = sql`ARRAY[${sql.join(
     ids.map((id) => sql`${id}`),
@@ -119,7 +141,12 @@ export async function withWaiting(
              CASE WHEN e.received_at > now() - make_interval(days => ${RENDER_SCHEDULE.fillWindowDays}::int) THEN (
                SELECT count(*)::int FROM email f
                WHERE f.user_id = ${userId} AND ${nightlyFillCandidate("f")} AND f.received_at > e.received_at
-             ) END AS fill_ahead
+             ) END AS fill_ahead,
+             CASE WHEN e.design_score IS NOT NULL THEN (
+               (SELECT count(*)::int FROM email f WHERE f.user_id = ${userId} AND ${nightlyFillCandidate("f")})
+               + (SELECT count(*)::int FROM email f
+                  WHERE f.user_id = ${userId} AND ${recheckCandidate("f")} AND f.received_at > e.received_at)
+             ) END AS recheck_ahead
       FROM email e
       LEFT JOIN render_request r ON r.email_id = e.id AND r.user_id = e.user_id AND r.state IN ('queued', 'running')
       WHERE e.user_id = ${userId} AND e.id = ANY(${idList})`)
@@ -144,7 +171,9 @@ export async function withWaiting(
     },
   };
   return items.map((item) => {
-    const r = item.score === null ? byId.get(item.id) : undefined;
+    const r = item.verdict === "unscored" ? byId.get(item.id) : undefined;
+    // Scored before the design checklist: a re-check (lib/gallery-waiting.ts).
+    const recheck = item.score !== null;
     if (!r) return item;
     const waiting = waitingFor({
       now,
@@ -164,7 +193,8 @@ export async function withWaiting(
         queuedAhead: r.queued_ahead,
         everRequested: r.ever_requested,
         freshAhead: r.fresh_ahead,
-        fillAhead: r.fill_ahead,
+        fillAhead: recheck ? r.recheck_ahead : r.fill_ahead,
+        recheck,
       },
     });
     return { ...item, waiting };

@@ -534,7 +534,7 @@ With sync-on-open, the app keeps working in "daily plus whenever opened" mode wi
 | New mail in the list | about 1 min | ≤ 30 min (≤ 10 users) or ≤ 60 min; about 10–60 s after opening the app; **while the app is open and in use, within about 5–10 min**, and the open gallery shows it without a reload (a "N new designs · Show" pill, or at once at the top of Newest) |
 | Static checks and rule classification | on arrival | on arrival |
 | Design score | about 1 min | right away if the template has a rendered sample; **your new mail: its own render within about 30 min (60 with hourly ticks) while you use the app and fill is allowed** (§5.3 "Fresh"); otherwise after the nightly batch (04:30 UTC) or on demand. Scores that land update the open gallery in place |
-| What an unscored card says | — | the truth from the render queue: "Scoring now" (a render is running or an on-demand one is queued), "Scoring soon" (the next fresh batch takes it), "Gets its score around 10:15 AM" (the nightly batch, in your own time zone), "Trying again tomorrow around 10:15 AM" (its last render failed; the nightly batch retries it), "Waiting in line to be scored" (past the batch's room, or a friend's mail), "Scoring is paused for now" (free-tier limits), "Scoring is switched off" (the owner's switch, or no renderer set up), "Open it to get a score" (older than 14 days by the next nightly run), "Scoring didn't work" (failed, and too old to retry on its own), "Can't be scored" (rendered, but nothing to measure), "Reconnect Gmail to score it" |
+| What an unchecked card says | — | the truth from the render queue: "Checking now" (a render is running or an on-demand one is queued), "Checking soon" (the next fresh batch takes it), "Gets checked around 10:15 AM" (the nightly batch, in your own time zone — new mail, or a re-check of mail scored before the design checklist), "Trying again tomorrow around 10:15 AM" (its last render failed; the nightly batch retries it), "Waiting in line to be checked" (past the batch's room, or a friend's mail), "Checking is paused for now" (free-tier limits), "Checking is switched off" (the owner's switch, or no renderer set up), "Open it to check it" (older than 14 days by the next nightly run), "Checking didn't work" (failed, and too old to retry on its own), "Can't be checked" (rendered, but nothing to measure), "Reconnect Gmail to check it" |
 | AI review | minutes | template samples through Batch, usually within an hour (up to 24 h); on demand in about 1–2 min |
 
 ### 4.11 Optional push mode (needs a card)
@@ -709,6 +709,15 @@ If a render measures more than 12 CPU-s per email, "fill" renders switch to a li
        month (conservative) or ≈ 60–300 (expected); an early VM a day each would add ≈ 30 boots a month
        per friend (≈ 450 CPU-s at 15 CPU-s a boot), ≈ 8,500 CPU-s at 20 users — two thirds of the budget.
 
+   - **Re-check** (2026-11-05, `RECHECK_CANDIDATE_SQL`): gallery mail (promotions, events, product
+     updates, welcome mail) that has a score but no design checklist of the current version —
+     rendered before the checklist existed and since compacted — so the gallery says "Not checked
+     yet". The **nightly** fill takes these after its regular candidates, newest first, at any age, in
+     the same ≤ 25-email batch: no extra VM, and every switch that stops fill stops it. Never in a
+     fresh batch, and not again while a failed request is kept (7 days). About 200 such emails on
+     2026-11-05: the owner's are checked within roughly a week of nightly runs while fill is allowed;
+     a friend's whenever their batch runs.
+
 **Never rendered:** security-sensitive and plain-text mail. Suspicious mail is rendered with images off.
 
 **Fair share:**
@@ -765,7 +774,7 @@ Checks are grouped by what they need. The weights come from DESIGN-SCORE and hav
 
 **Feature compaction** (from B):
 - full features are kept 30 days for you and 14 days for friends;
-- after that they are compacted to a score summary of about 1.5–2 KB (score, caps, pillars and the top 5 problems and top 5 strengths, so the gallery's reason lines keep their root cause and most distinctive strength);
+- after that they are compacted to a score summary of about 3–4 KB (score, caps, pillars, the top 5 problems and top 5 strengths, the saved signals and — since 2026-11-05 — the design checklist, ≈ 1.2 KB, which decides the gallery's Good / Okay / Bad and explains it rule by rule);
 - **exempt:** each template's current exemplar (`email_template.exemplar_email_id`) keeps full
   features while its render is < 60 days old, because template-level scores and fonts inherit
   from it;

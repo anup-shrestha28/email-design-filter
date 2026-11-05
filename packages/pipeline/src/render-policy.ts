@@ -34,6 +34,7 @@
  *    only the nightly run picks — never the next fresh batch.
  */
 import { rendersStopped, type RenderGovernor } from "@edf/budget";
+import { CHECKLIST_VERSION } from "@edf/design/checklist";
 
 /** New mail counts as fresh for this long after it was received. */
 export const FRESH_WINDOW_HOURS = 48;
@@ -65,6 +66,40 @@ export function freshAllowanceLeft(usedCpuS: number): boolean {
 
 /** Fill (nightly and fresh) only renders mail received in the last 14 days (§5.3). */
 export const FILL_WINDOW_DAYS = 14;
+/**
+ * The email types (and, for lifecycle mail, subtypes) the design gallery lists — @edf/web
+ * lib/gallery.ts GALLERY_SHOWN_CATEGORIES (promotions, abandoned cart, welcome, product updates;
+ * the web tests assert they agree). `subtypes` null = every subtype.
+ */
+export const GALLERY_TYPES: ReadonlyArray<{ type: string; subtypes: readonly string[] | null }> = [
+  { type: "promotional", subtypes: null },
+  { type: "event", subtypes: null },
+  { type: "product_update", subtypes: null },
+  { type: "lifecycle", subtypes: ["welcome", "onboarding"] },
+];
+const GALLERY_TYPE_SQL = `(${GALLERY_TYPES.map((t) =>
+  t.subtypes
+    ? `(e.primary_type = '${t.type}' AND e.subtype IN (${t.subtypes.map((x) => `'${x}'`).join(", ")}))`
+    : `e.primary_type = '${t.type}'`,
+).join(" OR ")})`;
+
+/**
+ * A re-check candidate (`email e` of the user in the transaction; 2026-11-05): gallery mail with a
+ * score but no design checklist of the current version (@edf/design scoring/checklist.ts) — rendered
+ * before the checklist existed and since compacted, or past the 14-day fill — so the gallery says
+ * "Not checked yet" until a render checks it. The nightly fill takes these after its regular
+ * candidates, newest first, in the same ≤ 25-email batch (render.ts pickWork): no extra VM, inside
+ * every switch fill already obeys. Never while one is queued or running, and not again while a
+ * failed request is kept (7 days), so an email that can't render isn't retried every night.
+ */
+export const RECHECK_CANDIDATE_SQL = `e.design_status = 'done' AND e.design_score IS NOT NULL
+  AND ${GALLERY_TYPE_SQL}
+  AND NOT e.security_sensitive AND NOT e.is_hidden
+  AND EXISTS (SELECT 1 FROM mailbox m WHERE m.id = e.mailbox_id AND m.status = 'active')
+  AND NOT EXISTS (SELECT 1 FROM email_analysis a WHERE a.email_id = e.id
+    AND a.score_summary #>> '{checklist,v}' = '${CHECKLIST_VERSION}')
+  AND NOT EXISTS (SELECT 1 FROM render_request r WHERE r.email_id = e.id AND r.state IN ('queued', 'running', 'failed'))`;
+
 /**
  * Emails one render step reliably finishes: it picks ≤ 25 (render.ts MAX_EMAILS_PER_BATCH) and
  * prepares one per ~9 s while 30 s of its 230 s budget remain (≈ 22). The UI's "when will it be
