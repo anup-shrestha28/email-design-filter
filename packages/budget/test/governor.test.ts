@@ -363,6 +363,21 @@ describe("per-resource actions (FREE-TIER §8.3)", () => {
       aiOff: true,
       noBackfills: true,
       continuationKicksOff: true,
+      // Pictures stay on through L3: only FOT or a Vercel resource near its hard limit stops them.
+      imagesClickToLoad: false,
+      friendsImagesClickToLoad: false,
+    });
+  });
+
+  it("pictures go click-to-load only when a shared Vercel resource nears its hard limit (90%)", () => {
+    // Vercel CPU hard limit 14,400 CPU-s; × 1.5 default calibration. 70% (L3): pictures on.
+    const l3 = computeGovernor(input({ r30: { [R.vercelCpuS]: 6720 } }));
+    expect(l3.level).toBe(3);
+    expect(l3.actions).toMatchObject({ imagesClickToLoad: false, friendsImagesClickToLoad: false });
+    // Just under 90%: still on.
+    expect(computeGovernor(input({ r30: { [R.vercelCpuS]: 8639 } })).actions.imagesClickToLoad).toBe(false);
+    // 90% (12,960 calibrated = 8,640 metered): everyone's pictures click-to-load.
+    expect(computeGovernor(input({ r30: { [R.vercelCpuS]: 8640 } })).actions).toMatchObject({
       imagesClickToLoad: true,
       friendsImagesClickToLoad: true,
     });

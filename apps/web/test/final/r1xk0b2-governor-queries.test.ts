@@ -39,7 +39,7 @@ describe.skipIf(!HAS_DB)("governor switches in the page data", () => {
     await (await appPoolOf?.())?.end();
   });
 
-  it("images click-to-load: friends at FOT soft, everyone at FOT self-cap or L3 (never for CPU L1/L2)", async () => {
+  it("images click-to-load: friends at FOT soft, everyone at FOT self-cap or near a hard limit (never for a level alone)", async () => {
     const { getEmailDetail } = await import("@/server/queries/email");
     const me = await createUser(pool, { role: "owner" });
     const friend = await createUser(pool, { role: "friend" });
@@ -63,8 +63,9 @@ describe.skipIf(!HAS_DB)("governor switches in the page data", () => {
     expect(await both()).toEqual([true, true]);
     await setGovernor({ level: 2, actions: {} });
     expect(await both()).toEqual([false, false]);
+    // The level alone (even the L3 freeze) never turns pictures off: only the governor's actions do.
     await setGovernor({ level: 3, actions: {} });
-    expect(await both()).toEqual([true, true]);
+    expect(await both()).toEqual([false, false]);
   });
 
   it("sync-status polling is off from L1", async () => {

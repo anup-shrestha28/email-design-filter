@@ -80,9 +80,9 @@ export interface GovernorActions {
   rendersNightlyOnly: boolean;
   /** Sandbox soft: a friend's batch needs ≥ 10 emails (the 48 h rule is suspended). */
   friendsBatchRequireTen: boolean;
-  /** FOT soft (or L3): friends' images are click-to-load. */
+  /** FOT soft, or a Vercel resource near its hard limit: friends' images are click-to-load. */
   friendsImagesClickToLoad: boolean;
-  /** FOT at its self-cap (or L3): everyone's images are click-to-load. */
+  /** FOT at its self-cap, or a Vercel resource near its hard limit: everyone's images are click-to-load. */
   imagesClickToLoad: boolean;
   /** L1: classification through Batch only. */
   classificationBatchOnly: boolean;
@@ -399,6 +399,9 @@ function clearOf(
   return true;
 }
 
+/** A shared Vercel resource this close to its hard limit turns pictures off (actionsFor). */
+export const VERCEL_NEAR_HARD = 0.9;
+
 function actionsFor(
   level: GovernorLevel,
   r: {
@@ -416,6 +419,8 @@ function actionsFor(
     storageMb: number;
     neonL1: boolean;
     googleAccounts: number;
+    /** A shared Vercel resource at ≥ 90% of its hard limit (VERCEL_NEAR_HARD): a pause is close. */
+    vercelNearHard: boolean;
   },
   profile: BudgetProfile,
 ): GovernorActions {
@@ -439,13 +444,15 @@ function actionsFor(
     rendersOff: r.sandboxStaticOnly || L3,
     rendersNightlyOnly: r.inngestSoft,
     friendsBatchRequireTen: r.sandboxSoft,
-    // Pictures are the gallery itself, and they cost Fast Origin Transfer, not much else (edf-view
-    // shrinks each once a week; the CDN and browsers keep it). So only FOT (or the L3 freeze)
-    // turns them off; CPU or Neon pressure (L1/L2) cuts background work instead. Until 2026-10-08
-    // any L1 turned friends' pictures off and any L2 everyone's: a CPU L2 left the whole gallery
-    // as alt text while FOT stood at 15%.
-    friendsImagesClickToLoad: r.fotSoft || L3,
-    imagesClickToLoad: r.fotCap || L3,
+    // Pictures are the gallery itself, and they cost Fast Origin Transfer, not much else (saved
+    // cards; edf-view shrinks each picture once a week and the CDN and browsers keep it). So only
+    // FOT turns them off, or a shared Vercel resource within 10% of its hard limit (a pause would
+    // take the whole app down); CPU or Neon pressure (L1–L3) cuts background work instead.
+    // History: until 2026-10-08 any L1 turned friends' pictures off and any L2 everyone's; until
+    // 2026-11-05 L3 did, and the idle app's own wake-ups kept it at L3 for a month (Oct 10 –
+    // Nov 5) with the gallery as alt text while FOT stood at 15%.
+    friendsImagesClickToLoad: r.fotSoft || r.vercelNearHard,
+    imagesClickToLoad: r.fotCap || r.vercelNearHard,
     classificationBatchOnly: L1,
     autoAiOff: r.aiSoft || L2,
     aiOff: r.aiCap || L3,
@@ -588,6 +595,9 @@ export function computeGovernor(input: GovernorInput): GovernorResult {
       storageMb,
       neonL1: neon ? neon.value >= neon.soft : false,
       googleAccounts: num(input.googleAccounts),
+      vercelNearHard: [RESOURCES.vercelCpuS, RESOURCES.vercelInvocations, RESOURCES.vercelMemGbh, RESOURCES.vercelFotMb]
+        .map(get)
+        .some((e) => e !== undefined && e.value >= VERCEL_NEAR_HARD * e.hardLimit),
     },
     profile,
   );
